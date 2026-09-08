@@ -50,6 +50,81 @@ export interface AccountCopy {
     continueToDashboard: string;
     myQrCode: string;
     noSavingsAccount: string;
+
+    // Who the association thinks you are ------------------------------------
+    yourDetails: string;
+    fullName: string;
+    telephone: string;
+    emailAddress: string;
+    notProvided: string;
+
+    // Imigabane — the shareholding -----------------------------------------
+    shareholdingTitle: string;
+    shareholdingHint: string;
+    sharesHeld: string;
+    sharesDaysHint: string;
+    dailyRate: string;
+    perDay: string;
+    paidAhead: string;
+    paidAheadHint: string;
+    behindBy: string;
+    behindByHint: string;
+    finesOwed: string;
+    contributionStatus: string;
+
+    // What has been paid in --------------------------------------------------
+    contributionsTitle: string;
+    totalContributed: string;
+    totalContributedHint: string;
+    totalWithdrawn: string;
+    interestEarned: string;
+    feesCharged: string;
+    accountNumber: string;
+    lockedFunds: string;
+
+    // Borrowing --------------------------------------------------------------
+    borrowingTitle: string;
+    amountBorrowed: string;
+    amountRepaid: string;
+    amountRemaining: string;
+    currentLoan: string;
+    loanCount: string;
+    neverBorrowed: string;
+    acrossAllLoans: string;
+
+    // The warehouse ----------------------------------------------------------
+    warehouseTitle: string;
+    warehouseHint: string;
+    warehouseEmpty: string;
+    goodsTaken: string;
+    goodsStillHeld: string;
+    goodsOwed: string;
+    goodsPaid: string;
+    openIssues: string;
+    returnOverdue: string;
+    dueBack: string;
+    issuedOn: string;
+    itemColumn: string;
+    quantityColumn: string;
+    unitValueColumn: string;
+    valueColumn: string;
+    againstLoan: string;
+    termsPurchase: string;
+    termsLoanOut: string;
+    termsAgainstLoan: string;
+    termsFreeIssue: string;
+
+    // Everything that has moved ---------------------------------------------
+    transactionsTitle: string;
+    transactionsHint: string;
+    transactionsEmpty: string;
+    showingRecent: string;
+    viewFullStatement: string;
+    dateColumn: string;
+    referenceColumn: string;
+    detailColumn: string;
+    amountColumn: string;
+    balanceColumn: string;
   };
   qr: {
     title: string;
@@ -200,6 +275,78 @@ export const account: Record<Locale, AccountCopy> = {
       continueToDashboard: "Go to my dashboard",
       myQrCode: "My QR code",
       noSavingsAccount: "No savings account has been opened yet.",
+
+      yourDetails: "Your details",
+      fullName: "Full name",
+      telephone: "Telephone",
+      emailAddress: "Email",
+      notProvided: "Not provided",
+
+      shareholdingTitle: "Your shares",
+      shareholdingHint:
+        "Your shares grow by one day's saving for every day you have paid for. Money paid in advance is still yours — it becomes shares as those days arrive.",
+      sharesHeld: "Shares held",
+      sharesDaysHint: "{days} days at {rate}",
+      dailyRate: "Daily saving",
+      perDay: "per day",
+      paidAhead: "Paid in advance",
+      paidAheadHint: "{days} days ahead",
+      behindBy: "Behind by",
+      behindByHint: "{days} days not yet paid",
+      finesOwed: "Fines owed",
+      contributionStatus: "Contribution standing",
+
+      contributionsTitle: "What you have paid in",
+      totalContributed: "Total paid in",
+      totalContributedHint: "Everything ever credited to your account",
+      totalWithdrawn: "Total withdrawn",
+      interestEarned: "Interest earned",
+      feesCharged: "Fees charged",
+      accountNumber: "Account number",
+      lockedFunds: "Held against loans",
+
+      borrowingTitle: "Your borrowing",
+      amountBorrowed: "Borrowed",
+      amountRepaid: "Repaid",
+      amountRemaining: "Still owed",
+      currentLoan: "Current loan",
+      loanCount: "{count} loan|{count} loans",
+      neverBorrowed: "You have not taken a loan yet.",
+      acrossAllLoans: "Across all your loans",
+
+      warehouseTitle: "Goods from the warehouse",
+      warehouseHint:
+        "Fabric, machines and tools issued to you by the association, and what is still owed on them.",
+      warehouseEmpty: "You have not taken anything from the warehouse.",
+      goodsTaken: "Value taken",
+      goodsStillHeld: "Still with you",
+      goodsOwed: "Still owed",
+      goodsPaid: "Paid for",
+      openIssues: "{count} open issue|{count} open issues",
+      returnOverdue: "Return overdue",
+      dueBack: "Due back",
+      issuedOn: "Issued",
+      itemColumn: "Item",
+      quantityColumn: "Quantity",
+      unitValueColumn: "Unit price",
+      valueColumn: "Value",
+      againstLoan: "Against loan {reference}",
+      termsPurchase: "Bought",
+      termsLoanOut: "Borrowed",
+      termsAgainstLoan: "Against a loan",
+      termsFreeIssue: "Given",
+
+      transactionsTitle: "Everything on your account",
+      transactionsHint:
+        "Every deposit, withdrawal, loan movement, interest payment and fee, newest first.",
+      transactionsEmpty: "Nothing has moved on your account yet.",
+      showingRecent: "Showing the most recent {shown} of {total}",
+      viewFullStatement: "See the full statement",
+      dateColumn: "Date",
+      referenceColumn: "Reference",
+      detailColumn: "Detail",
+      amountColumn: "Amount",
+      balanceColumn: "Balance",
     },
     qr: {
       title: "My sign-in QR code",
@@ -369,6 +516,78 @@ export const account: Record<Locale, AccountCopy> = {
       continueToDashboard: "Jya ku mbonerahamwe yanjye",
       myQrCode: "Kode yanjye ya QR",
       noSavingsAccount: "Nta konti y'ubwizigame irafungurwa.",
+
+      yourDetails: "Amakuru yawe",
+      fullName: "Amazina",
+      telephone: "Telefone",
+      emailAddress: "Imeyili",
+      notProvided: "Ntibyatanzwe",
+
+      shareholdingTitle: "Imigabane yawe",
+      shareholdingHint:
+        "Imigabane yawe yiyongeraho ubwizigame bw'umunsi umwe kuri buri munsi wishyuriye. Amafaranga wishyuye mbere aracyari ayawe — ahinduka umugabane uko iyo minsi igera.",
+      sharesHeld: "Imigabane ufite",
+      sharesDaysHint: "Iminsi {days} kuri {rate}",
+      dailyRate: "Ubwizigame bwa buri munsi",
+      perDay: "ku munsi",
+      paidAhead: "Wishyuye mbere",
+      paidAheadHint: "Iminsi {days} imbere",
+      behindBy: "Usigaye inyuma",
+      behindByHint: "Iminsi {days} itarishyurwa",
+      finesOwed: "Amande urimo",
+      contributionStatus: "Uko uhagaze mu misanzu",
+
+      contributionsTitle: "Amafaranga yose watanze",
+      totalContributed: "Amafaranga yose watanze",
+      totalContributedHint: "Ibyinjiye byose kuri konti yawe kuva watangira",
+      totalWithdrawn: "Amafaranga wabikuje",
+      interestEarned: "Inyungu wabonye",
+      feesCharged: "Amafaranga ya serivisi",
+      accountNumber: "Nimero ya konti",
+      lockedFunds: "Afatiriwe ku nguzanyo",
+
+      borrowingTitle: "Inguzanyo zawe",
+      amountBorrowed: "Amafaranga y'inguzanyo wafashe",
+      amountRepaid: "Amafaranga umaze kwishyura",
+      amountRemaining: "Amafaranga asigaye",
+      currentLoan: "Inguzanyo ihari",
+      loanCount: "Inguzanyo {count}|Inguzanyo {count}",
+      neverBorrowed: "Nta nguzanyo urafata.",
+      acrossAllLoans: "Ku nguzanyo zawe zose",
+
+      warehouseTitle: "Ibikoresho wafashe muri Warehouse",
+      warehouseHint:
+        "Imyenda, imashini n'ibikoresho ihuriro ryaguhaye, n'ibisigaye kwishyurwa kuri byo.",
+      warehouseEmpty: "Nta kintu warafata muri Warehouse.",
+      goodsTaken: "Agaciro k'ibyo wafashe",
+      goodsStillHeld: "Bikiri iwawe",
+      goodsOwed: "Bisigaye kwishyurwa",
+      goodsPaid: "Byishyuwe",
+      openIssues: "Ifishi {count} ikinguye|Amafishi {count} akinguye",
+      returnOverdue: "Kugarura byatinze",
+      dueBack: "Bigomba kugarurwa",
+      issuedOn: "Byatanzwe",
+      itemColumn: "Ikintu",
+      quantityColumn: "Ingano",
+      unitValueColumn: "Igiciro cy'igice",
+      valueColumn: "Agaciro",
+      againstLoan: "Ku nguzanyo {reference}",
+      termsPurchase: "Byaguzwe",
+      termsLoanOut: "Byatijwe",
+      termsAgainstLoan: "Ku nguzanyo",
+      termsFreeIssue: "Byatanzwe ku buntu",
+
+      transactionsTitle: "Ibikorwa byose kuri konti yawe",
+      transactionsHint:
+        "Buri kubitsa, kubikuza, ibijyanye n'inguzanyo, inyungu n'amafaranga ya serivisi, uhereye ku biheruka.",
+      transactionsEmpty: "Nta kintu kiratangira kugenda kuri konti yawe.",
+      showingRecent: "Hagaragara {shown} biheruka kuri {total}",
+      viewFullStatement: "Reba icyemezo cyuzuye",
+      dateColumn: "Itariki",
+      referenceColumn: "Nimero",
+      detailColumn: "Ibisobanuro",
+      amountColumn: "Amafaranga",
+      balanceColumn: "Asigaye",
     },
     qr: {
       title: "Kode yanjye ya QR yo kwinjira",

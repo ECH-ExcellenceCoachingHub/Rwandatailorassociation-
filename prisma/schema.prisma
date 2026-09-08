@@ -468,6 +468,12 @@ model Association {
   bkTransactions BkTransaction[]
   bkPaymentClaims BkPaymentClaim[]
 
+  /// The store of fabric, machines and tools the association buys in bulk and
+  /// hands to members. See the WAREHOUSE section at the foot of this file.
+  warehouseItems     WarehouseItem[]
+  warehouseMovements WarehouseStockMovement[]
+  warehouseIssuances WarehouseIssuance[]
+
   @@index([status])
   @@map("associations")
 }
@@ -555,6 +561,10 @@ model User {
   recordedBorrowings  InstitutionalLoan[]          @relation("BorrowingRecordedBy")
   recordedRepayments  InstitutionalLoanRepayment[] @relation("BorrowingRepaymentRecordedBy")
   recordedInvestments AssociationInvestment[]      @relation("InvestmentRecordedBy")
+
+  createdWarehouseItems     WarehouseItem[]          @relation("WarehouseItemCreatedBy")
+  recordedStockMovements    WarehouseStockMovement[] @relation("WarehouseMovementRecordedBy")
+  warehouseIssuancesMade    WarehouseIssuance[]      @relation("WarehouseIssuedBy")
 
   createdRules        AssociationRule[]         @relation("RuleCreatedBy")
   updatedRules        AssociationRule[]         @relation("RuleUpdatedBy")
@@ -835,6 +845,9 @@ model Member {
   bkTransactions BkTransaction[]
   bkPaymentClaims BkPaymentClaim[]
 
+  /// Everything this member has taken out of the warehouse.
+  warehouseIssuances WarehouseIssuance[]
+
   @@unique([associationId, memberNumber])
   @@index([associationId, status])
   @@index([associationId, kycStatus])
@@ -981,6 +994,8 @@ model SavingsTransaction {
   platformFeeCharge    PlatformFeeCharge?
   contributionFine     ContributionFine?
   interestDistribution InterestDistribution?
+  /// Set when this debit paid for goods taken out of the warehouse.
+  warehouseIssuance    WarehouseIssuance?
 
   @@unique([savingsAccountId, sequence])
   @@index([associationId, createdAt])
@@ -1441,6 +1456,8 @@ model Loan {
   guarantors            Guarantor[]
   documents             Document[]
   interestDistributions InterestDistribution[]
+  /// Goods issued against this loan, whose value counts toward its collateral.
+  warehouseIssuances    WarehouseIssuance[]
 
   @@index([associationId, status])
   @@index([memberId, status])
@@ -2668,4 +2685,306 @@ model BkSyncLog {
   @@index([status, startedAt])
   @@index([startedAt])
   @@map("bk_sync_logs")
+}
+
+// ============================================================================
+// THE WAREHOUSE
+// ----------------------------------------------------------------------------
+// The association buys fabric, thread, machines and tools in bulk and hands
+// them to members — sometimes sold on credit, sometimes lent out for a season,
+// sometimes pledged against a loan. That is real money leaving the association
+// in a form that is not cash, and before this section existed it left no trace
+// a member could be shown.
+//
+// The design follows the savings ledger deliberately, because the failure mode
+// is identical. Quantities on hand are a CACHE over an append-only movement
+// log: every movement records quantityBefore/quantityAfter and a per-item
+// monotonic `sequence`, so stock can always be rebuilt from history and a
+// disagreement between the count and the log is detectable rather than silent.
+// See rules 2 and 3 at the top of this file.
+//
+// Quantities are Decimal(18,3), not integers: fabric is issued in metres and
+// thread by weight, and rounding 2.5 metres to "3 pieces" would put a value on
+// a member's file that they never received.
+// ============================================================================
+
+/// What a movement did to the stock on hand.
+///
+/// ADJUSTMENT is the only type that may move in either direction, and it is
+/// one of the two that require a written reason — a stock count that silently
+/// corrects itself is how shrinkage disappears.
+enum WarehouseMovementType {
+  /// Bought in, donated, or transferred in. Increases stock.
+  RECEIPT
+  /// Handed to a member. Decreases stock.
+  ISSUE
+  /// Came back from a member. Increases stock.
+  RETURN
+  /// A physical count correcting the book figure. Either direction.
+  ADJUSTMENT
+  /// Damaged, lost, expired or stolen. Decreases stock, and the value is a
+  /// loss the association bears rather than a debt any member owes.
+  WRITE_OFF
+}
+
+/// IN increases quantity on hand, OUT decreases it. Stored explicitly rather
+/// than inferred from `type` so an adjustment can move either way without the
+/// reader having to know which types are which.
+enum WarehouseStockDirection {
+  IN
+  OUT
+}
+
+enum WarehouseItemCategory {
+  FABRIC
+  THREAD_AND_TRIM
+  MACHINE
+  MACHINE_PART
+  TOOL
+  PACKAGING
+  CONSUMABLE
+  FINISHED_GOODS
+  OTHER
+}
+
+/// On what footing a member took the goods. This decides whether they owe
+/// money, owe the goods back, or owe nothing at all — so it is a column and
+/// not a note.
+enum WarehouseIssueTerms {
+  /// Theirs to keep. The value is a debt until settled.
+  PURCHASE
+  /// Lent out and expected back — a machine for a season, a tool for a job.
+  LOAN_OUT
+  /// Issued as part of a loan, and the value counts toward that loan's
+  /// collateral. Settled through the loan, not separately.
+  AGAINST_LOAN
+  /// A grant, a prize, or training material. No charge and no return.
+  FREE_ISSUE
+}
+
+/// Where one issuance stands. PARTIALLY_RETURNED exists because a member who
+/// brings back three of five machines has done something the record must be
+/// able to say, rather than rounding to "returned" or "still out".
+enum WarehouseIssuanceStatus {
+  ISSUED
+  PARTIALLY_RETURNED
+  RETURNED
+  /// The member keeps the goods and the value is owed.
+  CHARGED
+  /// Charged and paid for, in cash or out of savings.
+  SETTLED
+  /// Never coming back and never being paid for. Written off to loss.
+  WRITTEN_OFF
+  /// Recorded in error and withdrawn. Kept, never deleted.
+  CANCELLED
+}
+
+/// ONE STOCK LINE. The catalogue entry, plus the cached position.
+model WarehouseItem {
+  id            String      @id @default(cuid())
+  associationId String
+  association   Association @relation(fields: [associationId], references: [id], onDelete: Restrict)
+
+  /// Stock code as the storekeeper writes it, unique inside the association.
+  sku      String
+  name     String
+  /// The name members actually use for it. Falls back to `name` when unset,
+  /// so a Kinyarwanda screen never shows an English-only label it had a
+  /// translation for.
+  nameRw   String?
+  category WarehouseItemCategory @default(OTHER)
+
+  /// The unit stock is counted in — "metre", "piece", "roll", "kg". Free text
+  /// because a fixed enum cannot anticipate what an association stocks.
+  unit String @default("piece")
+
+  /// What it cost the association, and what a member is charged. Kept apart:
+  /// selling at cost is a policy an association may choose, and it must be
+  /// visible as a choice rather than baked in.
+  unitCost  Decimal @db.Decimal(18, 2)
+  unitPrice Decimal @db.Decimal(18, 2)
+  currency  String  @default("RWF")
+
+  /// CACHED position. Only ever written inside the same DB transaction that
+  /// appends a WarehouseStockMovement, with this row locked FOR UPDATE.
+  /// Must always equal the quantityAfter of the highest-sequence movement.
+  quantityOnHand Decimal @default(0) @db.Decimal(18, 3)
+  /// Out with members right now on returnable terms. Maintained alongside the
+  /// open issuance lines; never a source of truth.
+  quantityIssued Decimal @default(0) @db.Decimal(18, 3)
+
+  /// Below this, the item shows as needing a reorder. Zero disables it.
+  reorderLevel Decimal @default(0) @db.Decimal(18, 3)
+
+  /// Monotonic per-item counter. The next movement takes lastSequence + 1,
+  /// which makes gaps and replays detectable.
+  lastSequence Int @default(0)
+
+  isActive Boolean @default(true)
+  notes    String?
+
+  createdById String?
+  createdBy   User?   @relation("WarehouseItemCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movements     WarehouseStockMovement[]
+  issuanceLines WarehouseIssuanceLine[]
+
+  @@unique([associationId, sku])
+  @@index([associationId, isActive])
+  @@index([associationId, category])
+  @@map("warehouse_items")
+}
+
+/// THE STOCK LEDGER. Append-only: rows are never updated and never deleted.
+/// A mistake is corrected by posting an ADJUSTMENT carrying its reason,
+/// exactly as a savings error is corrected by a reversal.
+model WarehouseStockMovement {
+  id            String        @id @default(cuid())
+  associationId String
+  association   Association   @relation(fields: [associationId], references: [id], onDelete: Restrict)
+  itemId        String
+  item          WarehouseItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  /// Position in this item's ledger. Unique per item — the database itself
+  /// rejects two concurrent writers claiming the same slot.
+  sequence Int
+
+  /// Storekeeper-facing movement id, e.g. "WHM-2609-0001234".
+  reference String @unique
+
+  type      WarehouseMovementType
+  direction WarehouseStockDirection
+
+  /// Always positive. Direction carries the sign.
+  quantity       Decimal @db.Decimal(18, 3)
+  quantityBefore Decimal @db.Decimal(18, 3)
+  quantityAfter  Decimal @db.Decimal(18, 3)
+
+  /// The unit value in force when this moved, and the line total. Stored
+  /// rather than recomputed from the item: prices change, and a movement must
+  /// stay explainable at the value it was recorded at.
+  unitValue  Decimal @db.Decimal(18, 2)
+  totalValue Decimal @db.Decimal(18, 2)
+  currency   String  @default("RWF")
+
+  /// Source linkage — every stock row is traceable back to what caused it.
+  issuanceId     String?
+  issuance       WarehouseIssuance?     @relation(fields: [issuanceId], references: [id], onDelete: SetNull)
+  issuanceLineId String?
+  issuanceLine   WarehouseIssuanceLine? @relation(fields: [issuanceLineId], references: [id], onDelete: SetNull)
+
+  supplierName    String?
+  deliveryNoteRef String?
+  note            String?
+  /// Mandatory for ADJUSTMENT and WRITE_OFF — enforced in the service layer,
+  /// which refuses to post either without one.
+  reason          String?
+
+  /// Null when posted by the system rather than by a person.
+  recordedById String?
+  recordedBy   User?   @relation("WarehouseMovementRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@unique([itemId, sequence])
+  @@index([associationId, occurredAt])
+  @@index([associationId, type, occurredAt])
+  @@index([itemId, occurredAt])
+  @@index([issuanceId])
+  @@map("warehouse_stock_movements")
+}
+
+/// WHAT ONE MEMBER TOOK, on one occasion.
+///
+/// The header carries the terms and the money; the lines carry the goods. A
+/// member's warehouse position on their account page is the sum of these, and
+/// it is the reason this model exists at all.
+model WarehouseIssuance {
+  id            String      @id @default(cuid())
+  associationId String
+  association   Association @relation(fields: [associationId], references: [id], onDelete: Restrict)
+  memberId      String
+  member        Member      @relation(fields: [memberId], references: [id], onDelete: Restrict)
+
+  /// Member-facing issue id, e.g. "WHI-2609-0001234".
+  reference String @unique
+
+  terms  WarehouseIssueTerms     @default(PURCHASE)
+  status WarehouseIssuanceStatus @default(ISSUED)
+
+  /// Set when the goods form part of a loan's collateral, so a member can
+  /// follow the machine on their file back to the loan it secures.
+  loanId String?
+  loan   Loan?   @relation(fields: [loanId], references: [id], onDelete: SetNull)
+
+  /// The value of the goods as issued, the part already paid for, and the
+  /// value handed back. `amountSettled + amountReturned` never exceeds
+  /// `totalValue`; the service checks before writing either.
+  totalValue     Decimal @db.Decimal(18, 2)
+  amountSettled  Decimal @default(0) @db.Decimal(18, 2)
+  amountReturned Decimal @default(0) @db.Decimal(18, 2)
+  currency       String  @default("RWF")
+
+  issuedAt DateTime @default(now())
+  /// When a LOAN_OUT is expected back. Null on terms that expect no return.
+  dueBackAt    DateTime?
+  returnedAt   DateTime?
+  settledAt    DateTime?
+  writtenOffAt DateTime?
+
+  /// The FEE debit that took the value out of the member's savings, when that
+  /// is how it was settled. Unique: one issuance is never collected twice.
+  savingsTransactionId String?             @unique
+  savingsTransaction   SavingsTransaction? @relation(fields: [savingsTransactionId], references: [id], onDelete: SetNull)
+
+  note           String?
+  cancelReason   String?
+  writeOffReason String?
+
+  issuedById String?
+  issuedBy   User?   @relation("WarehouseIssuedBy", fields: [issuedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines     WarehouseIssuanceLine[]
+  movements WarehouseStockMovement[]
+
+  @@index([associationId, status, issuedAt])
+  @@index([memberId, issuedAt])
+  @@index([loanId])
+  @@map("warehouse_issuances")
+}
+
+/// One item on one issuance.
+model WarehouseIssuanceLine {
+  id         String            @id @default(cuid())
+  issuanceId String
+  issuance   WarehouseIssuance @relation(fields: [issuanceId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       WarehouseItem     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  /// Denormalised at issue time so a renamed catalogue entry cannot rewrite
+  /// what a member was told they received.
+  itemName String
+  unit     String
+
+  quantity         Decimal @db.Decimal(18, 3)
+  quantityReturned Decimal @default(0) @db.Decimal(18, 3)
+
+  unitValue Decimal @db.Decimal(18, 2)
+  lineValue Decimal @db.Decimal(18, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movements WarehouseStockMovement[]
+
+  @@index([issuanceId])
+  @@index([itemId])
+  @@map("warehouse_issuance_lines")
 }

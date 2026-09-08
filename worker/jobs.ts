@@ -92,6 +92,10 @@ export async function reconcilePayments(): Promise<JobResult> {
   let skipped = 0;
 
   for (const association of associations) {
+    // An association that has not yet had its collection account configured is
+    // simply not set up for payments — a normal state during onboarding, not a
+    // failure. Logging it as an error every fifteen minutes would bury the
+    // failures that actually need attention.
     if (!association.bankAccountNumber && !env.JENGA_ACCOUNT_NUMBER) {
       skipped++;
       workerLogger.debug(
@@ -107,6 +111,8 @@ export async function reconcilePayments(): Promise<JobResult> {
       unmatched += summary.unmatched;
       failed += summary.errors;
 
+      // An unmatched payment is money sitting in the association's account
+      // belonging to a member who has not been credited. Someone should know.
       if (summary.unmatched > 0) {
         const { notifyAssociationAdmins } = await import("@/lib/notifications");
         await notifyAssociationAdmins(
@@ -192,6 +198,73 @@ export async function syncBkTransactionsJob(): Promise<JobResult> {
     errors,
     processed: fetched,
     succeeded: matched,
+    failed: errors,
+  };
+}
+
+/**
+ * Near-real-time BK poll.
+ *
+ * Deliberately not the same thing as `syncBkTransactionsJob`. This runs every
+ * few seconds and asks only "has anything landed very recently": a short
+ * window, a page or two, no sync-log row unless it finds something. The cron
+ * sync still runs on its own slower schedule and sweeps a long window, which
+ * is what repairs whatever this missed while the worker was restarting.
+ *
+ * Returns a `skipped` result rather than throwing when BK has no credentials,
+ * so an install that does not use BK is not woken up every five seconds to
+ * fail.
+ */
+export async function pollBkTransactionsJob(): Promise<JobResult> {
+  const env = getEnv();
+
+  if (!env.BK_CLIENT_ID || !env.BK_CLIENT_SECRET) {
+    return { skipped: 1, reason: "BK is not configured" };
+  }
+
+  const associations = await prisma.association.findMany({
+    where: { status: "ACTIVE" },
+    select: { id: true, code: true },
+  });
+
+  let fetched = 0;
+  let created = 0;
+  let matched = 0;
+  let errors = 0;
+
+  for (const association of associations) {
+    try {
+      const result = await syncBkTransactions({
+        associationId: association.id,
+        lookbackHours: Math.max(1, Math.ceil(env.BK_POLL_LOOKBACK_MINUTES / 60)),
+        fromDate: new Date(Date.now() - env.BK_POLL_LOOKBACK_MINUTES * 60_000),
+        toDate: new Date(),
+        maxPages: env.BK_POLL_MAX_PAGES,
+        triggeredById: null,
+        persistLog: "when-interesting",
+      });
+
+      fetched += result.transactionsFetched;
+      created += result.transactionsCreated;
+      matched += result.matchedCount;
+      errors += result.errorsCount;
+    } catch (error) {
+      errors++;
+      workerLogger.error(
+        { associationCode: association.code, ...serialiseError(error) },
+        "BK poll failed for association"
+      );
+    }
+  }
+
+  return {
+    associations: associations.length,
+    fetched,
+    created,
+    matched,
+    errors,
+    processed: fetched,
+    succeeded: created,
     failed: errors,
   };
 }
@@ -459,6 +532,8 @@ export function workerConfig() {
     reminderCron: env.LOAN_REMINDER_CRON,
     overdueCron: env.OVERDUE_CHECK_CRON,
     bkSyncCron: env.BK_SYNC_CRON,
+    bkPollEnabled: env.BK_POLL_ENABLED && Boolean(env.BK_CLIENT_ID && env.BK_CLIENT_SECRET),
+    bkPollSeconds: env.BK_POLL_SECONDS,
   };
 }
 

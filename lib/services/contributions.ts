@@ -158,6 +158,11 @@ export interface ContributionStanding {
 
   /// One day of membership, for display beside everything above.
   dailyTotal: string;
+  /// The savings half of that — the part that becomes the member's own share
+  /// rather than the platform's fee. Carried out of the policy because the
+  /// account page builds the shareholding figure from it, and reading the
+  /// rulebook a second time there could disagree with what was used here.
+  dailySavings: string;
 }
 
 /**
@@ -235,6 +240,7 @@ export function computeStanding(input: StandingInputs): ContributionStanding {
     feeDaysOwed: input.isExempt ? 0 : feeDaysOwed,
     feeAmountOwed: toMoneyString(input.isExempt ? 0 : feeAmountOwed),
     dailyTotal: toMoneyString(dailyTotal),
+    dailySavings: toMoneyString(policy.dailySavings),
   };
 }
 

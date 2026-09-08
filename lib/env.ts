@@ -139,6 +139,21 @@ const schema = z
     BK_SYNC_CRON: z.string().default("*/15 * * * *"),
     BK_SYNC_LOOKBACK_HOURS: intFrom(48, 1, 720),
 
+    // Near-real-time poll. Separate from the cron sync above because they do
+    // different jobs: this one asks "has anything landed in the last few
+    // minutes", the cron sync sweeps a long window and repairs whatever the
+    // poll missed while the worker was down.
+    BK_POLL_ENABLED: booleanish.default(true),
+    /// Seconds between polls. Floored at 1s; BK will rate-limit long before
+    /// that is a good idea.
+    BK_POLL_SECONDS: intFrom(5, 1, 3600),
+    /// How far back each poll looks. Only has to cover the gap since the last
+    /// poll, plus BK's own settlement lag.
+    BK_POLL_LOOKBACK_MINUTES: intFrom(15, 1, 1440),
+    /// Pages per poll. A poll is meant to be cheap; deep pagination is the
+    /// cron sync's job.
+    BK_POLL_MAX_PAGES: intFrom(2, 1, 20),
+
     LOG_LEVEL: z
       .enum(["fatal", "error", "warn", "info", "debug", "trace"])
       .default("info"),

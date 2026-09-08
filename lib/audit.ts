@@ -124,6 +124,22 @@ export const AUDIT_ACTIONS = {
   INVESTMENT_UPDATED: "INVESTMENT_UPDATED",
   INVESTMENT_VISIBILITY_CHANGED: "INVESTMENT_VISIBILITY_CHANGED",
 
+  // The warehouse
+  /// Association property moving in a form that is not cash. Stock leaving the
+  /// store on a member's name is the same kind of event as money leaving their
+  /// account, and it is audited to the same standard — including the two verbs
+  /// that can make a shortfall vanish, which is why ADJUSTED and WRITTEN_OFF
+  /// are separate from the movements that merely record trade.
+  WAREHOUSE_ITEM_CREATED: "WAREHOUSE_ITEM_CREATED",
+  WAREHOUSE_ITEM_UPDATED: "WAREHOUSE_ITEM_UPDATED",
+  WAREHOUSE_STOCK_RECEIVED: "WAREHOUSE_STOCK_RECEIVED",
+  WAREHOUSE_STOCK_ADJUSTED: "WAREHOUSE_STOCK_ADJUSTED",
+  WAREHOUSE_STOCK_WRITTEN_OFF: "WAREHOUSE_STOCK_WRITTEN_OFF",
+  WAREHOUSE_ISSUED: "WAREHOUSE_ISSUED",
+  WAREHOUSE_RETURNED: "WAREHOUSE_RETURNED",
+  WAREHOUSE_SETTLED: "WAREHOUSE_SETTLED",
+  WAREHOUSE_ISSUANCE_CANCELLED: "WAREHOUSE_ISSUANCE_CANCELLED",
+
   // The rulebook
   /// A rule the members live under was reworded, retuned or withdrawn. Kept
   /// apart from SETTING_CHANGED, which covers technical configuration nobody
@@ -217,6 +233,12 @@ const REASON_REQUIRED: ReadonlySet<string> = new Set<string>([
   AUDIT_ACTIONS.CONTRIBUTION_FINE_CANCELLED,
   AUDIT_ACTIONS.PLATFORM_FEE_WAIVED,
   AUDIT_ACTIONS.CONTRIBUTION_EXEMPTION_CHANGED,
+  // The three warehouse verbs that can make a shortfall disappear: correcting
+  // a count, writing stock off to loss, and withdrawing an issue from a
+  // member's file. Each is the stock equivalent of a balance adjustment.
+  AUDIT_ACTIONS.WAREHOUSE_STOCK_ADJUSTED,
+  AUDIT_ACTIONS.WAREHOUSE_STOCK_WRITTEN_OFF,
+  AUDIT_ACTIONS.WAREHOUSE_ISSUANCE_CANCELLED,
 ]);
 
 /** Actions serious enough to stand out when scanning the log. */

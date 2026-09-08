@@ -129,6 +129,30 @@ export interface StatusCopy {
   NGO: string;
   COOPERATIVE_UNION: string;
 
+  // Contribution standing — how a member sits against the daily obligation
+  CURRENT: string;
+  AT_RISK: string;
+  BEHIND: string;
+  FINABLE: string;
+  EXEMPT: string;
+
+  // Warehouse — where an issue of goods stands, and on what footing it went out
+  ISSUED: string;
+  PARTIALLY_RETURNED: string;
+  RETURNED: string;
+  CHARGED: string;
+  SETTLED: string;
+  PURCHASE: string;
+  LOAN_OUT: string;
+  AGAINST_LOAN: string;
+  FREE_ISSUE: string;
+
+  // Warehouse stock movements
+  RECEIPT: string;
+  ISSUE: string;
+  RETURN: string;
+  WRITE_OFF: string;
+
   // Roles
   MEMBER: string;
   ADMIN: string;
@@ -231,6 +255,27 @@ export const status: Record<Locale, StatusCopy> = {
     NGO: "NGO",
     COOPERATIVE_UNION: "Cooperative union",
 
+    CURRENT: "Up to date",
+    AT_RISK: "At risk",
+    BEHIND: "Behind",
+    FINABLE: "Fine due",
+    EXEMPT: "Excused",
+
+    ISSUED: "Issued",
+    PARTIALLY_RETURNED: "Partly returned",
+    RETURNED: "Returned",
+    CHARGED: "Charged",
+    SETTLED: "Paid",
+    PURCHASE: "Bought",
+    LOAN_OUT: "Borrowed",
+    AGAINST_LOAN: "Against a loan",
+    FREE_ISSUE: "Given",
+
+    RECEIPT: "Delivery",
+    ISSUE: "Issued out",
+    RETURN: "Returned",
+    WRITE_OFF: "Written off",
+
     MEMBER: "Member",
     ADMIN: "Admin",
     SUPER_ADMIN: "Super admin",
@@ -330,6 +375,27 @@ export const status: Record<Locale, StatusCopy> = {
     GOVERNMENT_PROGRAMME: "Gahunda ya Leta",
     NGO: "Umuryango utari uwa Leta",
     COOPERATIVE_UNION: "Ihuriro ry'amakoperative",
+
+    CURRENT: "Uri ku gihe",
+    AT_RISK: "Uri hafi gucibwa",
+    BEHIND: "Usigaye inyuma",
+    FINABLE: "Hari amande",
+    EXEMPT: "Wasonewe",
+
+    ISSUED: "Byatanzwe",
+    PARTIALLY_RETURNED: "Bimwe byagaruwe",
+    RETURNED: "Byagaruwe",
+    CHARGED: "Byanditsweho umwenda",
+    SETTLED: "Byishyuwe",
+    PURCHASE: "Byaguzwe",
+    LOAN_OUT: "Byatijwe",
+    AGAINST_LOAN: "Ku nguzanyo",
+    FREE_ISSUE: "Byatanzwe ku buntu",
+
+    RECEIPT: "Byakiriwe",
+    ISSUE: "Byasohotse",
+    RETURN: "Byagaruwe",
+    WRITE_OFF: "Byanditswe nk'igihombo",
 
     MEMBER: "Umunyamuryango",
     ADMIN: "Umuyobozi",

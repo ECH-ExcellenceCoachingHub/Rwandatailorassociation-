@@ -385,6 +385,192 @@ describe("syncBkTransactions", () => {
   });
 });
 
+describe("the fast poll's quiet sync log", () => {
+  async function logCount() {
+    return prisma.bkSyncLog.count({ where: { triggeredById: adminUserId } });
+  }
+
+  it("writes no log row when a poll finds nothing", async () => {
+    // A five-second poll that logged every tick would write ~17k rows a day
+    // per association and bury the runs that mattered.
+    vi.spyOn(await import("@/lib/bk"), "fetchBkTransactions").mockResolvedValue({
+      transactions: [],
+      page: { size: 50, number: 0, totalElements: 0, totalPages: 0 },
+      hasMore: false,
+    } as never);
+
+    const before = await logCount();
+
+    await syncBkTransactions({
+      associationId,
+      triggeredById: adminUserId,
+      persistLog: "when-interesting",
+    });
+    await syncBkTransactions({
+      associationId,
+      triggeredById: adminUserId,
+      persistLog: "when-interesting",
+    });
+
+    expect(await logCount()).toBe(before);
+  });
+
+  it("writes a log row when a poll actually ingests something", async () => {
+    const bkId = `${RUN}-POLL-NEW`;
+
+    vi.spyOn(await import("@/lib/bk"), "fetchBkTransactions").mockResolvedValue({
+      transactions: [normalised(bkId, "arrived between polls")],
+      page: { size: 50, number: 0, totalElements: 1, totalPages: 1 },
+      hasMore: false,
+    } as never);
+
+    const before = await logCount();
+
+    const result = await syncBkTransactions({
+      associationId,
+      triggeredById: adminUserId,
+      persistLog: "when-interesting",
+    });
+
+    expect(result.transactionsCreated).toBe(1);
+    expect(await logCount()).toBe(before + 1);
+
+    const log = await prisma.bkSyncLog.findFirst({
+      where: { triggeredById: adminUserId },
+      orderBy: { startedAt: "desc" },
+    });
+    expect(log?.status).toBe("SUCCESS");
+    expect(log?.transactionsCreated).toBe(1);
+    expect(log?.finishedAt).not.toBeNull();
+    // The row is written after the fact, so its duration must still be real.
+    expect(log?.durationMs ?? -1).toBeGreaterThanOrEqual(0);
+  });
+
+  it("always records a failure, however quiet the mode", async () => {
+    vi.spyOn(await import("@/lib/bk"), "fetchBkTransactions").mockRejectedValue(
+      new BkApiError("Client credentials expired", "AUTH_FAILED", false, 401)
+    );
+
+    const before = await logCount();
+
+    await syncBkTransactions({
+      associationId,
+      triggeredById: adminUserId,
+      persistLog: "when-interesting",
+    }).catch(() => undefined);
+
+    expect(await logCount()).toBe(before + 1);
+
+    const log = await prisma.bkSyncLog.findFirst({
+      where: { triggeredById: adminUserId },
+      orderBy: { startedAt: "desc" },
+    });
+    expect(log?.status).toBe("FAILED");
+    expect(log?.errorMessage).toContain("expired");
+  });
+
+  it("records one continuous outage once, not once per tick", async () => {
+    vi.spyOn(await import("@/lib/bk"), "fetchBkTransactions").mockRejectedValue(
+      new BkApiError("Client credentials expired", "AUTH_FAILED", false, 401)
+    );
+
+    // Establish the fault, then keep failing the way a poll would.
+    await syncBkTransactions({
+      associationId,
+      triggeredById: adminUserId,
+      persistLog: "when-interesting",
+    }).catch(() => undefined);
+
+    const after = await logCount();
+
+    for (let i = 0; i < 3; i++) {
+      await syncBkTransactions({
+        associationId,
+        triggeredById: adminUserId,
+        persistLog: "when-interesting",
+      }).catch(() => undefined);
+    }
+
+    expect(await logCount()).toBe(after);
+  });
+
+  it("sees through the clock BK embeds in its error bodies", async () => {
+    // BK stamps its own time into the error body, so the raw message differs
+    // on every call. Suppression has to compare the fault, not the text, or
+    // one outage is recorded as thousands of separate failures.
+    const bk = await import("@/lib/bk");
+    let tick = 0;
+
+    vi.spyOn(bk, "fetchBkTransactions").mockImplementation(async () => {
+      tick++;
+      throw new BkApiError(
+        `BK authentication failed (401): {"status":401,"message":"Client credentials expired","timestamps":"Tue Sep 08 09:${String(tick).padStart(2, "0")}:15 CAT 2026"}`,
+        "AUTH_FAILED",
+        false,
+        401
+      );
+    });
+
+    await syncBkTransactions({
+      associationId,
+      triggeredById: adminUserId,
+      persistLog: "when-interesting",
+    }).catch(() => undefined);
+
+    const after = await logCount();
+
+    for (let i = 0; i < 3; i++) {
+      await syncBkTransactions({
+        associationId,
+        triggeredById: adminUserId,
+        persistLog: "when-interesting",
+      }).catch(() => undefined);
+    }
+
+    expect(await logCount()).toBe(after);
+  });
+
+  it("records a genuinely different fault straight away", async () => {
+    const bk = await import("@/lib/bk");
+
+    vi.spyOn(bk, "fetchBkTransactions").mockRejectedValue(
+      new BkApiError("Client credentials expired", "AUTH_FAILED", false, 401)
+    );
+    await syncBkTransactions({
+      associationId,
+      triggeredById: adminUserId,
+      persistLog: "when-interesting",
+    }).catch(() => undefined);
+
+    const after = await logCount();
+
+    vi.spyOn(bk, "fetchBkTransactions").mockRejectedValue(
+      new BkApiError("BK rate limited", "RATE_LIMITED", true, 429)
+    );
+    await syncBkTransactions({
+      associationId,
+      triggeredById: adminUserId,
+      persistLog: "when-interesting",
+    }).catch(() => undefined);
+
+    expect(await logCount()).toBe(after + 1);
+  });
+
+  it("still logs every run in the default mode", async () => {
+    vi.spyOn(await import("@/lib/bk"), "fetchBkTransactions").mockResolvedValue({
+      transactions: [],
+      page: { size: 50, number: 0, totalElements: 0, totalPages: 0 },
+      hasMore: false,
+    } as never);
+
+    const before = await logCount();
+
+    await syncBkTransactions({ associationId, triggeredById: adminUserId });
+
+    expect(await logCount()).toBe(before + 1);
+  });
+});
+
 describe("getBkTransactionStats", () => {
   it("counts and totals only the requested association", async () => {
     const stats = await getBkTransactionStats(associationId);

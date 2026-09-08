@@ -606,6 +606,122 @@ export interface AdminCopy {
     editTitle: string;
     editIntro: string;
   };
+  warehouse: {
+    title: string;
+    description: string;
+
+    // Tabs
+    stockTab: string;
+    issuesTab: string;
+    movementsTab: string;
+
+    // Overview tiles
+    stockValue: string;
+    stockValueHint: string;
+    itemsHeld: string;
+    withMembers: string;
+    withMembersHint: string;
+    owedByMembers: string;
+    owedByMembersHint: string;
+    needsReorder: string;
+    overdueReturns: string;
+
+    // The catalogue
+    noItemsTitle: string;
+    noItemsBody: string;
+    addItem: string;
+    editItem: string;
+    sku: string;
+    itemName: string;
+    itemNameRw: string;
+    category: string;
+    unit: string;
+    unitHint: string;
+    unitCost: string;
+    unitCostHint: string;
+    unitPrice: string;
+    unitPriceHint: string;
+    onHand: string;
+    issuedOut: string;
+    reorderLevel: string;
+    reorderLevelHint: string;
+    openingQuantity: string;
+    openingQuantityHint: string;
+    notes: string;
+    archived: string;
+    archiveItem: string;
+    restoreItem: string;
+    reorderBadge: string;
+
+    // Movements
+    receiveStock: string;
+    receiveIntro: string;
+    quantity: string;
+    deliveryCost: string;
+    deliveryCostHint: string;
+    supplier: string;
+    deliveryNote: string;
+    movementDate: string;
+    adjustStock: string;
+    adjustIntro: string;
+    countedQuantity: string;
+    countedQuantityHint: string;
+    bookQuantity: string;
+    writeOff: string;
+    writeOffIntro: string;
+    reason: string;
+    reasonHint: string;
+    noMovements: string;
+    movementType: string;
+    movementItem: string;
+    movementWho: string;
+    movementWhen: string;
+    value: string;
+    countMatched: string;
+
+    // Issuing
+    issueGoods: string;
+    issueIntro: string;
+    member: string;
+    memberHint: string;
+    terms: string;
+    termsHint: string;
+    againstLoanLabel: string;
+    againstLoanNone: string;
+    dueBack: string;
+    dueBackHint: string;
+    addLine: string;
+    removeLine: string;
+    chooseItem: string;
+    lineQuantity: string;
+    linePrice: string;
+    linePriceHint: string;
+    issueTotal: string;
+    noIssuesTitle: string;
+    noIssuesBody: string;
+    issueReference: string;
+    issuedTo: string;
+    issuedOn: string;
+    issueValue: string;
+    issueOwed: string;
+    issueSettled: string;
+    recordReturn: string;
+    returnIntro: string;
+    returnQuantity: string;
+    stillOut: string;
+    settle: string;
+    settleIntro: string;
+    settleAmount: string;
+    settleFromSavings: string;
+    settleFromSavingsHint: string;
+    settleCash: string;
+    cancelIssue: string;
+    cancelIntro: string;
+
+    saved: string;
+    saving: string;
+    noPermission: string;
+  };
   settings: {
     title: string;
     descriptionPlain: string;
@@ -704,6 +820,30 @@ export interface AdminCopy {
     statCreated: string;
     statMatched: string;
     statUnmatched: string;
+
+    historyTitle: string;
+    historyDescription: string;
+    historyWindow: string;
+    historyDays7: string;
+    historyDays30: string;
+    historyDays90: string;
+    historyDays365: string;
+    historyButton: string;
+    historyLoading: string;
+    historyWarning: string;
+    coverage: string;
+    coverageRange: string;
+    coverageNone: string;
+
+    transactionsTitle: string;
+    txWhen: string;
+    txPayer: string;
+    txNarration: string;
+    txAmount: string;
+    txMatch: string;
+    txUnmatchedLabel: string;
+    noTransactions: string;
+    showingLatest: string;
   };
 }
 
@@ -1381,6 +1521,127 @@ export const admin: Record<Locale, AdminCopy> = {
       editIntro:
         "Raise the returns figure as it pays for itself, and fill in the benefit once there is something real to say.",
     },
+    warehouse: {
+      title: "Warehouse",
+      description:
+        "The fabric, machines and tools the association buys in bulk, and what members have taken.",
+
+      stockTab: "Stock",
+      issuesTab: "Issued to members",
+      movementsTab: "Movements",
+
+      stockValue: "Stock on hand",
+      stockValueHint: "Valued at what the association paid",
+      itemsHeld: "{count} item|{count} items",
+      withMembers: "Out with members",
+      withMembersHint: "Lent out and not yet returned",
+      owedByMembers: "Owed by members",
+      owedByMembersHint: "Goods taken and not yet paid for",
+      needsReorder: "Needs reordering",
+      overdueReturns: "Overdue returns",
+
+      noItemsTitle: "The store is empty",
+      noItemsBody:
+        "Add what the association stocks — fabric by the metre, thread, machines, tools — and every delivery and issue after that is recorded against it.",
+      addItem: "Add an item",
+      editItem: "Edit item",
+      sku: "Stock code",
+      itemName: "Name",
+      itemNameRw: "Name in Kinyarwanda",
+      category: "Category",
+      unit: "Counted in",
+      unitHint: "metre, piece, roll, kg",
+      unitCost: "Cost price",
+      unitCostHint: "What the association pays for one",
+      unitPrice: "Member price",
+      unitPriceHint: "What a member is charged for one",
+      onHand: "On hand",
+      issuedOut: "With members",
+      reorderLevel: "Reorder at",
+      reorderLevelHint: "Flag the item when the count falls to this. Zero turns it off.",
+      openingQuantity: "Already in the store",
+      openingQuantityHint:
+        "Recorded as a delivery, so the opening figure has a movement behind it.",
+      notes: "Notes",
+      archived: "Archived",
+      archiveItem: "Archive",
+      restoreItem: "Restore",
+      reorderBadge: "Reorder",
+
+      receiveStock: "Record a delivery",
+      receiveIntro: "Stock coming in from a supplier, a donation or a transfer.",
+      quantity: "Quantity",
+      deliveryCost: "Cost per unit on this delivery",
+      deliveryCostHint:
+        "Leave blank to keep the current cost. Filling it in updates the item's standing cost.",
+      supplier: "Supplier",
+      deliveryNote: "Delivery note number",
+      movementDate: "Date",
+      adjustStock: "Correct the count",
+      adjustIntro:
+        "Enter what is actually on the shelf. The difference is posted as an adjustment against your name.",
+      countedQuantity: "Counted quantity",
+      countedQuantityHint: "What the stock take found, not the difference.",
+      bookQuantity: "The book says",
+      writeOff: "Write off",
+      writeOffIntro:
+        "Stock damaged, lost, expired or stolen. The value is a loss the association bears — no member is charged for it.",
+      reason: "Reason",
+      reasonHint: "One sentence someone auditing this in a year could follow.",
+      noMovements: "Nothing has moved in the store yet.",
+      movementType: "Movement",
+      movementItem: "Item",
+      movementWho: "Recorded by",
+      movementWhen: "When",
+      value: "Value",
+      countMatched: "The count already matched. Nothing was changed.",
+
+      issueGoods: "Issue goods",
+      issueIntro: "Hand fabric, machines or tools to a member.",
+      member: "Member",
+      memberHint: "Search by name or membership number",
+      terms: "On what terms",
+      termsHint:
+        "Bought: theirs to keep and the value is owed. Borrowed: expected back. Against a loan: the value counts toward that loan's collateral. Given: no charge.",
+      againstLoanLabel: "Loan",
+      againstLoanNone: "Not against a loan",
+      dueBack: "Due back",
+      dueBackHint: "Something lent out with no date is something nobody will chase.",
+      addLine: "Add another item",
+      removeLine: "Remove",
+      chooseItem: "Choose an item",
+      lineQuantity: "Quantity",
+      linePrice: "Price for this member",
+      linePriceHint: "Leave blank to use the standing member price.",
+      issueTotal: "Total value",
+      noIssuesTitle: "Nothing has been issued yet",
+      noIssuesBody:
+        "When a member takes fabric or a machine, record it here and it appears on their account page.",
+      issueReference: "Reference",
+      issuedTo: "Member",
+      issuedOn: "Issued",
+      issueValue: "Value",
+      issueOwed: "Owed",
+      issueSettled: "Paid",
+      recordReturn: "Record a return",
+      returnIntro: "What has come back. Leave a line at zero if none of it has.",
+      returnQuantity: "Coming back",
+      stillOut: "Still out",
+      settle: "Record payment",
+      settleIntro: "What the member has paid for the goods they took.",
+      settleAmount: "Amount",
+      settleFromSavings: "Take it out of their savings",
+      settleFromSavingsHint:
+        "Posts a debit against their savings account. It will fail rather than push them into a negative balance.",
+      settleCash: "Paid in cash",
+      cancelIssue: "Cancel this issue",
+      cancelIntro:
+        "Withdraws an issue recorded in error and returns every unreturned item to stock. The record survives with your reason on it.",
+
+      saved: "Saved",
+      saving: "Saving…",
+      noPermission: "You do not have permission to change stock.",
+    },
     settings: {
       title: "Association settings",
       descriptionPlain: "Configuration for a single association.",
@@ -1491,6 +1752,33 @@ export const admin: Record<Locale, AdminCopy> = {
       statCreated: "New",
       statMatched: "Matched",
       statUnmatched: "Unmatched",
+
+      historyTitle: "Fetch older transactions",
+      historyDescription:
+        "The routine sync only looks back {hours} hours. Use this to pull further back and see what BK holds.",
+      historyWindow: "How far back",
+      historyDays7: "Last 7 days",
+      historyDays30: "Last 30 days",
+      historyDays90: "Last 90 days",
+      historyDays365: "Last year",
+      historyButton: "Fetch history",
+      historyLoading: "Fetching…",
+      historyWarning:
+        "A long window is many requests to BK and may take a while. Anything already stored is recognised and not duplicated.",
+      coverage: "Held locally",
+      coverageRange: "{oldest} to {newest}",
+      coverageNone: "Nothing stored yet",
+
+      transactionsTitle: "Transactions",
+      txWhen: "Date",
+      txPayer: "Payer",
+      txNarration: "Narration",
+      txAmount: "Amount",
+      txMatch: "Member",
+      txUnmatchedLabel: "Unmatched",
+      noTransactions:
+        "No BK transactions stored yet. Run a sync, or fetch history to pull older ones.",
+      showingLatest: "Showing the {count} most recent.",
     },
   },
 
@@ -2187,6 +2475,128 @@ export const admin: Record<Locale, AdminCopy> = {
       editIntro:
         "Zamura umubare w'inyungu uko ryigaburira, kandi wuzuze inyungu igihe hari icyo kuvuga koko.",
     },
+    warehouse: {
+      title: "Ububiko (Warehouse)",
+      description:
+        "Imyenda, imashini n'ibikoresho ihuriro rigura ku bwinshi, n'ibyo abanyamuryango bafashe.",
+
+      stockTab: "Ibiri mu bubiko",
+      issuesTab: "Ibyahawe abanyamuryango",
+      movementsTab: "Ingendo z'ibintu",
+
+      stockValue: "Agaciro k'ibiri mu bubiko",
+      stockValueHint: "Bishingiye ku giciro ihuriro ryabiguzeho",
+      itemsHeld: "Ikintu {count}|Ibintu {count}",
+      withMembers: "Biri ku banyamuryango",
+      withMembersHint: "Byatijwe bitaragarurwa",
+      owedByMembers: "Umwenda w'abanyamuryango",
+      owedByMembersHint: "Ibyafashwe bitarishyurwa",
+      needsReorder: "Bisaba kongerwa",
+      overdueReturns: "Kugarura byatinze",
+
+      noItemsTitle: "Ububiko burimo ubusa",
+      noItemsBody:
+        "Andika ibyo ihuriro ribika — imyenda ku metero, inyabutatu, imashini, ibikoresho — hanyuma buri kwakira no gutanga bizajya byandikwa kuri byo.",
+      addItem: "Ongeraho ikintu",
+      editItem: "Hindura ikintu",
+      sku: "Kode y'ikintu",
+      itemName: "Izina",
+      itemNameRw: "Izina mu Kinyarwanda",
+      category: "Icyiciro",
+      unit: "Bibarwa muri",
+      unitHint: "metero, igice, uruziga, kg",
+      unitCost: "Igiciro cyo kugura",
+      unitCostHint: "Icyo ihuriro rigura kimwe",
+      unitPrice: "Igiciro cy'umunyamuryango",
+      unitPriceHint: "Icyo umunyamuryango yishyura kuri kimwe",
+      onHand: "Biri aho",
+      issuedOut: "Ku banyamuryango",
+      reorderLevel: "Wongere ku",
+      reorderLevelHint:
+        "Ikintu kizagaragazwa igihe umubare ugabanutseho ukagera hano. Zeru bihagarika iki gikorwa.",
+      openingQuantity: "Bisanzwe mu bubiko",
+      openingQuantityHint:
+        "Byandikwa nk'ibyakiriwe, kugira ngo umubare wa mbere na wo ugire aho uturuka.",
+      notes: "Inyandiko",
+      archived: "Byabitswe",
+      archiveItem: "Bike",
+      restoreItem: "Bigarure",
+      reorderBadge: "Wongere",
+
+      receiveStock: "Andika ibyakiriwe",
+      receiveIntro: "Ibintu byinjiye biva ku mucuruzi, ku mpano cyangwa ku kindi kigo.",
+      quantity: "Ingano",
+      deliveryCost: "Igiciro cya kimwe kuri iyi nzira",
+      deliveryCostHint:
+        "Siga ubusa kugira ngo igiciro gisanzwe gikomeze. Nuwuzuza, igiciro cy'ikintu kizahinduka.",
+      supplier: "Uwabitanze",
+      deliveryNote: "Nimero y'urupapuro rw'ibyatanzwe",
+      movementDate: "Itariki",
+      adjustStock: "Kosora umubare",
+      adjustIntro:
+        "Andika ibiri ku rutare koko. Itandukaniro ryandikwa nk'igikosora ku izina ryawe.",
+      countedQuantity: "Umubare wabaruwe",
+      countedQuantityHint: "Icyo kubara kwabonye, si itandukaniro.",
+      bookQuantity: "Igitabo kivuga",
+      writeOff: "Andika nk'igihombo",
+      writeOffIntro:
+        "Ibintu byangiritse, byazimiye, byarangiye igihe cyangwa byibwe. Agaciro ni igihombo cy'ihuriro — nta munyamuryango ubyishyura.",
+      reason: "Impamvu",
+      reasonHint: "Interuro imwe uwagenzura nyuma y'umwaka yakurikira.",
+      noMovements: "Nta kintu kiragenda mu bubiko.",
+      movementType: "Ubwoko",
+      movementItem: "Ikintu",
+      movementWho: "Byanditswe na",
+      movementWhen: "Ryari",
+      value: "Agaciro",
+      countMatched: "Umubare wari uhuye. Nta cyahindutse.",
+
+      issueGoods: "Tanga ibikoresho",
+      issueIntro: "Ha umunyamuryango imyenda, imashini cyangwa ibikoresho.",
+      member: "Umunyamuryango",
+      memberHint: "Shakisha ku izina cyangwa nimero y'ubunyamuryango",
+      terms: "Ku buhe buryo",
+      termsHint:
+        "Byaguzwe: ni ibye kandi agaciro arakarimo. Byatijwe: bitegerejwe kugarurwa. Ku nguzanyo: agaciro kabarwa mu ngwate y'iyo nguzanyo. Byatanzwe ku buntu: nta kiguzi.",
+      againstLoanLabel: "Inguzanyo",
+      againstLoanNone: "Si ku nguzanyo",
+      dueBack: "Bigomba kugarurwa",
+      dueBackHint: "Ikintu cyatijwe nta tariki nta n'umwe uzagikurikirana.",
+      addLine: "Ongeraho ikindi kintu",
+      removeLine: "Kuraho",
+      chooseItem: "Hitamo ikintu",
+      lineQuantity: "Ingano",
+      linePrice: "Igiciro kuri uyu munyamuryango",
+      linePriceHint: "Siga ubusa hakoreshwe igiciro gisanzwe.",
+      issueTotal: "Agaciro kose",
+      noIssuesTitle: "Nta kintu kirahabwa umuntu",
+      noIssuesBody:
+        "Iyo umunyamuryango afashe imyenda cyangwa imashini, byandike hano maze bigaragare ku ipaji ya konti ye.",
+      issueReference: "Nimero",
+      issuedTo: "Umunyamuryango",
+      issuedOn: "Byatanzwe",
+      issueValue: "Agaciro",
+      issueOwed: "Umwenda",
+      issueSettled: "Byishyuwe",
+      recordReturn: "Andika ibyagaruwe",
+      returnIntro: "Ibyagarutse. Siga umurongo kuri zeru niba nta cyagarutse.",
+      returnQuantity: "Ibiragaruka",
+      stillOut: "Bikiri hanze",
+      settle: "Andika ubwishyu",
+      settleIntro: "Icyo umunyamuryango yishyuye ku bintu yafashe.",
+      settleAmount: "Amafaranga",
+      settleFromSavings: "Bikure mu bwizigame bwe",
+      settleFromSavingsHint:
+        "Bikuramo ku konti y'ubwizigame bwe. Bizanga aho kumusiga mu mwenda.",
+      settleCash: "Yishyuye amafaranga",
+      cancelIssue: "Kuraho iyi fishi",
+      cancelIntro:
+        "Bikuraho ifishi yanditswe mu makosa kandi bigarure mu bubiko ibitaragaruka. Inyandiko isigara ifite impamvu yawe.",
+
+      saved: "Byabitswe",
+      saving: "Birabikwa…",
+      noPermission: "Nta burenganzira ufite bwo guhindura ibiri mu bubiko.",
+    },
     settings: {
       title: "Igenamiterere ry'ihuriro",
       descriptionPlain: "Igenamiterere ry'ihuriro rimwe.",
@@ -2297,6 +2707,33 @@ export const admin: Record<Locale, AdminCopy> = {
       statCreated: "Bishya",
       statMatched: "Byahujwe",
       statUnmatched: "Bitarahuzwa",
+
+      historyTitle: "Gushaka ibikorwa bya kera",
+      historyDescription:
+        "Isuzuma risanzwe rireba amasaha {hours} gusa. Koresha iki kugira ngo urebe kure kurushaho ibyo BK ifite.",
+      historyWindow: "Kugeza ryari",
+      historyDays7: "Iminsi 7 ishize",
+      historyDays30: "Iminsi 30 ishize",
+      historyDays90: "Iminsi 90 ishize",
+      historyDays365: "Umwaka ushize",
+      historyButton: "Shaka ibya kera",
+      historyLoading: "Birimo gushakwa…",
+      historyWarning:
+        "Igihe kirekire gisaba kwandikira BK kenshi kandi bishobora gutwara umwanya. Ibyabitswe bisanzwe birazwi ntibisubirwamo.",
+      coverage: "Ibibitswe hano",
+      coverageRange: "Kuva {oldest} kugeza {newest}",
+      coverageNone: "Nta kintu kirabikwa",
+
+      transactionsTitle: "Ibikorwa",
+      txWhen: "Itariki",
+      txPayer: "Uwishyuye",
+      txNarration: "Ibisobanuro",
+      txAmount: "Umubare",
+      txMatch: "Umunyamuryango",
+      txUnmatchedLabel: "Bitarahuzwa",
+      noTransactions:
+        "Nta bikorwa bya BK birabikwa. Kora isuzuma, cyangwa ushake ibya kera.",
+      showingLatest: "Hagaragazwa {count} bya vuba.",
     },
   },
 };

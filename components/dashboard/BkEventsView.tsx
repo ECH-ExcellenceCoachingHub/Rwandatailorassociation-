@@ -2,13 +2,13 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Clock, Loader2, RefreshCw, Send, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, History, Loader2, RefreshCw, Send, XCircle } from "lucide-react";
 import type { AdminCopy } from "@/lib/i18n/dashboard/admin";
 import type { Locale } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { Input, NativeSelect } from "@/components/ui/input";
 import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { fill } from "@/lib/i18n/fill";
@@ -61,12 +61,46 @@ interface SyncResult {
   unmatchedCount: number;
 }
 
+interface TransactionRow {
+  id: string;
+  bkTransactionId: string;
+  amount: string;
+  currency: string;
+  payerNames: string | null;
+  payerAccount: string | null;
+  narration: string | null;
+  bkStatus: string | null;
+  reconciliationStatus: string;
+  matchStrategy: string;
+  matchConfidence: number;
+  memberName: string | null;
+  transactionDate: string | null;
+  importedAt: string;
+}
+
+/**
+ * History windows, in hours.
+ *
+ * Deliberately a fixed set rather than a free number: each option is a real
+ * number of requests against BK, and "90 days" is a decision someone should
+ * make from a list rather than by typing 2160 into a box.
+ */
+const HISTORY_WINDOWS = [
+  { hours: 24 * 7, labelKey: "historyDays7" },
+  { hours: 24 * 30, labelKey: "historyDays30" },
+  { hours: 24 * 90, labelKey: "historyDays90" },
+  { hours: 24 * 365, labelKey: "historyDays365" },
+] as const;
+
 export function BkEventsView({
   copy,
   locale,
   config,
   claims,
   stats,
+  transactions,
+  coverage,
+  routineLookbackHours,
   canClaim,
   canSync,
 }: {
@@ -80,6 +114,9 @@ export function BkEventsView({
   };
   claims: ClaimRow[];
   stats: { total: number; matched: number; unmatched: number };
+  transactions: TransactionRow[];
+  coverage: { total: number; oldest: string | null; newest: string | null };
+  routineLookbackHours: number;
   canClaim: boolean;
   canSync: boolean;
 }) {
@@ -96,7 +133,10 @@ export function BkEventsView({
   const [notice, setNotice] = useState<string | null>(null);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
 
-  const busy = claiming || syncing || pending;
+  const [historyHours, setHistoryHours] = useState<number>(HISTORY_WINDOWS[1].hours);
+  const [fetchingHistory, setFetchingHistory] = useState(false);
+
+  const busy = claiming || syncing || fetchingHistory || pending;
 
   async function claim() {
     setError(null);
@@ -165,6 +205,43 @@ export function BkEventsView({
       setError(copy.syncFailed);
     } finally {
       setSyncing(false);
+    }
+  }
+
+  async function fetchHistory() {
+    setError(null);
+    setNotice(null);
+    setSyncResult(null);
+    setFetchingHistory(true);
+
+    try {
+      const response = await fetch("/api/admin/bk/sync-transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // More pages than a routine sync: a long window is the whole point,
+        // and stopping after two pages would quietly truncate the history.
+        body: JSON.stringify({ lookbackHours: historyHours, maxPages: 100 }),
+      });
+
+      const body = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setError(body?.error?.message ?? body?.message ?? copy.syncFailed);
+        return;
+      }
+
+      setSyncResult({
+        transactionsFetched: body?.data?.transactionsFetched ?? 0,
+        transactionsCreated: body?.data?.transactionsCreated ?? 0,
+        matchedCount: body?.data?.matchedCount ?? 0,
+        unmatchedCount: body?.data?.unmatchedCount ?? 0,
+      });
+      setNotice(copy.syncSucceeded);
+      startTransition(() => router.refresh());
+    } catch {
+      setError(copy.syncFailed);
+    } finally {
+      setFetchingHistory(false);
     }
   }
 
@@ -325,6 +402,130 @@ export function BkEventsView({
           )}
         </section>
       </div>
+
+      {/* History --------------------------------------------------------- */}
+      <section className="rounded-2xl border border-border bg-surface p-5">
+        <h2 className="text-sm font-semibold text-ink">{copy.historyTitle}</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          {fill(copy.historyDescription, { hours: routineLookbackHours })}
+        </p>
+
+        <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div className="min-w-[12rem]">
+            <label
+              htmlFor="historyWindow"
+              className="mb-1.5 block text-sm font-medium text-ink"
+            >
+              {copy.historyWindow}
+            </label>
+            <NativeSelect
+              id="historyWindow"
+              value={String(historyHours)}
+              disabled={!canSync || busy}
+              onChange={(e) => setHistoryHours(Number(e.target.value))}
+            >
+              {HISTORY_WINDOWS.map((w) => (
+                <option key={w.hours} value={w.hours}>
+                  {copy[w.labelKey]}
+                </option>
+              ))}
+            </NativeSelect>
+          </div>
+
+          <Button variant="outline" onClick={fetchHistory} disabled={!canSync || busy}>
+            {fetchingHistory ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <History className="size-4" aria-hidden="true" />
+            )}
+            {fetchingHistory ? copy.historyLoading : copy.historyButton}
+          </Button>
+
+          <p className="text-sm text-ink-muted">
+            <span className="font-medium text-ink">{copy.coverage}:</span>{" "}
+            {coverage.oldest && coverage.newest
+              ? fill(copy.coverageRange, {
+                  oldest: formatDateTime(new Date(coverage.oldest), locale),
+                  newest: formatDateTime(new Date(coverage.newest), locale),
+                })
+              : copy.coverageNone}
+          </p>
+        </div>
+
+        <p className="mt-3 text-xs text-ink-muted">{copy.historyWarning}</p>
+      </section>
+
+      {/* Transactions ---------------------------------------------------- */}
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-ink">{copy.transactionsTitle}</h2>
+
+        <TableWrapper>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{copy.txWhen}</TableHead>
+                <TableHead>{copy.txPayer}</TableHead>
+                <TableHead>{copy.txNarration}</TableHead>
+                <TableHead className="text-right">{copy.txAmount}</TableHead>
+                <TableHead>{copy.txMatch}</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {transactions.length === 0 && (
+                <TableEmpty colSpan={5}>{copy.noTransactions}</TableEmpty>
+              )}
+
+              {transactions.map((tx) => (
+                <TableRow key={tx.id}>
+                  <TableCell className="whitespace-nowrap text-ink-muted">
+                    {tx.transactionDate
+                      ? formatDateTime(new Date(tx.transactionDate), locale)
+                      : formatDateTime(new Date(tx.importedAt), locale)}
+                  </TableCell>
+                  <TableCell>
+                    {tx.payerNames ?? "—"}
+                    {tx.payerAccount && (
+                      <span className="mt-0.5 block font-mono text-xs text-ink-muted">
+                        {tx.payerAccount}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="max-w-xs truncate" title={tx.narration ?? undefined}>
+                    {tx.narration ?? "—"}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-right tabular-nums">
+                    {tx.amount} {tx.currency}
+                  </TableCell>
+                  <TableCell>
+                    {tx.memberName ? (
+                      <span className="text-sm">
+                        {tx.memberName}
+                        <span className="mt-0.5 block text-xs text-ink-muted">
+                          {tx.matchStrategy} · {tx.matchConfidence}%
+                        </span>
+                      </span>
+                    ) : (
+                      <StatusBadge
+                        status={tx.reconciliationStatus}
+                        tone="warning"
+                        label={copy.txUnmatchedLabel}
+                        size="sm"
+                      />
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableWrapper>
+
+        {transactions.length > 0 && (
+          <p className="mt-2 text-xs text-ink-muted">
+            {fill(copy.showingLatest, { count: transactions.length })}
+            {coverage.total > transactions.length && ` (${coverage.total})`}
+          </p>
+        )}
+      </section>
 
       {/* Claims ---------------------------------------------------------- */}
       <section>

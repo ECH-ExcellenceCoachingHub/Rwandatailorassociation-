@@ -31,6 +31,7 @@ import {
   UserPen,
   Users,
   Wallet,
+  Warehouse,
 } from "lucide-react";
 import { PERMISSIONS, type PermissionCode } from "@/lib/auth/permissions";
 import type { NavLabelKey } from "@/lib/i18n/dashboard";
@@ -334,6 +335,16 @@ const ADMIN_NAV: NavSection[] = [
         permission: PERMISSIONS.INVESTMENTS_VIEW,
         exact: true,
       },
+      // Association property held in a form that is not cash. It sits beside
+      // borrowings and investments rather than under savings because that is
+      // what it is: another place the members' money currently lives.
+      {
+        labelKey: "warehouse",
+        href: "/admin/warehouse",
+        icon: Warehouse,
+        permission: PERMISSIONS.WAREHOUSE_VIEW,
+        exact: true,
+      },
       {
         labelKey: "reports",
         href: "/admin/reports",
@@ -481,6 +492,7 @@ export const BREADCRUMB_LABELS: Record<string, string> = {
   association: "Our association",
   borrowings: "Bank borrowing",
   investments: "Investments",
+  warehouse: "Warehouse",
   deposit: "Make a deposit",
   account: "Account",
   status: "Account status",

@@ -4,7 +4,11 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { getBkConfig } from "@/lib/bk";
 import { listBkPaymentClaims } from "@/lib/services/bk-claims";
-import { getBkTransactionStats } from "@/lib/services/bk-transactions";
+import {
+  getBkTransactionStats,
+  getBkTransactionCoverage,
+  listRecentBkTransactions,
+} from "@/lib/services/bk-transactions";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { Alert } from "@/components/ui/alert";
 import { BkEventsView } from "@/components/dashboard/BkEventsView";
@@ -33,9 +37,11 @@ export default async function AdminBkEventsPage() {
   const canClaim = context.permissions.has(PERMISSIONS.BK_CLAIM);
   const canSync = context.permissions.has(PERMISSIONS.BK_SYNC);
 
-  const [claims, stats] = await Promise.all([
+  const [claims, stats, transactions, coverage] = await Promise.all([
     associationId ? listBkPaymentClaims(associationId) : Promise.resolve([]),
     getBkTransactionStats(associationId),
+    listRecentBkTransactions(associationId),
+    getBkTransactionCoverage(associationId),
   ]);
 
   return (
@@ -62,6 +68,17 @@ export default async function AdminBkEventsPage() {
           createdAt: c.createdAt.toISOString(),
         }))}
         stats={stats}
+        transactions={transactions.map((t) => ({
+          ...t,
+          transactionDate: t.transactionDate?.toISOString() ?? null,
+          importedAt: t.importedAt.toISOString(),
+        }))}
+        coverage={{
+          total: coverage.total,
+          oldest: coverage.oldest?.toISOString() ?? null,
+          newest: coverage.newest?.toISOString() ?? null,
+        }}
+        routineLookbackHours={config.syncLookbackHours}
         canClaim={canClaim}
         canSync={canSync}
       />

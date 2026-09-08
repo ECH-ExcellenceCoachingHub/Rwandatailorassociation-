@@ -34,6 +34,16 @@ export interface SyncOptions {
   /** Overrides the window derived from `lookbackHours`. */
   fromDate?: Date;
   toDate?: Date;
+  /**
+   * Whether this run earns a row in the sync log.
+   *
+   * "always" for anything a human triggered or that runs on a slow cron.
+   * "when-interesting" for the seconds-scale poll, which is overwhelmingly
+   * going to find nothing: at one row per tick a five-second poll would write
+   * about seventeen thousand rows a day per association and bury the runs that
+   * actually did something.
+   */
+  persistLog?: "always" | "when-interesting";
 }
 
 export async function syncBkTransactions(options: SyncOptions = {}): Promise<BkSyncResult> {
@@ -45,17 +55,28 @@ export async function syncBkTransactions(options: SyncOptions = {}): Promise<BkS
   const toDate = options.toDate ?? new Date();
   const fromDate = options.fromDate ?? new Date(Date.now() - lookbackHours * 3_600_000);
 
+  const persistLog = options.persistLog ?? "always";
+  const startedAt = new Date();
+
   // `startedAt` is selected because the duration is measured against it when
   // the run closes. BkSyncLog has no `createdAt` column at all.
-  const syncLog = await prisma.bkSyncLog.create({
-    data: {
-      status: "RUNNING",
-      lookbackHours,
-      pageSize,
-      triggeredById: options.triggeredById,
-    },
-    select: { id: true, startedAt: true },
-  });
+  //
+  // A "when-interesting" run writes nothing up front — there is no RUNNING row
+  // to watch — and inserts a finished row at the end only if it found or broke
+  // something. That trade is right for a poll that ticks every few seconds and
+  // wrong for anything slower, which is why it is not the default.
+  const syncLog =
+    persistLog === "always"
+      ? await prisma.bkSyncLog.create({
+          data: {
+            status: "RUNNING",
+            lookbackHours,
+            pageSize,
+            triggeredById: options.triggeredById,
+          },
+          select: { id: true, startedAt: true },
+        })
+      : null;
 
   // Matching needs the association's code to recognise its payment references.
   const association = options.associationId
@@ -160,49 +181,112 @@ export async function syncBkTransactions(options: SyncOptions = {}): Promise<BkS
     }
 
     // Close the loop: any claim this association raised that BK has now
-    // surfaced as a transaction gets stamped as observed.
-    if (options.associationId) {
+    // surfaced as a transaction gets stamped as observed. Only worth a query
+    // when something new actually arrived, so an idle poll costs nothing.
+    if (options.associationId && result.transactionsCreated > 0) {
       const { markClaimsObserved } = await import("@/lib/services/bk-claims");
       await markClaimsObserved(options.associationId).catch((error) => {
         bkLogger.warn({ ...serialiseError(error) }, "claim observation pass failed");
       });
     }
 
-    await prisma.bkSyncLog.update({
-      where: { id: syncLog.id },
-      data: {
-        status: result.errorsCount > 0 ? "PARTIAL" : "SUCCESS",
-        finishedAt: new Date(),
-        durationMs: Date.now() - syncLog.startedAt.getTime(),
-        transactionsFetched: result.transactionsFetched,
-        transactionsCreated: result.transactionsCreated,
-        transactionsUpdated: result.transactionsUpdated,
-        duplicatesSkipped: result.duplicatesSkipped,
-        matchedCount: result.matchedCount,
-        unmatchedCount: result.unmatchedCount,
-        errorsCount: result.errorsCount,
-        nextPage: result.nextPage,
-        hasMore: result.hasMore,
-      },
-    });
+    const outcome = {
+      status: result.errorsCount > 0 ? ("PARTIAL" as const) : ("SUCCESS" as const),
+      finishedAt: new Date(),
+      durationMs: Date.now() - startedAt.getTime(),
+      transactionsFetched: result.transactionsFetched,
+      transactionsCreated: result.transactionsCreated,
+      transactionsUpdated: result.transactionsUpdated,
+      duplicatesSkipped: result.duplicatesSkipped,
+      matchedCount: result.matchedCount,
+      unmatchedCount: result.unmatchedCount,
+      errorsCount: result.errorsCount,
+      nextPage: result.nextPage,
+      hasMore: result.hasMore,
+    };
 
-    bkLogger.info(result, "BK sync completed");
+    if (syncLog) {
+      await prisma.bkSyncLog.update({ where: { id: syncLog.id }, data: outcome });
+      bkLogger.info(result, "BK sync completed");
+    } else if (interesting(result)) {
+      await prisma.bkSyncLog.create({
+        data: { ...outcome, startedAt, lookbackHours, pageSize, triggeredById: options.triggeredById },
+      });
+      bkLogger.info(result, "BK poll found new activity");
+    }
+
     return result;
   } catch (error) {
-    await prisma.bkSyncLog.update({
-      where: { id: syncLog.id },
-      data: {
-        status: "FAILED",
-        finishedAt: new Date(),
-        durationMs: Date.now() - syncLog.startedAt.getTime(),
-        errorMessage: error instanceof Error ? error.message : String(error),
-        errorDetails: serialiseError(error) as Prisma.InputJsonValue,
-      },
-    });
+    const failure = {
+      status: "FAILED" as const,
+      finishedAt: new Date(),
+      durationMs: Date.now() - startedAt.getTime(),
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorDetails: serialiseError(error) as Prisma.InputJsonValue,
+    };
+
+    // A failure is always interesting — but a poll ticking every few seconds
+    // against a bank that is down would write the same row thousands of times
+    // a day. In quiet mode an unchanged failure is recorded once and then
+    // suppressed until it changes or clears, so the log says "this broke, and
+    // is still broken" without drowning everything else.
+    if (syncLog) {
+      await prisma.bkSyncLog.update({ where: { id: syncLog.id }, data: failure });
+    } else if (await failureIsNew(failure.errorMessage)) {
+      await prisma.bkSyncLog.create({
+        data: { ...failure, startedAt, lookbackHours, pageSize, triggeredById: options.triggeredById },
+      });
+    }
 
     bkLogger.error({ ...serialiseError(error) }, "BK sync failed");
     throw error;
   }
+}
+
+/**
+ * Whether this failure is worth its own row, or is the same outage repeating.
+ *
+ * Suppression is deliberately time-boxed as well as content-based: a fault
+ * that has persisted for ten minutes gets a fresh row, so a long outage leaves
+ * a visible trail rather than a single stale entry from when it started.
+ */
+const FAILURE_REPEAT_WINDOW_MS = 10 * 60_000;
+
+/**
+ * Collapses the varying parts of an error message so two reports of the same
+ * fault compare equal.
+ *
+ * BK echoes its own clock inside the error body it returns, so the raw text of
+ * "credentials expired" differs on every single call. Comparing messages
+ * verbatim therefore treats one continuous outage as thousands of distinct
+ * faults, which is precisely the flood the suppression exists to prevent.
+ */
+function failureFingerprint(message: string): string {
+  return message.replace(/\d+/g, "#").slice(0, 300);
+}
+
+async function failureIsNew(errorMessage: string): Promise<boolean> {
+  const latest = await prisma.bkSyncLog.findFirst({
+    orderBy: { startedAt: "desc" },
+    select: { status: true, errorMessage: true, startedAt: true },
+  });
+
+  if (!latest || latest.status !== "FAILED" || !latest.errorMessage) return true;
+
+  if (failureFingerprint(latest.errorMessage) !== failureFingerprint(errorMessage)) {
+    return true;
+  }
+
+  return Date.now() - latest.startedAt.getTime() > FAILURE_REPEAT_WINDOW_MS;
+}
+
+/** Whether a quiet run did enough to be worth a row in the sync log. */
+function interesting(result: BkSyncResult): boolean {
+  return (
+    result.transactionsCreated > 0 ||
+    result.transactionsUpdated > 0 ||
+    result.errorsCount > 0
+  );
 }
 
 type IngestOutcome = "CREATED" | "UPDATED" | "DUPLICATE";
@@ -939,6 +1023,112 @@ export async function getBkTransactionStats(associationId: string | null) {
     completed,
     totalAmount: totalAmount._sum.amount?.toFixed(2) ?? "0.00",
     matchedAmount: matchedAmount._sum.amount?.toFixed(2) ?? "0.00",
+  };
+}
+
+export interface BkTransactionListItem {
+  id: string;
+  bkTransactionId: string;
+  amount: string;
+  currency: string;
+  payerNames: string | null;
+  payerAccount: string | null;
+  narration: string | null;
+  bkStatus: string | null;
+  reconciliationStatus: string;
+  matchStrategy: string;
+  matchConfidence: number;
+  memberName: string | null;
+  transactionDate: Date | null;
+  importedAt: Date;
+}
+
+/**
+ * The transactions already ingested for an association, newest first.
+ *
+ * Account numbers are masked the way the API route masks them: this list is
+ * read on screen by whoever is testing the integration, and a full payer
+ * account number is not something a diagnostic page needs to display.
+ */
+export async function listRecentBkTransactions(
+  associationId: string | null,
+  limit = 50
+): Promise<BkTransactionListItem[]> {
+  const rows = await prisma.bkTransaction.findMany({
+    where: associationId ? { associationId } : {},
+    // `transactionDate` is null on anything BK gave no timestamp for, and
+    // nulls sort last on a descending order, which would bury exactly the
+    // rows worth looking at. `importedAt` is always set.
+    orderBy: [{ transactionDate: "desc" }, { importedAt: "desc" }],
+    take: limit,
+    select: {
+      id: true,
+      bkTransactionId: true,
+      amount: true,
+      currency: true,
+      payerNames: true,
+      payerAccount: true,
+      narration: true,
+      bkStatus: true,
+      reconciliationStatus: true,
+      matchStrategy: true,
+      matchConfidence: true,
+      transactionDate: true,
+      importedAt: true,
+      matchedMember: {
+        select: { user: { select: { firstName: true, lastName: true } } },
+      },
+    },
+  });
+
+  return rows.map((r) => ({
+    id: r.id,
+    bkTransactionId: r.bkTransactionId,
+    amount: r.amount.toFixed(2),
+    currency: r.currency,
+    payerNames: r.payerNames,
+    payerAccount: maskAccount(r.payerAccount),
+    narration: r.narration,
+    bkStatus: r.bkStatus,
+    reconciliationStatus: r.reconciliationStatus,
+    matchStrategy: r.matchStrategy,
+    matchConfidence: r.matchConfidence,
+    memberName: r.matchedMember
+      ? `${r.matchedMember.user.firstName} ${r.matchedMember.user.lastName}`.trim()
+      : null,
+    transactionDate: r.transactionDate,
+    importedAt: r.importedAt,
+  }));
+}
+
+function maskAccount(account: string | null): string | null {
+  if (!account) return null;
+  if (account.length <= 6) return account;
+  return `${account.slice(0, 4)}***${account.slice(-4)}`;
+}
+
+/** The oldest transaction held for an association, so the UI can say how far back the record goes. */
+export async function getBkTransactionCoverage(associationId: string | null) {
+  const where = associationId ? { associationId } : {};
+
+  const [oldest, newest, total] = await Promise.all([
+    prisma.bkTransaction.findFirst({
+      where,
+      orderBy: { transactionDate: "asc" },
+      select: { transactionDate: true },
+    }),
+    prisma.bkTransaction.findFirst({
+      where,
+      orderBy: { transactionDate: "desc" },
+      select: { transactionDate: true },
+    }),
+    prisma.bkTransaction.count({ where }),
+  ]);
+
+  return {
+    oldest: oldest?.transactionDate ?? null,
+    newest: newest?.transactionDate ?? null,
+    total,
   };
 }
 

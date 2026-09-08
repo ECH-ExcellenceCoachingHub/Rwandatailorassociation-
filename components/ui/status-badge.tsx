@@ -131,6 +131,30 @@ const STATUS_TONES: Record<string, StatusTone> = {
   PLANNED: "pending",
   PAUSED: "warning",
 
+  // Contribution standing. AT_RISK is amber rather than red because the member
+  // still has days in hand; FINABLE is red because the fine lands tonight.
+  CURRENT: "success",
+  AT_RISK: "warning",
+  BEHIND: "warning",
+  FINABLE: "danger",
+  EXEMPT: "neutral",
+
+  // Warehouse. CHARGED is a warning and not a danger: owing for goods is the
+  // normal state of a purchase on credit, not a problem in itself.
+  ISSUED: "info",
+  PARTIALLY_RETURNED: "info",
+  RETURNED: "success",
+  CHARGED: "warning",
+  SETTLED: "success",
+  PURCHASE: "neutral",
+  LOAN_OUT: "info",
+  AGAINST_LOAN: "info",
+  FREE_ISSUE: "neutral",
+
+  RECEIPT: "success",
+  ISSUE: "info",
+  RETURN: "success",
+
   // Roles
   MEMBER: "neutral",
   ADMIN: "info",

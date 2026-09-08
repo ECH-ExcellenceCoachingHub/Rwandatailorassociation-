@@ -1,14 +1,21 @@
 import { type NextRequest } from "next/server";
 import { z } from "zod";
-import { requireApiPermission } from "@/lib/auth/guards";
+import { requireApiPermission, resolveAssociationScope } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { syncBkTransactions } from "@/lib/services/bk-transactions";
 import { apiBadRequest, apiSuccess, withErrorHandling } from "@/lib/api/response";
 import { RATE_LIMITS, checkRateLimit, getClientIp } from "@/lib/api/rate-limit";
 
 const schema = z.object({
-  associationId: z.string().optional(),
-  lookbackHours: z.number().int().positive().max(720).optional(),
+  // `associationId` is deliberately NOT accepted from the caller. Taking it
+  // from the body let any BK_SYNC holder run a sync scoped to somebody else's
+  // association, stamping that association's id onto the transactions it
+  // ingested. The scope comes from the session instead.
+  //
+  // Up to a year, so the history control can reach back past the 30 days the
+  // routine sync covers. A long window is a lot of pages against BK, which is
+  // why it is a deliberate button press rather than a default.
+  lookbackHours: z.number().int().positive().max(8760).optional(),
   pageSize: z.number().int().positive().max(100).optional(),
   maxPages: z.number().int().positive().max(100).optional(),
 });
@@ -37,8 +44,15 @@ export const POST = withErrorHandling(
       return apiBadRequest("Invalid parameters", details);
     }
 
+    const associationId = resolveAssociationScope(context);
+
+    if (!associationId) {
+      return apiBadRequest("Select an association before running a BK sync");
+    }
+
     const result = await syncBkTransactions({
       ...parsed.data,
+      associationId,
       triggeredById: context.user.id,
     });
 

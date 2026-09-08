@@ -89,6 +89,21 @@ export const PERMISSIONS = {
   INVESTMENTS_VIEW: "investments.view",
   INVESTMENTS_MANAGE: "investments.manage",
 
+  // The warehouse ----------------------------------------------------------
+  // Association property held in a form that is not cash. Split four ways
+  // rather than two because the acts differ in what they can cost: seeing the
+  // stock book is routine, handing goods to a member creates a debt on their
+  // file, and correcting the count is how a shortfall gets papered over.
+  WAREHOUSE_VIEW: "warehouse.view",
+  /// The catalogue and incoming stock: adding an item, recording a delivery.
+  WAREHOUSE_MANAGE: "warehouse.manage",
+  /// Handing goods to a member, and taking them back.
+  WAREHOUSE_ISSUE: "warehouse.issue",
+  /// Correcting the count, and writing stock off to loss. Kept apart for the
+  /// same reason as SAVINGS_ADJUST: this is the permission that can make a
+  /// discrepancy disappear.
+  WAREHOUSE_ADJUST: "warehouse.adjust",
+
   // The rulebook and contribution discipline --------------------------------
   // No `_own` counterpart for RULES_VIEW: the rules are open to every member
   // by virtue of membership, not by a grant, and the member-facing page has no
@@ -200,6 +215,11 @@ export const PERMISSION_METADATA: Record<
   [PERMISSIONS.INVESTMENTS_VIEW]: { name: "View investments", category: "Association finances", description: "See everything the association has put money into, including unpublished entries" },
   [PERMISSIONS.INVESTMENTS_MANAGE]: { name: "Manage investments", category: "Association finances", description: "Record what the association invested in, what it returned, and the benefit to members" },
 
+  [PERMISSIONS.WAREHOUSE_VIEW]: { name: "View the warehouse", category: "Warehouse", description: "See what stock the association holds, what it is worth, and what members have taken" },
+  [PERMISSIONS.WAREHOUSE_MANAGE]: { name: "Manage stock", category: "Warehouse", description: "Add items to the catalogue, change their price, and record deliveries coming in" },
+  [PERMISSIONS.WAREHOUSE_ISSUE]: { name: "Issue and receive goods", category: "Warehouse", description: "Hand fabric, machines or tools to a member, and record what comes back" },
+  [PERMISSIONS.WAREHOUSE_ADJUST]: { name: "Correct stock", category: "Warehouse", description: "Adjust the counted quantity after a stock take, or write stock off as lost or damaged — every correction needs a reason" },
+
   [PERMISSIONS.RULES_MANAGE]: { name: "Amend the rulebook", category: "Rules & discipline", description: "Change what members save, what the fine is, who may borrow and on what terms — every change is recorded with a reason" },
   [PERMISSIONS.COMPLIANCE_VIEW]: { name: "View contribution standing", category: "Rules & discipline", description: "See who is up to date on the daily saving, who is behind, and what fines are owed" },
   [PERMISSIONS.COMPLIANCE_ACT]: { name: "Act on arrears", category: "Rules & discipline", description: "Collect a fine from a member's savings, waive one, or excuse a member from contributing" },
@@ -301,6 +321,14 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionCode[]> = {
     PERMISSIONS.BORROWINGS_MANAGE,
     PERMISSIONS.INVESTMENTS_VIEW,
     PERMISSIONS.INVESTMENTS_MANAGE,
+
+    PERMISSIONS.WAREHOUSE_VIEW,
+    PERMISSIONS.WAREHOUSE_MANAGE,
+    PERMISSIONS.WAREHOUSE_ISSUE,
+    // WAREHOUSE_ADJUST is deliberately withheld from the default admin role,
+    // for the same reason as SAVINGS_ADJUST: the person who issues stock
+    // should not also be the person who can quietly correct the count that
+    // would reveal a shortfall. Granted per person.
 
     PERMISSIONS.RULES_MANAGE,
     PERMISSIONS.COMPLIANCE_VIEW,

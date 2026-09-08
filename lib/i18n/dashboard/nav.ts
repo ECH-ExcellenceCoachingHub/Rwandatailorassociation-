@@ -28,6 +28,7 @@ export interface NavCopy {
   ourRules: string;
   borrowings: string;
   investments: string;
+  warehouse: string;
 
   rulesAndDiscipline: string;
   rulebook: string;
@@ -92,6 +93,7 @@ export const nav: Record<Locale, NavCopy> = {
     ourRules: "Our rules",
     borrowings: "Bank borrowing",
     investments: "What our money did",
+    warehouse: "Warehouse",
 
     rulesAndDiscipline: "Rules & discipline",
     rulebook: "Rulebook",
@@ -155,6 +157,7 @@ export const nav: Record<Locale, NavCopy> = {
     ourRules: "Amategeko yacu",
     borrowings: "Inguzanyo za banki",
     investments: "Icyo amafaranga yacu yakoze",
+    warehouse: "Ububiko",
 
     rulesAndDiscipline: "Amategeko n'imyitwarire",
     rulebook: "Igitabo cy'amategeko",
