@@ -42,6 +42,7 @@ export interface NavCopy {
   allPayments: string;
   unmatched: string;
   importStatement: string;
+  bkEvents: string;
   portfolio: string;
   applications: string;
   loanProducts: string;
@@ -105,6 +106,7 @@ export const nav: Record<Locale, NavCopy> = {
     allPayments: "All payments",
     unmatched: "Unmatched",
     importStatement: "Import statement",
+    bkEvents: "BK events",
     portfolio: "Portfolio",
     applications: "Applications",
     loanProducts: "Loan products",
@@ -167,6 +169,7 @@ export const nav: Record<Locale, NavCopy> = {
     allPayments: "Ubwishyu bwose",
     unmatched: "Butarahuzwa",
     importStatement: "Kwinjiza inyandiko ya banki",
+    bkEvents: "Ibikorwa bya BK",
     portfolio: "Inguzanyo zose",
     applications: "Ubusabe",
     loanProducts: "Ubwoko bw'inguzanyo",

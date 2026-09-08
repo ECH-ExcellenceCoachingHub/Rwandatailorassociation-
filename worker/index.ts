@@ -11,6 +11,7 @@ import {
   runContributionDiscipline,
   runJob,
   sendRepaymentReminders,
+  syncBkTransactionsJob,
   verifyLedgerIntegrity,
   workerConfig,
 } from "@/worker/jobs";
@@ -37,6 +38,7 @@ const ONLY = process.argv.find((arg) => arg.startsWith("--job="))?.split("=")[1]
 
 const JOBS = {
   reconcile: { name: "payment-reconciliation", fn: reconcilePayments },
+  bkSync: { name: "bk-transaction-sync", fn: syncBkTransactionsJob },
   overdue: { name: "overdue-loan-detection", fn: detectOverdueLoans },
   reminders: { name: "repayment-reminders", fn: sendRepaymentReminders },
   integrity: { name: "ledger-integrity-check", fn: verifyLedgerIntegrity },
@@ -91,6 +93,11 @@ async function main() {
     void runJob(JOBS.reconcile.name, JOBS.reconcile.fn);
   });
 
+  // BK transactions: sync from Bank of Kigali OpenAPI.
+  cron.schedule(config.bkSyncCron, () => {
+    void runJob(JOBS.bkSync.name, JOBS.bkSync.fn);
+  });
+
   // Arrears, checked in the small hours so a loan becomes overdue on the day
   // it actually is, before anyone looks at a screen.
   cron.schedule(config.overdueCron, () => {
@@ -133,6 +140,7 @@ async function main() {
   workerLogger.info(
     {
       reconciliation: config.reconciliationCron,
+      bkSync: config.bkSyncCron,
       overdue: config.overdueCron,
       reminders: config.reminderCron,
       contributions: "30 1 * * *",

@@ -128,6 +128,17 @@ const schema = z
     LOAN_REMINDER_CRON: z.string().default("0 8 * * *"),
     OVERDUE_CHECK_CRON: z.string().default("0 1 * * *"),
 
+    // Bank of Kigali OpenAPI -----------------------------------------------
+    BK_MODE: z.enum(["sandbox", "live"]).default("sandbox"),
+    BK_API_BASE_URL: z.string().url().default("https://sandbox.bk.rw"),
+    BK_CLIENT_ID: z.string().optional(),
+    BK_CLIENT_SECRET: z.string().optional(),
+    BK_API_USERNAME: z.string().optional(),
+    BK_API_PASSWORD: z.string().optional(),
+    BK_COLLECTION_ACCOUNT: z.string().optional(),
+    BK_SYNC_CRON: z.string().default("*/15 * * * *"),
+    BK_SYNC_LOOKBACK_HOURS: intFrom(48, 1, 720),
+
     LOG_LEVEL: z
       .enum(["fatal", "error", "warn", "info", "debug", "trace"])
       .default("info"),
@@ -164,7 +175,45 @@ const schema = z
   .refine((e) => e.EMAIL_PROVIDER !== "smtp" || Boolean(e.SMTP_HOST), {
     message: "EMAIL_PROVIDER=smtp requires SMTP_HOST",
     path: ["SMTP_HOST"],
-  });
+  })
+  // Only binding once BK is actually in use. BK_MODE defaults to `sandbox`, so
+  // enforcing this unconditionally would stop every production deployment from
+  // booting until it had been given Bank of Kigali credentials — including the
+  // deployments that do not use BK at all.
+  .refine(
+    (e) =>
+      isBuildPhase() ||
+      !(
+        e.NODE_ENV === "production" &&
+        e.BK_MODE === "sandbox" &&
+        Boolean(e.BK_CLIENT_ID || e.BK_CLIENT_SECRET)
+      ),
+    {
+      message:
+        "BK_MODE=sandbox is not permitted in production — sandbox transactions must never be used for real reconciliation. Unset BK_CLIENT_ID/BK_CLIENT_SECRET to disable the integration entirely.",
+      path: ["BK_MODE"],
+    }
+  )
+  .refine(
+    (e) =>
+      e.BK_MODE !== "live" ||
+      Boolean(e.BK_CLIENT_ID && e.BK_CLIENT_SECRET),
+    {
+      message:
+        "BK_MODE=live requires BK_CLIENT_ID and BK_CLIENT_SECRET",
+      path: ["BK_MODE"],
+    }
+  )
+  .refine(
+    (e) =>
+      e.BK_MODE !== "live" ||
+      Boolean(e.BK_COLLECTION_ACCOUNT),
+    {
+      message:
+        "BK_MODE=live requires BK_COLLECTION_ACCOUNT to identify the association's bank account",
+      path: ["BK_COLLECTION_ACCOUNT"],
+    }
+  );
 
 export type ServerEnv = z.infer<typeof schema>;
 

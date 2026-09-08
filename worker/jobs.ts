@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getEnv } from "@/lib/env";
 import { workerLogger, serialiseError } from "@/lib/logger";
 import { runReconciliation, retryFailedPayments } from "@/lib/services/reconciliation";
+import { syncBkTransactions } from "@/lib/services/bk-transactions";
 import { refreshOverdueStatus } from "@/lib/services/loans";
 import { verifyAccountIntegrity } from "@/lib/services/ledger";
 import {
@@ -91,10 +92,6 @@ export async function reconcilePayments(): Promise<JobResult> {
   let skipped = 0;
 
   for (const association of associations) {
-    // An association that has not yet had its collection account configured is
-    // simply not set up for payments — a normal state during onboarding, not a
-    // failure. Logging it as an error every fifteen minutes would bury the
-    // failures that actually need attention.
     if (!association.bankAccountNumber && !env.JENGA_ACCOUNT_NUMBER) {
       skipped++;
       workerLogger.debug(
@@ -110,8 +107,6 @@ export async function reconcilePayments(): Promise<JobResult> {
       unmatched += summary.unmatched;
       failed += summary.errors;
 
-      // An unmatched payment is money sitting in the association's account
-      // belonging to a member who has not been credited. Someone should know.
       if (summary.unmatched > 0) {
         const { notifyAssociationAdmins } = await import("@/lib/notifications");
         await notifyAssociationAdmins(
@@ -133,6 +128,72 @@ export async function reconcilePayments(): Promise<JobResult> {
   const retried = await retryFailedPayments();
 
   return { associations: associations.length, skipped, processed, unmatched, failed, retried };
+}
+
+/** Syncs transactions from Bank of Kigali OpenAPI. */
+export async function syncBkTransactionsJob(): Promise<JobResult> {
+  const env = getEnv();
+
+  const associations = await prisma.association.findMany({
+    where: { status: "ACTIVE" },
+    select: { id: true, code: true },
+  });
+
+  let fetched = 0;
+  let created = 0;
+  let updated = 0;
+  let duplicates = 0;
+  let matched = 0;
+  let unmatched = 0;
+  let errors = 0;
+
+  for (const association of associations) {
+    try {
+      const result = await syncBkTransactions({
+        associationId: association.id,
+        lookbackHours: env.BK_SYNC_LOOKBACK_HOURS,
+        triggeredById: null,
+      });
+
+      fetched += result.transactionsFetched;
+      created += result.transactionsCreated;
+      updated += result.transactionsUpdated;
+      duplicates += result.duplicatesSkipped;
+      matched += result.matchedCount;
+      unmatched += result.unmatchedCount;
+      errors += result.errorsCount;
+
+      if (result.unmatchedCount > 0) {
+        const { notifyAssociationAdmins } = await import("@/lib/notifications");
+        await notifyAssociationAdmins(
+          association.id,
+          NOTIFICATION_EVENTS.PAYMENT_UNMATCHED,
+          { reason: `${result.unmatchedCount} BK transaction(s) need manual matching` },
+          { entityType: "BkTransaction" }
+        );
+      }
+    } catch (error) {
+      errors++;
+      workerLogger.error(
+        { associationCode: association.code, ...serialiseError(error) },
+        "BK sync failed for association"
+      );
+    }
+  }
+
+  return {
+    associations: associations.length,
+    fetched,
+    created,
+    updated,
+    duplicates,
+    matched,
+    unmatched,
+    errors,
+    processed: fetched,
+    succeeded: matched,
+    failed: errors,
+  };
 }
 
 /** Marks overdue instalments and notifies the members affected. */
@@ -397,6 +458,7 @@ export function workerConfig() {
     reconciliationCron: env.RECONCILIATION_CRON,
     reminderCron: env.LOAN_REMINDER_CRON,
     overdueCron: env.OVERDUE_CHECK_CRON,
+    bkSyncCron: env.BK_SYNC_CRON,
   };
 }
 

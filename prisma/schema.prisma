@@ -465,6 +465,9 @@ model Association {
   platformFeeCharges    PlatformFeeCharge[]
   interestDistributions InterestDistribution[]
 
+  bkTransactions BkTransaction[]
+  bkPaymentClaims BkPaymentClaim[]
+
   @@index([status])
   @@map("associations")
 }
@@ -559,6 +562,12 @@ model User {
   assessedFines       ContributionFine[]        @relation("FineAssessedBy")
   waivedFines         ContributionFine[]        @relation("FineWaivedBy")
   chargedPlatformFees PlatformFeeCharge[]       @relation("PlatformFeeChargedBy")
+
+  // BK transaction matching
+  matchedBkTransactions BkTransaction[]        @relation("BkTransactionMatchedBy")
+  bkReconciliations   BkTransactionReconciliation[] @relation("BkReconciliationPerformedBy")
+  bkSyncLogs           BkSyncLog[]            @relation("BkSyncTriggeredBy")
+  bkPaymentClaims      BkPaymentClaim[]       @relation("BkClaimCreatedBy")
 
   @@unique([email])
   @@unique([phone])
@@ -822,6 +831,9 @@ model Member {
   contributionStanding  MemberContributionStanding?
   platformFeeCharges    PlatformFeeCharge[]
   interestDistributions InterestDistribution[]
+
+  bkTransactions BkTransaction[]
+  bkPaymentClaims BkPaymentClaim[]
 
   @@unique([associationId, memberNumber])
   @@index([associationId, status])
@@ -1148,6 +1160,8 @@ model Payment {
 
   savingsTransaction SavingsTransaction?
   reconciliations    PaymentReconciliation[]
+
+  bkTransaction BkTransaction?
 
   @@unique([provider, externalTransactionId])
   @@unique([provider, transactionReference])
@@ -2385,4 +2399,273 @@ model InterestDistribution {
   @@index([memberId, createdAt])
   @@index([loanId, createdAt])
   @@map("interest_distributions")
+}
+
+// ============================================================================
+// BANK OF KIGALI OPENAPI INTEGRATION
+// ============================================================================
+
+/// Lifecycle of a BK transaction reconciliation status.
+enum BkReconciliationStatus {
+  UNMATCHED
+  MATCHED
+  MANUALLY_MATCHED
+  DUPLICATE
+  PENDING
+  FAILED
+  COMPLETED
+  REJECTED
+}
+
+/// How a BK transaction was matched to a member.
+enum BkMatchStrategy {
+  MEMBER_PAYMENT_REFERENCE
+  EXTERNAL_REFERENCE
+  PAYMENT_CODE
+  PHONE_NUMBER
+  BANK_ACCOUNT
+  PAYER_NAME
+  MANUAL
+  NONE
+}
+
+/// A transaction record retrieved from the Bank of Kigali OpenAPI.
+///
+/// Captured verbatim BEFORE any interpretation, mirroring the discipline
+/// applied to the Jenga Payment model. BK transactions are reconciled
+/// separately from Jenga payments because they come through a different
+/// channel and carry different identifying information.
+model BkTransaction {
+  id  String @id @default(cuid())
+  /// Nullable: a transaction not yet associated with an association.
+  associationId String?
+  association   Association? @relation(fields: [associationId], references: [id], onDelete: Restrict)
+
+  /// Primary duplicate guard: the BK extras.id field
+  bkTransactionId String  @unique(map: "bk_transactions_bk_transaction_id_key")
+  /// BK clientReference, if present
+  bkClientReference String?
+  /// BK transactionReference
+  bkTransactionReference String?
+  /// BK extras.paymentCode
+  bkPaymentCode String?
+  /// BK extras.clientReference
+  bkExtrasClientReference String?
+
+  /// Amount received
+  amount Decimal @db.Decimal(18, 2)
+  currency String  @default("RWF")
+
+  /// BK transaction status (e.g., PENDING, SUCCESS)
+  bkStatus String?
+  /// BK extras.status
+  bkExtrasStatus String?
+
+  /// Payer information from BK extras
+  payerNames  String?
+  payerAccount String?
+  payerContact String?
+
+  /// Payee information
+  payeeNames  String?
+  payeeAccount String?
+  beneficiaryNames  String?
+  beneficiaryBank  String?
+  beneficiaryBankCode String?
+
+  /// Transaction details
+  narration     String?
+  serviceCode   String?
+  transferType  String?
+  sourceChannel String?
+
+  /// BK transaction stage and status comment
+  transactionStage       String?
+  transactionStatus      String?
+  transactionStatusComment String?
+
+  /// Digital profile ID
+  digitalProfileId String?
+
+  /// Debited/credited accounts (masked in BK response)
+  debitedAccount         String?
+  debitedAccountOwnerNames String?
+  creditedAccount         String?
+  creditedAccountOwnerNames String?
+  debitCurrency String?
+  creditCurrency String?
+
+  /// Debit account from BK
+  debitAccount  String?
+  creditAccount String?
+
+  /// Timestamps from BK
+  transactionDate DateTime?
+  createdDate    DateTime?
+  updatedDate    DateTime?
+
+  /// Raw BK response stored for audit/debugging
+  rawPayload Json?
+
+  /// Reconciliation status
+  reconciliationStatus BkReconciliationStatus @default(UNMATCHED)
+
+  /// Matched member
+  matchedMemberId String?
+  matchedMember   Member? @relation(fields: [matchedMemberId], references: [id], onDelete: SetNull)
+
+  /// How the transaction was matched
+  matchStrategy BkMatchStrategy @default(NONE)
+  /// 0-100 confidence score
+  matchConfidence Int @default(0)
+
+  /// Manual match details
+  matchedById String?
+  matchedBy   User?  @relation("BkTransactionMatchedBy", fields: [matchedById], references: [id], onDelete: SetNull)
+  matchedAt   DateTime?
+  matchReason String?
+
+  /// RTA Payment link (when reconciled to the ledger)
+  paymentId         String? @unique
+  payment           Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  /// Import tracking
+  importedAt   DateTime @default(now())
+  lastSyncedAt DateTime @default(now())
+
+  /// Error information if sync failed
+  syncError     String?
+  syncErrorCode String?
+
+  /// Reversal tracking
+  isReversal Boolean @default(false)
+  reversedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reconciliations BkTransactionReconciliation[]
+
+  @@index([associationId, reconciliationStatus])
+  @@index([reconciliationStatus, transactionDate])
+  @@index([matchedMemberId])
+  @@index([payerContact])
+  @@index([bkPaymentCode])
+  @@index([bkClientReference])
+  @@index([lastSyncedAt])
+  @@index([importedAt])
+  @@map("bk_transactions")
+}
+
+/// Reconciliation audit trail for BK transactions.
+model BkTransactionReconciliation {
+  id            String  @id @default(cuid())
+  bkTransactionId String
+  bkTransaction BkTransaction @relation(fields: [bkTransactionId], references: [id], onDelete: Cascade)
+
+  attempt    Int   @default(1)
+  outcome    BkReconciliationStatus
+  strategy   BkMatchStrategy @default(NONE)
+  confidence Int   @default(0)
+
+  /// Candidate members considered for matching
+  candidateIds     String[]
+  resolvedMemberId String?
+
+  notes        String?
+  errorMessage String?
+
+  performedById String?
+  performedBy   User?   @relation("BkReconciliationPerformedBy", fields: [performedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([bkTransactionId, attempt])
+  @@map("bk_transaction_reconciliations")
+}
+
+/// A payment claim this system registered with BK.
+///
+/// Claiming is the half of the loop RTA initiates: it declares an intent to
+/// collect, and BK answers CLAIMED. The transaction sync is the other half.
+/// Holding the claim lets the association answer the only question that
+/// matters when testing the integration — did the money we asked for actually
+/// come back through getTransactions, and how long did it take?
+model BkPaymentClaim {
+  id            String      @id @default(cuid())
+  associationId String
+  association   Association @relation(fields: [associationId], references: [id], onDelete: Cascade)
+
+  /// Our own reference, sent to BK and echoed back on the transaction.
+  clientReference String @unique
+  /// The payer's six-digit code from Internet Banking or the BK app.
+  payerCode String
+  narration String
+  amount    Decimal @db.Decimal(18, 2)
+  currency  String  @default("RWF")
+
+  /// Which member this claim was raised for, when known.
+  memberId String?
+  member   Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  /// BK's answer: CLAIMED, or an error we recorded instead.
+  status      String
+  expiryTime  DateTime?
+  failed      Boolean   @default(false)
+  errorMessage String?
+  rawResponse Json?
+
+  /// Set when the transaction sync first returns a transaction carrying this
+  /// clientReference. Null means BK has not surfaced it yet.
+  observedAt         DateTime?
+  observedTransactionId String?
+
+  createdById String?
+  createdBy   User?   @relation("BkClaimCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([associationId, createdAt])
+  @@index([associationId, observedAt])
+  @@index([payerCode])
+  @@map("bk_payment_claims")
+}
+
+/// Sync history for BK transactions.
+model BkSyncLog {
+  id         String    @id @default(cuid())
+  status     JobStatus @default(RUNNING)
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  durationMs Int?
+
+  /// Sync configuration
+  lookbackHours Int?
+  pageSize     Int?
+  startPage    Int?
+  endPage     Int?
+
+  /// Results
+  transactionsFetched Int @default(0)
+  transactionsCreated Int @default(0)
+  transactionsUpdated Int @default(0)
+  duplicatesSkipped  Int @default(0)
+  matchedCount       Int @default(0)
+  unmatchedCount     Int @default(0)
+  errorsCount        Int @default(0)
+
+  /// Pagination cursor
+  nextPage   Int?
+  hasMore    Boolean @default(false)
+
+  errorMessage String?
+  errorDetails Json?
+
+  triggeredById String?
+  triggeredBy  User?  @relation("BkSyncTriggeredBy", fields: [triggeredById], references: [id], onDelete: SetNull)
+
+  @@index([status, startedAt])
+  @@index([startedAt])
+  @@map("bk_sync_logs")
 }

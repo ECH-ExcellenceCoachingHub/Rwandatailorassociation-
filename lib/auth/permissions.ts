@@ -60,6 +60,13 @@ export const PERMISSIONS = {
   PAYMENTS_RETRY: "payments.retry",
   PAYMENTS_FLAG: "payments.flag",
 
+  // BK Transactions --------------------------------------------------------
+  BK_VIEW: "bk.view",
+  BK_SYNC: "bk.sync",
+  BK_MATCH_MANUAL: "bk.match_manual",
+  BK_CLAIM: "bk.claim",
+  BK_CONFIGURE: "bk.configure",
+
   // Reports ----------------------------------------------------------------
   REPORTS_VIEW_OWN: "reports.view_own",
   REPORTS_VIEW_ASSOCIATION: "reports.view_association",
@@ -173,6 +180,12 @@ export const PERMISSION_METADATA: Record<
   [PERMISSIONS.PAYMENTS_RETRY]: { name: "Retry payments", category: "Payments", description: "Re-attempt processing of a failed payment" },
   [PERMISSIONS.PAYMENTS_FLAG]: { name: "Flag payments", category: "Payments", description: "Mark a payment as suspicious" },
 
+  [PERMISSIONS.BK_VIEW]: { name: "View BK transactions", category: "BK Integration", description: "View Bank of Kigali transactions" },
+  [PERMISSIONS.BK_SYNC]: { name: "Sync BK transactions", category: "BK Integration", description: "Trigger BK transaction synchronization" },
+  [PERMISSIONS.BK_MATCH_MANUAL]: { name: "Match BK transactions", category: "BK Integration", description: "Manually match BK transactions to members" },
+  [PERMISSIONS.BK_CLAIM]: { name: "Claim BK payments", category: "BK Integration", description: "Register a payment claim with Bank of Kigali" },
+  [PERMISSIONS.BK_CONFIGURE]: { name: "Configure BK integration", category: "BK Integration", description: "Configure BK API settings and credentials" },
+
   [PERMISSIONS.REPORTS_VIEW_OWN]: { name: "View own statements", category: "Reports", description: "Download your own statements" },
   [PERMISSIONS.REPORTS_VIEW_ASSOCIATION]: { name: "Association reports", category: "Reports", description: "View association-wide reports" },
   [PERMISSIONS.REPORTS_VIEW_PLATFORM]: { name: "Platform reports", category: "Reports", description: "View reports across all associations" },
@@ -271,6 +284,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionCode[]> = {
     PERMISSIONS.PAYMENTS_MATCH_MANUAL,
     PERMISSIONS.PAYMENTS_RETRY,
     PERMISSIONS.PAYMENTS_FLAG,
+
+    PERMISSIONS.BK_VIEW,
+    PERMISSIONS.BK_SYNC,
+    PERMISSIONS.BK_MATCH_MANUAL,
+    PERMISSIONS.BK_CLAIM,
 
     PERMISSIONS.REPORTS_VIEW_ASSOCIATION,
     PERMISSIONS.REPORTS_EXPORT,

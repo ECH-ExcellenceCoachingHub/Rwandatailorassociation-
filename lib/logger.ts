@@ -67,6 +67,7 @@ export const authLogger = logger.child({ component: "auth" });
 export const ledgerLogger = logger.child({ component: "ledger" });
 export const paymentLogger = logger.child({ component: "payment" });
 export const jengaLogger = logger.child({ component: "jenga" });
+export const bkLogger = logger.child({ component: "bk" });
 export const loanLogger = logger.child({ component: "loan" });
 export const notificationLogger = logger.child({ component: "notification" });
 export const workerLogger = logger.child({ component: "worker" });

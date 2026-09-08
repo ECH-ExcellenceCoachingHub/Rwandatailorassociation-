@@ -255,6 +255,12 @@ const ADMIN_NAV: NavSection[] = [
         icon: FileUp,
         permission: PERMISSIONS.PAYMENTS_RECONCILE,
       },
+      {
+        labelKey: "bkEvents",
+        href: "/admin/bk",
+        icon: Landmark,
+        permission: PERMISSIONS.BK_VIEW,
+      },
     ],
   },
   {

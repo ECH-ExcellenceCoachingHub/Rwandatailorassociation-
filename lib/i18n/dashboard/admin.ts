@@ -652,6 +652,59 @@ export interface AdminCopy {
     noStoredSettings: string;
     readOnlyNote: string;
   };
+
+  bk: {
+    title: string;
+    description: string;
+    connectionTitle: string;
+    mode: string;
+    baseUrl: string;
+    collectionAccount: string;
+    credentials: string;
+    configured: string;
+    notConfigured: string;
+    notSet: string;
+
+    howTitle: string;
+    howStep1: string;
+    howStep2: string;
+    howStep3: string;
+
+    claimTitle: string;
+    claimDescription: string;
+    payerCode: string;
+    payerCodeHint: string;
+    narration: string;
+    amount: string;
+    forMember: string;
+    noMember: string;
+    claimButton: string;
+    claiming: string;
+    claimFailed: string;
+    claimSucceeded: string;
+
+    syncTitle: string;
+    syncDescription: string;
+    syncButton: string;
+    syncing: string;
+    syncFailed: string;
+    syncSucceeded: string;
+
+    claimsTitle: string;
+    reference: string;
+    status: string;
+    raised: string;
+    observed: string;
+    notYetSeen: string;
+    seenAfter: string;
+    noClaims: string;
+    noPermission: string;
+
+    statFetched: string;
+    statCreated: string;
+    statMatched: string;
+    statUnmatched: string;
+  };
 }
 
 export const admin: Record<Locale, AdminCopy> = {
@@ -1378,6 +1431,66 @@ export const admin: Record<Locale, AdminCopy> = {
         "This association has no stored settings; platform defaults apply to everything.",
       readOnlyNote:
         "This screen is read-only. Changing a financial rule alters how every future deposit, withdrawal and loan is calculated, so edits are made through a migration or by a platform administrator, and every change is recorded in the audit log.",
+    },
+
+    bk: {
+      title: "Bank of Kigali events",
+      description:
+        "Raise a payment claim with BK, then run the sync and watch whether the transaction comes back.",
+      connectionTitle: "Connection",
+      mode: "Mode",
+      baseUrl: "API address",
+      collectionAccount: "Collection account",
+      credentials: "Credentials",
+      configured: "Configured",
+      notConfigured: "Not configured",
+      notSet: "Not set",
+
+      howTitle: "How this test works",
+      howStep1:
+        "Claim a payment. RTA generates a client reference and registers the claim with BK, which answers CLAIMED.",
+      howStep2:
+        "Run the transaction sync. It reads BK's transaction list and stores whatever it finds.",
+      howStep3:
+        "If a transaction carrying the same client reference comes back, the claim is marked Seen. Until then it stays Waiting.",
+
+      claimTitle: "Claim a payment",
+      claimDescription:
+        "The payer generates a six-digit code in Internet Banking or the BK app and reads it to you.",
+      payerCode: "Payer code",
+      payerCodeHint: "Six digits",
+      narration: "Narration",
+      amount: "Amount",
+      forMember: "For member",
+      noMember: "Not linked to a member",
+      claimButton: "Claim payment",
+      claiming: "Claiming…",
+      claimFailed: "The claim failed",
+      claimSucceeded: "Payment claimed",
+
+      syncTitle: "Transaction sync",
+      syncDescription:
+        "Reads BK's transaction list for the configured lookback window and ingests anything new.",
+      syncButton: "Run sync now",
+      syncing: "Syncing…",
+      syncFailed: "The sync failed",
+      syncSucceeded: "Sync finished",
+
+      claimsTitle: "Claims raised",
+      reference: "Reference",
+      status: "Status",
+      raised: "Raised",
+      observed: "Seen by sync",
+      notYetSeen: "Waiting",
+      seenAfter: "Seen after {duration}",
+      noClaims: "No payment claims have been raised yet.",
+      noPermission:
+        "You can view BK events but not raise claims or run a sync. Ask a platform administrator for the BK permissions.",
+
+      statFetched: "Fetched",
+      statCreated: "New",
+      statMatched: "Matched",
+      statUnmatched: "Unmatched",
     },
   },
 
@@ -2124,6 +2237,66 @@ export const admin: Record<Locale, AdminCopy> = {
         "Iri huriro nta genamiterere ryabitswe rifite; amabwiriza asanzwe y'urubuga akurikizwa kuri byose.",
       readOnlyNote:
         "Uru rupapuro ni urwo kureba gusa. Guhindura ibwiriza ry'imari bihindura uko buri bwitso, ubwikuze n'inguzanyo bizabarwa, bityo impinduka zikorwa n'umuyobozi w'urubuga, kandi buri mpinduka yandikwa mu gitabo cy'ibyakozwe.",
+    },
+
+    bk: {
+      title: "Ibikorwa bya Bank of Kigali",
+      description:
+        "Saba ubwishyu kuri BK, hanyuma ukore isuzuma urebe niba ubwo bwishyu bugaruka.",
+      connectionTitle: "Ihuza",
+      mode: "Uburyo",
+      baseUrl: "Aderesi ya API",
+      collectionAccount: "Konti yakira amafaranga",
+      credentials: "Impushya",
+      configured: "Byashyizweho",
+      notConfigured: "Ntibyashyizweho",
+      notSet: "Ntibyuzuzwa",
+
+      howTitle: "Uko iri suzuma rikora",
+      howStep1:
+        "Saba ubwishyu. RTA itanga nomero yihariye maze ikayandikisha kuri BK, na yo igasubiza CLAIMED.",
+      howStep2:
+        "Kora isuzuma ry'ibikorwa. Risoma urutonde rw'ibikorwa bya BK maze rikabika ibyo rusanze.",
+      howStep3:
+        "Niba habonetse igikorwa gifite iyo nomero, icyasabwe kigaragara nka Cyabonetse. Kitaraboneka kiguma ku Gitegereje.",
+
+      claimTitle: "Saba ubwishyu",
+      claimDescription:
+        "Uwishyura yikorera kode y'imibare itandatu muri Internet Banking cyangwa porogaramu ya BK akakubwira.",
+      payerCode: "Kode y'uwishyura",
+      payerCodeHint: "Imibare itandatu",
+      narration: "Ibisobanuro",
+      amount: "Umubare w'amafaranga",
+      forMember: "Ku munyamuryango",
+      noMember: "Ntabwo bifitanye isano n'umunyamuryango",
+      claimButton: "Saba ubwishyu",
+      claiming: "Birimo gusabwa…",
+      claimFailed: "Gusaba byanze",
+      claimSucceeded: "Ubwishyu bwasabwe",
+
+      syncTitle: "Isuzuma ry'ibikorwa",
+      syncDescription:
+        "Risoma urutonde rw'ibikorwa bya BK mu gihe cyagenwe maze rikinjiza ibishya.",
+      syncButton: "Kora isuzuma nonaha",
+      syncing: "Birimo gusuzumwa…",
+      syncFailed: "Isuzuma ryanze",
+      syncSucceeded: "Isuzuma ryarangiye",
+
+      claimsTitle: "Ibyasabwe",
+      reference: "Nomero",
+      status: "Imimerere",
+      raised: "Byasabwe",
+      observed: "Byabonetse mu isuzuma",
+      notYetSeen: "Gitegereje",
+      seenAfter: "Byabonetse nyuma ya {duration}",
+      noClaims: "Nta bwishyu buracyasabwa.",
+      noPermission:
+        "Ushobora kureba ibikorwa bya BK ariko ntushobora gusaba ubwishyu cyangwa gukora isuzuma. Saba umuyobozi w'urubuga uburenganzira bwa BK.",
+
+      statFetched: "Byasomwe",
+      statCreated: "Bishya",
+      statMatched: "Byahujwe",
+      statUnmatched: "Bitarahuzwa",
     },
   },
 };
