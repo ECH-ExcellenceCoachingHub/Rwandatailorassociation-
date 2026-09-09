@@ -28,6 +28,7 @@ import {
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useLanguage } from "@/components/LanguageProvider";
 import { statusLabel } from "@/lib/i18n/dashboard/status";
+import { fill } from "@/lib/i18n/fill";
 import { formatMoney } from "@/lib/money";
 import { formatQuantity } from "@/lib/quantity";
 
@@ -58,7 +59,13 @@ const CATEGORIES = [
   "OTHER",
 ] as const;
 
-const TERMS = ["PURCHASE", "LOAN_OUT", "AGAINST_LOAN", "FREE_ISSUE"] as const;
+const TERMS = [
+  "PURCHASE",
+  "CREDIT",
+  "LOAN_OUT",
+  "AGAINST_LOAN",
+  "FREE_ISSUE",
+] as const;
 
 export interface ItemOption {
   id: string;
@@ -715,10 +722,16 @@ export function IssueGoodsButton({
   items,
   members,
   loans,
+  creditTerms,
 }: {
   items: ItemOption[];
   members: MemberOption[];
   loans: LoanOption[];
+  /// The rulebook's warehouse-credit figures, so the officer sees what the
+  /// member is agreeing to BEFORE the goods leave — not after, on a screen the
+  /// member reads at home. Passed in rather than fetched here: this is a
+  /// client component and the policy is the server's to resolve.
+  creditTerms: { interestRate: string; termMonths: number; fineRate: string };
 }) {
   const { d } = useLanguage();
   const copy = d.admin.warehouse;
@@ -842,6 +855,32 @@ export function IssueGoodsButton({
                   </NativeSelect>
                 )}
               </Field>
+            )}
+
+            {/* What taking these goods on credit actually commits the member
+                to. Shown at the moment of the decision, in the same words the
+                member will read on their own page afterwards. */}
+            {terms === "CREDIT" && (
+              <div className="rounded-xl border border-primary-200 bg-primary-50/60 px-4 py-3 text-sm">
+                <p className="font-medium text-ink">
+                  {fill(copy.creditTermsSummary, {
+                    rate: creditTerms.interestRate,
+                    months: creditTerms.termMonths,
+                    fine: creditTerms.fineRate,
+                  })}
+                </p>
+                {total > 0 && (
+                  <p className="mt-1 text-xs text-ink-muted">
+                    {copy.creditTotal}:{" "}
+                    <strong className="text-ink">
+                      {formatMoney(
+                        total * (1 + Number(creditTerms.interestRate) / 100),
+                        { currency: "RWF" }
+                      )}
+                    </strong>
+                  </p>
+                )}
+              </div>
             )}
 
             {terms === "LOAN_OUT" && (
@@ -1158,6 +1197,233 @@ export function CancelIssuanceButton({ issuance }: { issuance: IssuanceSummary }
         onConfirm={async (reason) => {
           const response = await fetch(
             `/api/admin/warehouse/issuances/${issuance.id}/cancel`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ reason }),
+            }
+          );
+          if (!response.ok) {
+            const payload = await response.json().catch(() => null);
+            throw new Error(payload?.error?.message ?? d.common.serverUnreachable);
+          }
+          router.refresh();
+        }}
+      />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Goods bought on credit
+// ---------------------------------------------------------------------------
+
+export interface CreditSummary {
+  id: string;
+  reference: string;
+  memberName: string;
+  totalOutstanding: string;
+  currency: string;
+  nextDueAmount: string | null;
+}
+
+export interface CreditFineSummary {
+  id: string;
+  reference: string;
+  amount: string;
+  currency: string;
+  installmentNumber: number;
+  creditReference: string;
+}
+
+/**
+ * Taking a monthly payment.
+ *
+ * The form deliberately offers no instalment picker. The service allocates
+ * oldest-first, and an officer choosing otherwise is how a first month goes
+ * unpaid and unfined behind an up-to-date-looking third. The amount defaults
+ * to what the next instalment needs rather than to the whole balance, because
+ * that is what a member usually hands over.
+ */
+export function RecordCreditPaymentButton({ credit }: { credit: CreditSummary }) {
+  const { d } = useLanguage();
+  const copy = d.admin.warehouse;
+
+  return (
+    <WarehouseDialog
+      trigger={
+        <Button variant="outline" size="sm">
+          <Wallet className="size-3.5" aria-hidden="true" />
+          {copy.recordPayment}
+        </Button>
+      }
+      title={`${copy.recordPayment} — ${credit.reference}`}
+      description={copy.recordPaymentIntro}
+      endpoint={`/api/admin/warehouse/credits/${credit.id}/pay`}
+      submitLabel={copy.recordPayment}
+      buildBody={(form) => ({
+        amount: form.get("amount"),
+        fromSavings: form.get("fromSavings") === "on",
+        channel: text(form, "channel") ?? undefined,
+        note: text(form, "note"),
+        occurredAt: text(form, "occurredAt") ?? undefined,
+      })}
+    >
+      {(state) => (
+        <div className="space-y-4">
+          <p className="rounded-xl border border-border bg-background/50 px-4 py-3 text-sm text-ink-muted">
+            {copy.creditOwed}:{" "}
+            <strong className="text-ink">
+              {formatMoney(credit.totalOutstanding, { currency: credit.currency })}
+            </strong>
+          </p>
+
+          <Field
+            id="amount"
+            label={copy.paymentAmount}
+            hint={copy.paymentAmountHint}
+            error={state.fieldErrors.amount}
+            required
+          >
+            {(props) => (
+              <Input
+                {...props}
+                name="amount"
+                inputMode="decimal"
+                defaultValue={credit.nextDueAmount ?? credit.totalOutstanding}
+                required
+                autoFocus
+              />
+            )}
+          </Field>
+
+          <label className="flex items-start gap-2.5 text-sm text-ink">
+            <input
+              type="checkbox"
+              name="fromSavings"
+              className="mt-0.5 size-4 rounded border-border text-primary focus-visible:ring-2 focus-visible:ring-primary/30"
+            />
+            <span>
+              <span className="font-medium">{copy.paymentFromSavings}</span>
+              <span className="mt-0.5 block text-xs text-ink-muted">
+                {copy.paymentFromSavingsHint}
+              </span>
+            </span>
+          </label>
+
+          <Field
+            id="channel"
+            label={copy.paymentChannel}
+            error={state.fieldErrors.channel}
+          >
+            {(props) => (
+              <NativeSelect {...props} name="channel">
+                <option value="">{copy.paymentCash}</option>
+                {["CASH", "MOBILE_MONEY", "BANK_TRANSFER", "CHEQUE", "OTHER"].map(
+                  (value) => (
+                    <option key={value} value={value}>
+                      {statusLabel(value, d.status)}
+                    </option>
+                  )
+                )}
+              </NativeSelect>
+            )}
+          </Field>
+
+          <Field
+            id="occurredAt"
+            label={copy.paymentDate}
+            error={state.fieldErrors.occurredAt}
+          >
+            {(props) => <Input {...props} name="occurredAt" type="date" />}
+          </Field>
+
+          <Field id="note" label={copy.notes} error={state.fieldErrors.note}>
+            {(props) => <Textarea {...props} name="note" rows={2} />}
+          </Field>
+
+          <p className="text-xs text-ink-muted">{copy.paymentAllocationNote}</p>
+        </div>
+      )}
+    </WarehouseDialog>
+  );
+}
+
+/** Forgiving the 7% for a missed month. Reason mandatory — see lib/audit.ts. */
+export function WaiveCreditFineButton({ fine }: { fine: CreditFineSummary }) {
+  const router = useRouter();
+  const { d } = useLanguage();
+  const copy = d.admin.warehouse;
+
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        <Scale className="size-3.5" aria-hidden="true" />
+        {copy.waiveFine}
+      </Button>
+
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={`${copy.waiveFine} — ${formatMoney(fine.amount, {
+          currency: fine.currency,
+        })}`}
+        description={copy.waiveFineIntro}
+        confirmLabel={copy.waiveFine}
+        tone="danger"
+        requireReason
+        reasonLabel={copy.reason}
+        reasonMinLength={10}
+        onConfirm={async (reason) => {
+          const response = await fetch(
+            `/api/admin/warehouse/fines/${fine.id}/waive`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ reason }),
+            }
+          );
+          if (!response.ok) {
+            const payload = await response.json().catch(() => null);
+            throw new Error(payload?.error?.message ?? d.common.serverUnreachable);
+          }
+          router.refresh();
+        }}
+      />
+    </>
+  );
+}
+
+/** Giving up on a credit. The goods stay with the member; the loss is borne. */
+export function WriteOffCreditButton({ credit }: { credit: CreditSummary }) {
+  const router = useRouter();
+  const { d } = useLanguage();
+  const copy = d.admin.warehouse;
+
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        <Trash2 className="size-3.5" aria-hidden="true" />
+        {copy.writeOffCredit}
+      </Button>
+
+      <ConfirmDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={`${copy.writeOffCredit} — ${credit.reference}`}
+        description={copy.writeOffCreditIntro}
+        confirmLabel={copy.writeOffCredit}
+        tone="danger"
+        requireReason
+        reasonLabel={copy.reason}
+        reasonMinLength={10}
+        onConfirm={async (reason) => {
+          const response = await fetch(
+            `/api/admin/warehouse/credits/${credit.id}/write-off`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },

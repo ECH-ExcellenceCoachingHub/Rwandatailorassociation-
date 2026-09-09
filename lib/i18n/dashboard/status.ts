@@ -143,6 +143,7 @@ export interface StatusCopy {
   CHARGED: string;
   SETTLED: string;
   PURCHASE: string;
+  CREDIT: string;
   LOAN_OUT: string;
   AGAINST_LOAN: string;
   FREE_ISSUE: string;
@@ -267,6 +268,7 @@ export const status: Record<Locale, StatusCopy> = {
     CHARGED: "Charged",
     SETTLED: "Paid",
     PURCHASE: "Bought",
+    CREDIT: "On credit",
     LOAN_OUT: "Borrowed",
     AGAINST_LOAN: "Against a loan",
     FREE_ISSUE: "Given",
@@ -388,6 +390,7 @@ export const status: Record<Locale, StatusCopy> = {
     CHARGED: "Byanditsweho umwenda",
     SETTLED: "Byishyuwe",
     PURCHASE: "Byaguzwe",
+    CREDIT: "Ku ideni",
     LOAN_OUT: "Byatijwe",
     AGAINST_LOAN: "Ku nguzanyo",
     FREE_ISSUE: "Byatanzwe ku buntu",

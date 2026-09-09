@@ -4,6 +4,7 @@ import {
   ArrowRight,
   ArrowDownLeft,
   ArrowUpRight,
+  Gavel,
   HandCoins,
   Layers,
   Package,
@@ -118,26 +119,12 @@ export default async function AccountStatusPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={copy.title}
-        description={copy.description}
-        actions={
-          <>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/account/qr">
-                <QrCode className="size-3.5" aria-hidden="true" />
-                {copy.myQrCode}
-              </Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href={ROLE_HOME[context.user.role]}>
-                {copy.continueToDashboard}
-                <ArrowRight className="size-3.5" aria-hidden="true" />
-              </Link>
-            </Button>
-          </>
-        }
-      />
+      {/* No actions in the header. Both of these — the QR code and the way on
+          to a dashboard — sit in the block at the foot of the page, which is
+          also where a staff member gets the third destination they need. A
+          reader who has just arrived is here to read their position, not to
+          leave, so the exits belong at the end rather than above the answer. */}
+      <PageHeader title={copy.title} description={copy.description} />
 
       {params.via === "qr" && (
         <Alert variant="success">{copy.signedInWithQr}</Alert>
@@ -238,19 +225,27 @@ export default async function AccountStatusPage({
               tone={overdueDays > 0 ? "danger" : "default"}
               href="/dashboard/loans"
             />
+            {/* `totalDueToStore`, not `totalOwed`: the latter counts only
+                outright purchases, so a member whose whole warehouse debt sits
+                on a credit arrangement would be shown zero owed on the one
+                page that exists to tell them where they stand. */}
             <StatCard
               label={copy.goodsOwed}
-              value={money(summary.warehouse?.totalOwed)}
+              value={money(summary.warehouse?.totalDueToStore)}
               hint={
                 summary.warehouse && summary.warehouse.openCount > 0
                   ? pluralize(copy.openIssues, summary.warehouse.openCount)
                   : copy.warehouseEmpty
               }
               icon={Package}
+              href="/dashboard/warehouse"
               tone={
-                summary.warehouse && Number(summary.warehouse.totalOwed) > 0
-                  ? "warning"
-                  : "default"
+                summary.warehouse && summary.warehouse.overdueCreditCount > 0
+                  ? "danger"
+                  : summary.warehouse &&
+                      Number(summary.warehouse.totalDueToStore) > 0
+                    ? "warning"
+                    : "default"
               }
             />
           </StatGrid>
@@ -324,6 +319,19 @@ export default async function AccountStatusPage({
             />
           )}
 
+          {/* Directly under the shareholding, because a fine is a deduction
+              from the position the panel above just reported. A member with a
+              clean record sees nothing here rather than an empty heading. */}
+          {summary.fines.rows.length > 0 && (
+            <FinesPanel
+              fines={summary.fines}
+              copy={copy}
+              finesCopy={d.rules.fines}
+              money={money}
+              locale={locale}
+            />
+          )}
+
           {summary.savings ? (
             <ContributionsPanel savings={summary.savings} copy={copy} money={money} />
           ) : (
@@ -390,6 +398,10 @@ export default async function AccountStatusPage({
 // ---------------------------------------------------------------------------
 
 type StatusCopy = Awaited<ReturnType<typeof getDashboardCopy>>["d"]["account"]["status"];
+/// The fines vocabulary is shared with the register and the member's own fines
+/// page, so a member reads the same words for the same penalty wherever they
+/// meet it. See lib/i18n/dashboard/rules.ts.
+type FinesCopy = Awaited<ReturnType<typeof getDashboardCopy>>["d"]["rules"]["fines"];
 type MoneyFormatter = (value: string | null | undefined) => string;
 
 /**
@@ -431,10 +443,18 @@ function ShareholdingPanel({
           })}
           emphasis
         />
+        {/* THE FULL DAILY COST, not the savings half of it. A member shown
+            "1,000 per day" pays 1,000 a day, and is then found to be behind by
+            the service fee they were never told about — which is how somebody
+            who believes they are up to date collects a fine. The total leads,
+            and the hint names both parts of it. */}
         <Figure
-          label={copy.dailyRate}
-          value={money(shareholding.dailyRate)}
-          hint={copy.perDay}
+          label={copy.dailyCost}
+          value={money(shareholding.dailyTotal)}
+          hint={fill(copy.dailyCostHint, {
+            savings: money(shareholding.dailyRate),
+            fee: money(shareholding.dailyFee),
+          })}
         />
         <Figure
           label={copy.paidAhead}
@@ -458,11 +478,170 @@ function ShareholdingPanel({
         />
       </div>
 
+      {/* Said in words underneath the figures, because the split is the thing
+          members get wrong and a hint under one tile is easy to miss. */}
+      <p className="mt-4 text-sm leading-relaxed text-ink-muted">
+        {fill(copy.dailyCostNote, {
+          total: money(shareholding.dailyTotal),
+          savings: money(shareholding.dailyRate),
+          fee: money(shareholding.dailyFee),
+        })}
+      </p>
+
+      {/* THE WARNING, WHILE IT IS STILL ACTIONABLE. A member told only that
+          they are "behind" has no reason to pay today rather than next week —
+          which is exactly how the fine arrives. The countdown and the amount
+          that stops it are shown together, so there is one thing to do. */}
+      {isBehind && (shareholding.status === "AT_RISK" || shareholding.status === "FINABLE") && (
+        <Alert
+          variant={shareholding.daysUntilFine === 0 ? "error" : "warning"}
+          className="mt-4"
+          title={
+            shareholding.daysUntilFine === 0
+              ? copy.fineTonightTitle
+              : pluralize(copy.fineRiskTitle, shareholding.daysUntilFine, {
+                  days: shareholding.daysUntilFine,
+                })
+          }
+        >
+          {fill(
+            shareholding.daysUntilFine === 0 ? copy.fineTonightBody : copy.fineRiskBody,
+            {
+              behind: shareholding.behindDays,
+              amount: money(shareholding.behindAmount),
+            }
+          )}
+        </Alert>
+      )}
+
       {hasFines && (
         <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
           {copy.finesOwed}: {money(shareholding.outstandingFines)}
         </p>
       )}
+    </section>
+  );
+}
+
+/**
+ * WHAT DISCIPLINE HAS COST THEM.
+ *
+ * A member could previously see a single "fines owed" total and nothing about
+ * where it came from. A penalty nobody can check is one the association will
+ * eventually be accused of inventing, so every fine here carries what it was
+ * raised for and the sum that produced it — the rate that was in force, and the
+ * arrears it was applied to.
+ *
+ * Both kinds appear: missed daily saving, and a warehouse instalment paid late.
+ * They are one member's discipline record whatever raised them.
+ *
+ * Settled and waived fines stay visible. The panel is a record, not a bill — a
+ * member needs to be able to show that a fine was forgiven, and on what
+ * reason, long after it stopped being owed.
+ */
+function FinesPanel({
+  fines,
+  copy,
+  finesCopy,
+  money,
+  locale,
+}: {
+  fines: AccountStatusSummary["fines"];
+  copy: StatusCopy;
+  finesCopy: FinesCopy;
+  money: MoneyFormatter;
+  locale: Locale;
+}) {
+  return (
+    <section className="rounded-2xl border border-border bg-surface p-5 shadow-card sm:p-6">
+      <SectionHeading
+        icon={Gavel}
+        title={copy.finesTitle}
+        description={copy.finesHint}
+      />
+
+      <ul className="mt-5 space-y-3">
+        {fines.rows.map((fine) => {
+          const outstanding = fine.status === "OUTSTANDING";
+
+          const why =
+            fine.kind === "CONTRIBUTION"
+              ? pluralize(finesCopy.whyContribution, fine.missedDays ?? 0, {
+                  days: fine.missedDays ?? 0,
+                })
+              : pluralize(finesCopy.whyWarehouse, fine.daysLate ?? 0, {
+                  number: fine.installmentNumber ?? 0,
+                  days: fine.daysLate ?? 0,
+                });
+
+          return (
+            <li
+              key={`${fine.kind}-${fine.id}`}
+              className={`flex flex-wrap items-start justify-between gap-3 rounded-xl border p-4 ${
+                outstanding
+                  ? "border-red-200 bg-red-50/50"
+                  : "border-border bg-canvas"
+              }`}
+            >
+              <div className="min-w-0">
+                <p className="font-semibold text-ink">{why}</p>
+                {/* The arithmetic, so the member can check it rather than take
+                    the figure on trust. */}
+                <p className="mt-0.5 text-sm text-ink-muted">
+                  {fill(finesCopy.sum, {
+                    rate: fine.rate,
+                    arrears: money(fine.arrearsAmount),
+                  })}
+                </p>
+                <p className="mt-1 text-xs text-ink-muted">
+                  {formatDate(fine.assessedAt, locale)} ·{" "}
+                  <span className="font-mono">{fine.reference}</span>
+                </p>
+                {fine.waiverReason && (
+                  <p className="mt-1 text-xs italic text-ink-muted">
+                    {fill(finesCopy.waivedBecause, { reason: fine.waiverReason })}
+                  </p>
+                )}
+              </div>
+
+              <div className="text-right">
+                <p
+                  className={`font-bold tabular-nums ${
+                    outstanding ? "text-red-600" : "text-ink"
+                  }`}
+                >
+                  {money(fine.amount)}
+                </p>
+                <span
+                  className={`mt-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                    outstanding
+                      ? "border-red-300 bg-red-50 text-red-700"
+                      : fine.status === "SETTLED"
+                        ? "border-success/30 bg-success/10 text-emerald-700"
+                        : "border-ink/12 bg-ink/[0.04] text-ink-muted"
+                  }`}
+                >
+                  {finesCopy.state[fine.status]}
+                </span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-ink">
+          {fines.outstandingCount > 0
+            ? `${copy.finesOwed}: ${money(fines.outstandingAmount)}`
+            : copy.finesCleared}
+        </p>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/dashboard/fines">
+            {copy.finesSeeAll}
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+        </Button>
+      </div>
     </section>
   );
 }
@@ -637,8 +816,8 @@ function WarehousePanel({
             />
             <Figure
               label={copy.goodsOwed}
-              value={money(warehouse.totalOwed)}
-              tone={Number(warehouse.totalOwed) > 0 ? "danger" : "default"}
+              value={money(warehouse.totalDueToStore)}
+              tone={Number(warehouse.totalDueToStore) > 0 ? "danger" : "default"}
             />
           </div>
 

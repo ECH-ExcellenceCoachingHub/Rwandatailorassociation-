@@ -420,6 +420,115 @@ export interface MemberCopy {
 
     sourceNote: string;
   };
+  /// The store, from the member's side: what is on the shelf, what they have
+  /// taken, and what they are paying off.
+  warehouse: {
+    title: string;
+    description: string;
+
+    tabStock: string;
+    tabMine: string;
+    tabCredit: string;
+
+    // What is on the shelf ---------------------------------------------------
+    stockTitle: string;
+    stockHint: string;
+    itemColumn: string;
+    categoryColumn: string;
+    priceColumn: string;
+    availableColumn: string;
+    inStock: string;
+    lowStock: string;
+    outOfStock: string;
+    searchPlaceholder: string;
+    allCategories: string;
+    stockEmptyTitle: string;
+    stockEmptyBody: string;
+    askOfficer: string;
+
+    // What I took ------------------------------------------------------------
+    mineTitle: string;
+    mineHint: string;
+    referenceColumn: string;
+    dateColumn: string;
+    valueColumn: string;
+    termsColumn: string;
+    statusColumn: string;
+    owedColumn: string;
+    mineEmptyTitle: string;
+    mineEmptyBody: string;
+    itemsTaken: string;
+    dueBack: string;
+    overdueBack: string;
+    settledOn: string;
+
+    // Headline figures -------------------------------------------------------
+    takenTotal: string;
+    takenTotalHint: string;
+    owedOutright: string;
+    owedOutrightHint: string;
+    owedOnCredit: string;
+    owedOnCreditHint: string;
+    nextPayment: string;
+    nextPaymentHint: string;
+    nothingDue: string;
+
+    // Credit -----------------------------------------------------------------
+    creditTitle: string;
+    creditHint: string;
+    creditEmptyTitle: string;
+    creditEmptyBody: string;
+    goodsValue: string;
+    interestCharged: string;
+    totalToPay: string;
+    paidSoFar: string;
+    stillOwed: string;
+    openedOn: string;
+    finishBy: string;
+    monthColumn: string;
+    dueDateColumn: string;
+    amountColumn: string;
+    paidColumn: string;
+    remainingColumn: string;
+    scheduleTitle: string;
+    paymentsTitle: string;
+    noPaymentsYet: string;
+    paidFromSavings: string;
+    paidInCash: string;
+    towardGoods: string;
+    towardInterest: string;
+    towardFine: string;
+
+    // Instalment standing ----------------------------------------------------
+    statusUpcoming: string;
+    statusDue: string;
+    statusPartial: string;
+    statusPaid: string;
+    statusOverdue: string;
+    statusWaived: string;
+    daysLate: string;
+    dueInDays: string;
+    dueToday: string;
+
+    // Fines ------------------------------------------------------------------
+    fineTitle: string;
+    fineBody: string;
+    fineOn: string;
+    fineWaived: string;
+    fineSettled: string;
+    finesTotal: string;
+
+    // The rules, restated where they bite ------------------------------------
+    rulesTitle: string;
+    rulesInterest: string;
+    rulesTerm: string;
+    rulesFine: string;
+    rulesDestination: string;
+    readFullRules: string;
+
+    howToPayTitle: string;
+    howToPayBody: string;
+  };
   security: {
     title: string;
     description: string;
@@ -891,6 +1000,117 @@ export const member: Record<Locale, MemberCopy> = {
 
       sourceNote:
         "Every figure on this page is added up from the association's own records of payments, loans and repayments. Nothing here is an estimate. If something looks wrong, raise it with the committee — and it will be visible in the audit log.",
+    },
+    warehouse: {
+      title: "The warehouse",
+      description:
+        "What the association has in the store, what you have taken from it, and what you still owe for it.",
+
+      tabStock: "In the store",
+      tabMine: "What I took",
+      tabCredit: "Paying off",
+
+      stockTitle: "On the shelf today",
+      stockHint:
+        "The association buys fabric, thread and machines in bulk so members pay less than they would in the market. These are the prices you would be charged.",
+      itemColumn: "Item",
+      categoryColumn: "Kind",
+      priceColumn: "Price",
+      availableColumn: "Available",
+      inStock: "In stock",
+      lowStock: "Running low",
+      outOfStock: "Out of stock",
+      searchPlaceholder: "Search the store",
+      allCategories: "Everything",
+      stockEmptyTitle: "The store is empty",
+      stockEmptyBody:
+        "Nothing has been stocked yet. When the association buys in fabric or machines, they will be listed here with their prices.",
+      askOfficer:
+        "To take something, speak to the storekeeper. They record it against your name, and it appears here the same day.",
+
+      mineTitle: "What you have taken",
+      mineHint:
+        "Every issue on your file, newest first — including anything you were given free or lent for a job.",
+      referenceColumn: "Reference",
+      dateColumn: "Taken on",
+      valueColumn: "Value",
+      termsColumn: "Terms",
+      statusColumn: "Standing",
+      owedColumn: "Still owed",
+      mineEmptyTitle: "You have not taken anything from the store",
+      mineEmptyBody:
+        "When you collect fabric, thread or a machine, it is recorded against your name and appears here with what it cost.",
+      itemsTaken: "{count} item|{count} items",
+      dueBack: "Due back {date}",
+      overdueBack: "Should have been returned {date}",
+      settledOn: "Paid on {date}",
+
+      takenTotal: "Taken from the store",
+      takenTotalHint: "Everything ever issued to you, at the value on the day",
+      owedOutright: "Owed outright",
+      owedOutrightHint: "Goods you took and have not yet paid for",
+      owedOnCredit: "Owed on credit",
+      owedOnCreditHint: "Instalments, interest and any fine still to pay",
+      nextPayment: "Next payment",
+      nextPaymentHint: "The soonest instalment still owed",
+      nothingDue: "Nothing due",
+
+      creditTitle: "Goods you are paying off",
+      creditHint:
+        "Anything you took without paying that day is repaid over three months. Each month shows what is owed and by when.",
+      creditEmptyTitle: "You are not paying anything off",
+      creditEmptyBody:
+        "When you take goods on credit, the three monthly payments appear here with their dates the same day.",
+      goodsValue: "Value of the goods",
+      interestCharged: "Interest (2% once)",
+      totalToPay: "Total to pay",
+      paidSoFar: "Paid so far",
+      stillOwed: "Still owed",
+      openedOn: "Taken on {date}",
+      finishBy: "To be finished by {date}",
+      monthColumn: "Month",
+      dueDateColumn: "Due",
+      amountColumn: "To pay",
+      paidColumn: "Paid",
+      remainingColumn: "Left",
+      scheduleTitle: "Your three payments",
+      paymentsTitle: "What you have paid",
+      noPaymentsYet: "Nothing paid on this yet.",
+      paidFromSavings: "From your savings",
+      paidInCash: "In cash",
+      towardGoods: "goods",
+      towardInterest: "interest",
+      towardFine: "fine",
+
+      statusUpcoming: "Not yet due",
+      statusDue: "Due",
+      statusPartial: "Part paid",
+      statusPaid: "Paid",
+      statusOverdue: "Late",
+      statusWaived: "Waived",
+      daysLate: "{count} day late|{count} days late",
+      dueInDays: "Due in {count} day|Due in {count} days",
+      dueToday: "Due today",
+
+      fineTitle: "A fine was added for a missed month",
+      fineBody:
+        "You were charged {amount} — {rate}% of the {arrears} still unpaid on that month. Paying it clears the fine first, then the interest, then the goods.",
+      fineOn: "Fine on month {number}",
+      fineWaived: "Forgiven",
+      fineSettled: "Fine paid",
+      finesTotal: "Fines",
+
+      rulesTitle: "The rules on buying from the store",
+      rulesInterest: "2% is added once, for the whole three months — not monthly.",
+      rulesTerm: "Paid in {count} equal monthly payments, starting a month after you take the goods.",
+      rulesFine: "Miss a month and {rate}% of what is still owed on that month is added as a fine.",
+      rulesDestination:
+        "This interest goes to the association alone. Unlike a cash loan, none of it comes back into your savings.",
+      readFullRules: "Read the full rules",
+
+      howToPayTitle: "How to pay",
+      howToPayBody:
+        "Pay the storekeeper in cash, or ask for it to be taken from your savings. Either way it is recorded here the same day, and it always pays the oldest month first.",
     },
     security: {
       title: "Security & password",
@@ -1373,6 +1593,119 @@ export const member: Record<Locale, MemberCopy> = {
 
       sourceNote:
         "Buri mubare uri kuri iyi paji uterurwa mu byanditswe by'ihuriro ku bwishyu, inguzanyo no kwishyura. Nta kintu na kimwe hano ari urugero. Niba hari ikitagenda neza, bibwire komite — kandi bizagaragara mu byanditswe by'igenzura.",
+    },
+    warehouse: {
+      title: "Ububiko (Warehouse)",
+      description:
+        "Ibyo ihuriro ribitse mu bubiko, ibyo wafashemo, n'ibyo ukibereyemo umwenda.",
+
+      tabStock: "Ibiri mu bubiko",
+      tabMine: "Ibyo nafashe",
+      tabCredit: "Ibyo nishyura",
+
+      stockTitle: "Ibiri ku rutonde uyu munsi",
+      stockHint:
+        "Ihuriro rigura imyenda, imidodo n'imashini ku bwinshi kugira ngo abanyamuryango bishyure make kurusha ku isoko. Ibi ni ibiciro wacibwa.",
+      itemColumn: "Ikintu",
+      categoryColumn: "Ubwoko",
+      priceColumn: "Igiciro",
+      availableColumn: "Bihari",
+      inStock: "Birahari",
+      lowStock: "Bigiye gushira",
+      outOfStock: "Byashize",
+      searchPlaceholder: "Shakisha mu bubiko",
+      allCategories: "Byose",
+      stockEmptyTitle: "Ububiko burimo ubusa",
+      stockEmptyBody:
+        "Nta kintu kirashyirwamo. Igihe ihuriro rizagura imyenda cyangwa imashini, bizagaragara hano n'ibiciro byabyo.",
+      askOfficer:
+        "Kugira ngo ufate ikintu, vugana n'ushinzwe ububiko. Arabyandika ku izina ryawe, bikagaragara hano uwo munsi.",
+
+      mineTitle: "Ibyo wafashe",
+      mineHint:
+        "Buri kintu cyanditswe ku ifishi yawe, gitangirira ku giheruka — hamwe n'ibyo wahawe ku buntu cyangwa wagurijwe akazi.",
+      referenceColumn: "Nomero",
+      dateColumn: "Wabifashe",
+      valueColumn: "Agaciro",
+      termsColumn: "Amasezerano",
+      statusColumn: "Aho bigeze",
+      owedColumn: "Usigaje kwishyura",
+      mineEmptyTitle: "Nta kintu warafata mu bubiko",
+      mineEmptyBody:
+        "Igihe uzafata umwenda, urudodo cyangwa imashini, bizandikwa ku izina ryawe bikagaragara hano n'igiciro byaguze.",
+      itemsTaken: "ikintu {count}|ibintu {count}",
+      dueBack: "Bigomba gusubizwa {date}",
+      overdueBack: "Byari bikwiye gusubizwa {date}",
+      settledOn: "Byishyuwe {date}",
+
+      takenTotal: "Ibyo wafashe mu bubiko",
+      takenTotalHint: "Ibyaguhawe byose, ku giciro cyo ku munsi wabifasheho",
+      owedOutright: "Umwenda utaziguye",
+      owedOutrightHint: "Ibintu wafashe utarishyura",
+      owedOnCredit: "Umwenda w'ideni",
+      owedOnCreditHint: "Ibyishyurwa buri kwezi, inyungu n'ihazabu bisigaye",
+      nextPayment: "Ubwishyu bukurikira",
+      nextPaymentHint: "Ukwezi kwa vuba usigaje kwishyura",
+      nothingDue: "Nta cyo usabwa",
+
+      creditTitle: "Ibintu uri kwishyura buhoro",
+      creditHint:
+        "Ikintu cyose wafashe utishyuye uwo munsi cyishyurwa mu mezi atatu. Buri kwezi kwerekana icyo usabwa n'itariki.",
+      creditEmptyTitle: "Nta kintu uri kwishyura",
+      creditEmptyBody:
+        "Igihe uzafata ibintu ku ideni, ibyishyurwa bitatu bya buri kwezi bizagaragara hano n'amatariki yabyo uwo munsi.",
+      goodsValue: "Agaciro k'ibintu",
+      interestCharged: "Inyungu (2% rimwe)",
+      totalToPay: "Byose ugomba kwishyura",
+      paidSoFar: "Wamaze kwishyura",
+      stillOwed: "Usigaje kwishyura",
+      openedOn: "Wabifashe {date}",
+      finishBy: "Bigomba kurangira {date}",
+      monthColumn: "Ukwezi",
+      dueDateColumn: "Itariki",
+      amountColumn: "Ugomba kwishyura",
+      paidColumn: "Wishyuye",
+      remainingColumn: "Bisigaye",
+      scheduleTitle: "Ibyishyurwa byawe bitatu",
+      paymentsTitle: "Ibyo wishyuye",
+      noPaymentsYet: "Nta kintu kirishyurwa kuri iki.",
+      paidFromSavings: "Bivuye mu buzigame bwawe",
+      paidInCash: "Mu mafaranga",
+      towardGoods: "ibintu",
+      towardInterest: "inyungu",
+      towardFine: "ihazabu",
+
+      statusUpcoming: "Itarageza",
+      statusDue: "Igeze",
+      statusPartial: "Yishyuwe igice",
+      statusPaid: "Yishyuwe",
+      statusOverdue: "Yatinze",
+      statusWaived: "Yarekewe",
+      daysLate: "yatinze umunsi {count}|yatinze iminsi {count}",
+      dueInDays: "Isigaje umunsi {count}|Isigaje iminsi {count}",
+      dueToday: "Igomba kwishyurwa uyu munsi",
+
+      fineTitle: "Habaye ihazabu yo gusiba ukwezi",
+      fineBody:
+        "Waciwe {amount} — {rate}% bya {arrears} wari usigaje kuri uko kwezi. Kwishyura bibanza gukuraho ihazabu, hanyuma inyungu, hanyuma ibintu.",
+      fineOn: "Ihazabu y'ukwezi kwa {number}",
+      fineWaived: "Yarekewe",
+      fineSettled: "Ihazabu yishyuwe",
+      finesTotal: "Amahazabu",
+
+      rulesTitle: "Amategeko yo kugura mu bubiko",
+      rulesInterest: "2% yiyongeraho rimwe gusa, ku mezi atatu yose — si buri kwezi.",
+      rulesTerm:
+        "Byishyurwa mu byishyurwa {count} bingana bya buri kwezi, bitangira ukwezi kumwe umaze gufata ibintu.",
+      rulesFine:
+        "Nusiba ukwezi, {rate}% by'ibisigaye kuri uko kwezi biyongeraho nk'ihazabu.",
+      rulesDestination:
+        "Iyi nyungu igenerwa ihuriro ryonyine. Bitandukanye n'inguzanyo y'amafaranga, nta na kimwe kigaruka mu buzigame bwawe.",
+      readFullRules: "Soma amategeko yose",
+
+      howToPayTitle: "Uko wishyura",
+      howToPayBody:
+        "Ishyura ushinzwe ububiko mu mafaranga, cyangwa usabe ko bikurwa mu buzigame bwawe. Uko byaba byose bihita byandikwa hano uwo munsi, kandi bibanza kwishyura ukwezi kwa mbere.",
     },
     security: {
       title: "Umutekano n'ijambobanga",

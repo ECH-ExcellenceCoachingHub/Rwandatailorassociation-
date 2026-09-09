@@ -474,6 +474,12 @@ model Association {
   warehouseMovements WarehouseStockMovement[]
   warehouseIssuances WarehouseIssuance[]
 
+  /// Goods taken on credit, and what falling behind on them cost. See the
+  /// WAREHOUSE CREDIT section at the foot of this file.
+  warehouseCredits        WarehouseCredit[]
+  warehouseCreditPayments WarehouseCreditPayment[]
+  warehouseCreditFines    WarehouseCreditFine[]
+
   @@index([status])
   @@map("associations")
 }
@@ -565,6 +571,11 @@ model User {
   createdWarehouseItems     WarehouseItem[]          @relation("WarehouseItemCreatedBy")
   recordedStockMovements    WarehouseStockMovement[] @relation("WarehouseMovementRecordedBy")
   warehouseIssuancesMade    WarehouseIssuance[]      @relation("WarehouseIssuedBy")
+  warehouseCreditsOpened       WarehouseCredit[]            @relation("WarehouseCreditOpenedBy")
+  warehouseCreditPaymentsTaken WarehouseCreditPayment[]     @relation("WarehouseCreditPaymentRecordedBy")
+  warehouseInstalmentsWaived   WarehouseCreditInstallment[] @relation("WarehouseInstallmentWaivedBy")
+  warehouseFinesAssessed       WarehouseCreditFine[]        @relation("WarehouseFineAssessedBy")
+  warehouseFinesWaived         WarehouseCreditFine[]        @relation("WarehouseFineWaivedBy")
 
   createdRules        AssociationRule[]         @relation("RuleCreatedBy")
   updatedRules        AssociationRule[]         @relation("RuleUpdatedBy")
@@ -845,8 +856,11 @@ model Member {
   bkTransactions BkTransaction[]
   bkPaymentClaims BkPaymentClaim[]
 
-  /// Everything this member has taken out of the warehouse.
-  warehouseIssuances WarehouseIssuance[]
+  /// Everything this member has taken out of the warehouse, what they are
+  /// paying off over months, and any fine for missing one.
+  warehouseIssuances   WarehouseIssuance[]
+  warehouseCredits     WarehouseCredit[]
+  warehouseCreditFines WarehouseCreditFine[]
 
   @@unique([associationId, memberNumber])
   @@index([associationId, status])
@@ -996,6 +1010,8 @@ model SavingsTransaction {
   interestDistribution InterestDistribution?
   /// Set when this debit paid for goods taken out of the warehouse.
   warehouseIssuance    WarehouseIssuance?
+  /// Set when this debit paid an instalment on goods bought on credit.
+  warehouseCreditPayment WarehouseCreditPayment?
 
   @@unique([savingsAccountId, sequence])
   @@index([associationId, createdAt])
@@ -2073,6 +2089,11 @@ enum RuleCategory {
   LENDING_ELIGIBILITY
   LOAN_TERMS
   INTEREST_SHARING
+  /// Buying goods out of the store and paying for them over months. Its own
+  /// category rather than a corner of LOAN_TERMS because the terms genuinely
+  /// differ — flat interest, a fixed three months, and none of it shared back
+  /// to the borrower.
+  WAREHOUSE_CREDIT
   GOVERNANCE
   OTHER
 }
@@ -2753,6 +2774,10 @@ enum WarehouseItemCategory {
 enum WarehouseIssueTerms {
   /// Theirs to keep. The value is a debt until settled.
   PURCHASE
+  /// Theirs to keep, paid for over months with interest. Opens a
+  /// WarehouseCredit, which is what the member then owes against — see the
+  /// WAREHOUSE CREDIT section below.
+  CREDIT
   /// Lent out and expected back — a machine for a season, a tool for a job.
   LOAN_OUT
   /// Issued as part of a loan, and the value counts toward that loan's
@@ -2954,6 +2979,9 @@ model WarehouseIssuance {
   lines     WarehouseIssuanceLine[]
   movements WarehouseStockMovement[]
 
+  /// Set only on CREDIT terms: the instalment arrangement this issue opened.
+  credit WarehouseCredit?
+
   @@index([associationId, status, issuedAt])
   @@index([memberId, issuedAt])
   @@index([loanId])
@@ -2987,4 +3015,360 @@ model WarehouseIssuanceLine {
   @@index([issuanceId])
   @@index([itemId])
   @@map("warehouse_issuance_lines")
+}
+
+// ============================================================================
+// WAREHOUSE CREDIT — GOODS BOUGHT NOW AND PAID FOR OVER THREE MONTHS
+// ============================================================================
+//
+// A member who takes a sewing machine on PURCHASE terms owes its value the
+// moment it leaves the store, in full, whenever an officer asks for it. That
+// suits a roll of fabric and is hopeless for a machine: the member cannot pay
+// today, the association wants the machine working, and what actually happens
+// is an arrangement made verbally and remembered inconsistently.
+//
+// THIS SECTION MAKES THAT ARRANGEMENT A RECORD. Goods issued on CREDIT terms
+// open exactly one WarehouseCredit, with the association's terms frozen onto
+// it: the value of the goods, the interest, the number of months, and the fine
+// rate that applies if a month is missed. The member is then shown three dated
+// instalments and what each one costs.
+//
+// WHY THIS IS NOT A `Loan`. Four differences, each of which would otherwise
+// have to become a branch inside the cash-lending path:
+//
+//  1. NOTHING IS DISBURSED. No money left the association; a machine did. The
+//     value is already accounted for by the stock movement that issued it, and
+//     recording it again as principal lent out would double-count it in every
+//     report of where the association's money went.
+//
+//  2. THE INTEREST IS NOT SHARED. A cash loan's 2% a month is split, half back
+//     into the borrower's own savings and half to the association. The
+//     interest on warehouse goods is the association's in full — it is what
+//     the association earns for carrying the cost of stock a member is using
+//     before paying for it. See `interestToAssociation`, which is stored on
+//     every row rather than assumed, so the record stays true if that policy
+//     is ever revisited.
+//
+//  3. THE TERM IS FIXED AND SHORT. Three months, not up to six, because the
+//     association is financing goods rather than lending savings.
+//
+//  4. ELIGIBILITY DOES NOT APPLY. The six-month membership rule, the ceiling
+//     at 80% of your own savings and the collateral test all exist to protect
+//     the members' savings pool from cash going out of it. None of them should
+//     stand between a tailor and a reel of thread.
+//
+// Every figure a member is ever shown here is frozen at the moment it was
+// agreed, for the same reason prices are frozen onto stock movements: a rate
+// the committee changes in June must not silently rewrite what a member signed
+// up to in March.
+
+/// Where one credit arrangement stands.
+enum WarehouseCreditStatus {
+  /// Running, and not behind.
+  ACTIVE
+  /// At least one instalment is past its due date and unpaid.
+  OVERDUE
+  /// Paid off in full — goods value, interest and any fines.
+  COMPLETED
+  /// The term ran out and it was not paid. Still owed; still collectable.
+  DEFAULTED
+  /// Given up on. The association bears the loss.
+  WRITTEN_OFF
+  /// Opened in error and withdrawn. Kept, never deleted.
+  CANCELLED
+}
+
+/// A fine's life. Mirrors ContributionFineStatus deliberately: a member should
+/// meet one idea of what a fine is, not two.
+enum WarehouseCreditFineStatus {
+  /// Assessed and owed. Visible to the member from the moment it exists.
+  OUTSTANDING
+  /// Paid, in cash or out of savings.
+  SETTLED
+  /// Forgiven by an officer, with a written reason.
+  WAIVED
+  /// Assessed in error and withdrawn. Kept, never deleted.
+  CANCELLED
+}
+
+/// ONE CREDIT ARRANGEMENT, against exactly one issuance of goods.
+model WarehouseCredit {
+  id            String      @id @default(cuid())
+  associationId String
+  association   Association @relation(fields: [associationId], references: [id], onDelete: Restrict)
+  memberId      String
+  member        Member      @relation(fields: [memberId], references: [id], onDelete: Restrict)
+
+  /// The goods this pays for. One issuance opens at most one credit, which is
+  /// what the unique constraint says: a member cannot be made to owe twice for
+  /// the same machine.
+  issuanceId String            @unique
+  issuance   WarehouseIssuance @relation(fields: [issuanceId], references: [id], onDelete: Restrict)
+
+  /// Member-facing credit id, e.g. "WHC-2609-0001234".
+  reference String                @unique
+  status    WarehouseCreditStatus @default(ACTIVE)
+
+  // --- Terms, frozen at the moment the credit was opened -------------------
+
+  /// What the goods were worth. The principal.
+  goodsValue Decimal @db.Decimal(18, 2)
+  /// Interest for the WHOLE term, not per month — the association's rule is a
+  /// flat 2% on the value of the goods, however early it is paid off.
+  interestRate   Decimal @db.Decimal(9, 4)
+  interestAmount Decimal @db.Decimal(18, 2)
+  /// Charged on the unpaid part of an instalment that passed its due date.
+  fineRate       Decimal @db.Decimal(9, 4)
+  /// Days after a due date before the fine is assessed. Zero means the fine
+  /// falls the day after.
+  fineGraceDays  Int     @default(0)
+  termMonths     Int
+  /// False only if an association ever resolves to share this interest with
+  /// the borrower the way cash-loan interest is shared. Stored per row so an
+  /// old credit stays explainable under the rule that produced it.
+  interestToAssociation Boolean @default(true)
+
+  /// goodsValue + interestAmount. Fines are NOT included: they are not part of
+  /// what was agreed, and a member must be able to see the difference between
+  /// what they signed up to and what falling behind added.
+  totalPayable Decimal @db.Decimal(18, 2)
+  currency     String  @default("RWF")
+
+  // --- The live position, split so allocation is exact ---------------------
+
+  principalOutstanding Decimal @default(0) @db.Decimal(18, 2)
+  interestOutstanding  Decimal @default(0) @db.Decimal(18, 2)
+  penaltyOutstanding   Decimal @default(0) @db.Decimal(18, 2)
+
+  principalPaid Decimal @default(0) @db.Decimal(18, 2)
+  interestPaid  Decimal @default(0) @db.Decimal(18, 2)
+  penaltyPaid   Decimal @default(0) @db.Decimal(18, 2)
+  totalPaid     Decimal @default(0) @db.Decimal(18, 2)
+
+  /// Monotonic per-credit counter for the payment ledger below. The next
+  /// payment takes lastSequence + 1, which makes gaps and replays detectable.
+  lastSequence Int @default(0)
+
+  startedAt     DateTime  @default(now())
+  firstDueDate  DateTime
+  maturityDate  DateTime
+  lastPaymentAt DateTime?
+  completedAt   DateTime?
+  defaultedAt   DateTime?
+  writtenOffAt  DateTime?
+  cancelledAt   DateTime?
+
+  /// How far past due the oldest unpaid instalment is. Refreshed by the
+  /// scheduled job; a cache over the instalments, never a source of truth.
+  daysOverdue Int @default(0)
+
+  writeOffReason String?
+  cancelReason   String?
+  note           String?
+
+  openedById String?
+  openedBy   User?   @relation("WarehouseCreditOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  installments WarehouseCreditInstallment[]
+  payments     WarehouseCreditPayment[]
+  fines        WarehouseCreditFine[]
+
+  @@index([associationId, status, startedAt])
+  @@index([memberId, startedAt])
+  @@index([status, maturityDate])
+  @@map("warehouse_credits")
+}
+
+/// ONE MONTH'S INSTALMENT. Three of these per credit, generated when it opens.
+model WarehouseCreditInstallment {
+  id       String          @id @default(cuid())
+  creditId String
+  credit   WarehouseCredit @relation(fields: [creditId], references: [id], onDelete: Cascade)
+
+  installmentNumber Int
+  dueDate           DateTime
+  status            InstallmentStatus @default(UPCOMING)
+
+  principalDue Decimal @db.Decimal(18, 2)
+  interestDue  Decimal @db.Decimal(18, 2)
+  /// Fines assessed against THIS month. Raised by the job, not scheduled.
+  penaltyDue   Decimal @default(0) @db.Decimal(18, 2)
+  /// principalDue + interestDue. Excludes penalties for the same reason
+  /// `totalPayable` does — this is what was agreed for this month.
+  totalDue     Decimal @db.Decimal(18, 2)
+
+  principalPaid Decimal @default(0) @db.Decimal(18, 2)
+  interestPaid  Decimal @default(0) @db.Decimal(18, 2)
+  penaltyPaid   Decimal @default(0) @db.Decimal(18, 2)
+  totalPaid     Decimal @default(0) @db.Decimal(18, 2)
+
+  /// Goods value still owed after this instalment, per the original schedule.
+  balanceAfter Decimal @db.Decimal(18, 2)
+
+  paidAt      DateTime?
+  daysOverdue Int       @default(0)
+
+  waivedAt     DateTime?
+  waivedById   String?
+  waivedBy     User?     @relation("WarehouseInstallmentWaivedBy", fields: [waivedById], references: [id], onDelete: SetNull)
+  waiverReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fine        WarehouseCreditFine?
+  allocations WarehouseCreditAllocation[]
+
+  @@unique([creditId, installmentNumber])
+  @@index([creditId, dueDate])
+  @@index([status, dueDate])
+  @@map("warehouse_credit_installments")
+}
+
+/// THE CREDIT LEDGER. Append-only, same discipline as SavingsTransaction and
+/// LoanTransaction: a payment recorded in error is corrected by a reversing
+/// entry, never by editing the row.
+model WarehouseCreditPayment {
+  id            String          @id @default(cuid())
+  associationId String
+  association   Association     @relation(fields: [associationId], references: [id], onDelete: Restrict)
+  creditId      String
+  credit        WarehouseCredit @relation(fields: [creditId], references: [id], onDelete: Restrict)
+
+  /// Position in this credit's ledger. Unique per credit — the database itself
+  /// rejects two concurrent writers claiming the same slot.
+  sequence Int
+  /// Member-facing payment id, e.g. "WCP-2609-0001234".
+  reference String @unique
+
+  amount Decimal @db.Decimal(18, 2)
+
+  /// How the payment was split. The three always sum to `amount`, and the
+  /// order is fixed by the service: fines first, then interest, then the goods
+  /// themselves. Stored rather than recomputed, so a member can be shown the
+  /// arithmetic of a payment made a year ago.
+  penaltyPortion   Decimal @default(0) @db.Decimal(18, 2)
+  interestPortion  Decimal @default(0) @db.Decimal(18, 2)
+  principalPortion Decimal @default(0) @db.Decimal(18, 2)
+
+  /// The interest that went to the association on this payment. Equal to
+  /// `interestPortion` under the standing rule; stored so the association's
+  /// income can be summed from the ledger without re-deriving policy.
+  associationIncome Decimal @default(0) @db.Decimal(18, 2)
+
+  balanceAfter Decimal @db.Decimal(18, 2)
+  currency     String  @default("RWF")
+
+  /// The FEE debit that took the money out of the member's savings, when that
+  /// is how it was paid. Unique: one savings debit is never claimed by two
+  /// payments.
+  savingsTransactionId String?             @unique
+  savingsTransaction   SavingsTransaction? @relation(fields: [savingsTransactionId], references: [id], onDelete: SetNull)
+
+  /// How it reached the association when it did not come out of savings.
+  channel PaymentChannel?
+  note    String?
+
+  recordedById String?
+  recordedBy   User?   @relation("WarehouseCreditPaymentRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+
+  occurredAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  allocations WarehouseCreditAllocation[]
+
+  @@unique([creditId, sequence])
+  @@index([associationId, occurredAt])
+  @@index([creditId, occurredAt])
+  @@map("warehouse_credit_payments")
+}
+
+/// Which instalment a payment paid, and how much of it. One payment usually
+/// touches one instalment and sometimes spills into the next, so this is a
+/// table rather than a column.
+model WarehouseCreditAllocation {
+  id            String                     @id @default(cuid())
+  paymentId     String
+  payment       WarehouseCreditPayment     @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  installmentId String
+  installment   WarehouseCreditInstallment @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+
+  penaltyAmount   Decimal @default(0) @db.Decimal(18, 2)
+  interestAmount  Decimal @default(0) @db.Decimal(18, 2)
+  principalAmount Decimal @default(0) @db.Decimal(18, 2)
+  totalAmount     Decimal @db.Decimal(18, 2)
+
+  createdAt DateTime @default(now())
+
+  @@unique([paymentId, installmentId])
+  @@index([installmentId])
+  @@map("warehouse_credit_allocations")
+}
+
+/// THE 7% FOR A MISSED MONTH.
+///
+/// IDENTIFIED BY THE INSTALMENT IT PUNISHES, not by a date. The job that
+/// assesses these runs on a schedule and must be able to run twice without
+/// fining twice, which is what the unique constraint on `installmentId`
+/// guarantees. One missed month, one fine, no matter how many times anything
+/// re-runs.
+///
+/// The rate is applied to what was STILL UNPAID on the instalment when the
+/// fine fell — not to the whole credit. A member who paid four fifths of a
+/// month and was three days late is fined on the fifth, which is the same
+/// principle the daily contribution fine already follows.
+model WarehouseCreditFine {
+  id            String          @id @default(cuid())
+  associationId String
+  association   Association     @relation(fields: [associationId], references: [id], onDelete: Restrict)
+  creditId      String
+  credit        WarehouseCredit @relation(fields: [creditId], references: [id], onDelete: Cascade)
+  memberId      String
+  member        Member          @relation(fields: [memberId], references: [id], onDelete: Restrict)
+
+  /// One fine per missed instalment. See the note above.
+  installmentId String                     @unique
+  installment   WarehouseCreditInstallment @relation(fields: [installmentId], references: [id], onDelete: Cascade)
+
+  reference String @unique
+
+  /// The unpaid amount the rate was applied to, the rate in force on the day,
+  /// and the result. All three stored, so the member can be shown the sum
+  /// rather than a bare figure, and so a later rate change cannot make an old
+  /// fine unexplainable.
+  arrearsAmount Decimal @db.Decimal(18, 2)
+  rate          Decimal @db.Decimal(9, 4)
+  amount        Decimal @db.Decimal(18, 2)
+  currency      String  @default("RWF")
+
+  /// How late the instalment was when this fell.
+  daysLate Int @default(0)
+
+  status WarehouseCreditFineStatus @default(OUTSTANDING)
+
+  assessedAt DateTime @default(now())
+  /// Null when the scheduled job assessed it, set when an officer did.
+  assessedById String?
+  assessedBy   User?   @relation("WarehouseFineAssessedBy", fields: [assessedById], references: [id], onDelete: SetNull)
+
+  settledAt DateTime?
+
+  waivedAt     DateTime?
+  waivedById   String?
+  waivedBy     User?     @relation("WarehouseFineWaivedBy", fields: [waivedById], references: [id], onDelete: SetNull)
+  waiverReason String?
+
+  cancelledAt  DateTime?
+  cancelReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([associationId, status, assessedAt])
+  @@index([memberId, assessedAt])
+  @@index([creditId])
+  @@map("warehouse_credit_fines")
 }

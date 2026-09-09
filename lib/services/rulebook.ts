@@ -80,6 +80,12 @@ export interface AssociationPolicy {
   interestMemberPoints: string;
   interestAssociationPoints: string;
 
+  // Goods bought out of the store and paid for over months.
+  warehouseCreditInterest: string;
+  warehouseCreditTermMonths: number;
+  warehouseCreditFineRate: string;
+  warehouseCreditFineGraceDays: number;
+
   /// Keys whose stored value could not be read and fell back to the default.
   /// Surfaced on the admin rulebook so a typo is visible rather than silent.
   invalidKeys: string[];
@@ -190,6 +196,21 @@ function buildPolicy(values: Map<string, string | null>): AssociationPolicy {
 
     interestMemberPoints: percent(RULE_KEYS.INTEREST_MEMBER_POINTS),
     interestAssociationPoints: percent(RULE_KEYS.INTEREST_ASSOCIATION_POINTS),
+
+    warehouseCreditInterest: percent(RULE_KEYS.WAREHOUSE_CREDIT_INTEREST),
+    // Floored at one for the same reason the loan term is: a zero-month term
+    // divides by zero when the instalments are cut.
+    warehouseCreditTermMonths: Math.max(
+      1,
+      count(RULE_KEYS.WAREHOUSE_CREDIT_TERM_MONTHS, 60)
+    ),
+    warehouseCreditFineRate: percent(RULE_KEYS.WAREHOUSE_CREDIT_FINE_RATE),
+    // Zero is legitimate here, unlike the contribution grace: the fine falls
+    // the day after a missed instalment unless the committee says otherwise.
+    warehouseCreditFineGraceDays: count(
+      RULE_KEYS.WAREHOUSE_CREDIT_FINE_GRACE_DAYS,
+      90
+    ),
 
     invalidKeys,
   };

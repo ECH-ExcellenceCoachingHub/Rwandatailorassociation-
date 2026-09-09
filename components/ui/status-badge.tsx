@@ -147,6 +147,10 @@ const STATUS_TONES: Record<string, StatusTone> = {
   CHARGED: "warning",
   SETTLED: "success",
   PURCHASE: "neutral",
+  // Goods bought on credit. Neutral like PURCHASE: taking a machine on terms
+  // is an arrangement the association offers, not a mark against the member.
+  // The warning lives on the instalment that goes unpaid, not on the terms.
+  CREDIT: "neutral",
   LOAN_OUT: "info",
   AGAINST_LOAN: "info",
   FREE_ISSUE: "neutral",

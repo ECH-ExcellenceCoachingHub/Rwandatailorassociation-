@@ -26,6 +26,7 @@ export interface NavCopy {
   ourAssociation: string;
   ourMoney: string;
   ourRules: string;
+  myFines: string;
   borrowings: string;
   investments: string;
   warehouse: string;
@@ -33,6 +34,7 @@ export interface NavCopy {
   rulesAndDiscipline: string;
   rulebook: string;
   contributionStanding: string;
+  fines: string;
   fundsSeparation: string;
 
   members: string;
@@ -91,6 +93,7 @@ export const nav: Record<Locale, NavCopy> = {
     ourAssociation: "Our association",
     ourMoney: "Our money",
     ourRules: "Our rules",
+    myFines: "My fines",
     borrowings: "Bank borrowing",
     investments: "What our money did",
     warehouse: "Warehouse",
@@ -98,6 +101,7 @@ export const nav: Record<Locale, NavCopy> = {
     rulesAndDiscipline: "Rules & discipline",
     rulebook: "Rulebook",
     contributionStanding: "Who is up to date",
+    fines: "Fines",
     fundsSeparation: "Whose money is whose",
 
     members: "Members",
@@ -155,6 +159,7 @@ export const nav: Record<Locale, NavCopy> = {
     ourAssociation: "Ihuriro ryacu",
     ourMoney: "Amafaranga yacu",
     ourRules: "Amategeko yacu",
+    myFines: "Amahazabu yanjye",
     borrowings: "Inguzanyo za banki",
     investments: "Icyo amafaranga yacu yakoze",
     warehouse: "Ububiko",
@@ -162,6 +167,7 @@ export const nav: Record<Locale, NavCopy> = {
     rulesAndDiscipline: "Amategeko n'imyitwarire",
     rulebook: "Igitabo cy'amategeko",
     contributionStanding: "Abishyuye byose",
+    fines: "Amahazabu",
     fundsSeparation: "Amafaranga y'undi n'ay'undi",
 
     members: "Abanyamuryango",

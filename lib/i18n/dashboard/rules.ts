@@ -23,6 +23,7 @@ export interface RulesCopy {
     LENDING_ELIGIBILITY: string;
     LOAN_TERMS: string;
     INTEREST_SHARING: string;
+    WAREHOUSE_CREDIT: string;
     GOVERNANCE: string;
     OTHER: string;
   };
@@ -94,6 +95,12 @@ export interface RulesCopy {
     daysOwed: string;
     oneDayCosts: string;
     oneDayCostsHint: string;
+    /// Stated as a sentence above the rulebook itself, not only as a tile.
+    /// The two halves are separate rules and a reader who meets them one at a
+    /// time never adds them up — which is how somebody pays the savings half
+    /// exactly and is still counted behind.
+    dailyCostRule: string;
+    dailyCostRuleBody: string;
     yourFines: string;
     fineOn: string;
     fineWaived: string;
@@ -248,6 +255,75 @@ export interface RulesCopy {
     insufficientFunds: string;
   };
 
+  /// The fines register, and the member's own copy of it. One section rather
+  /// than two because an officer and a member looking at the same fine must
+  /// read the same words for what it was raised for — see lib/services/fines.ts.
+  fines: {
+    title: string;
+    description: string;
+
+    tileOutstanding: string;
+    tileOutstandingHint: string;
+    tileMembers: string;
+    tileMembersHint: string;
+    tileSettled: string;
+    tileSettledHint: string;
+    tileWaived: string;
+    tileWaivedHint: string;
+
+    typeLabel: string;
+    typeAll: string;
+    typeContribution: string;
+    typeWarehouse: string;
+    statusLabel: string;
+    statusAll: string;
+    searchPlaceholder: string;
+
+    state: {
+      OUTSTANDING: string;
+      SETTLED: string;
+      WAIVED: string;
+      CANCELLED: string;
+    };
+
+    colMember: string;
+    colWhy: string;
+    colAmount: string;
+    colState: string;
+    colAssessed: string;
+    colActions: string;
+
+    /// Why a fine was raised, in the member's own terms.
+    whyContribution: string;
+    whyWarehouse: string;
+    /// The arithmetic behind the figure, so it is never a bare number.
+    sum: string;
+    creditRef: string;
+    waivedBecause: string;
+
+    noneTitle: string;
+    noneBody: string;
+    cleanTitle: string;
+    cleanBody: string;
+
+    /// Explains why a warehouse fine offers no "collect from savings" button.
+    warehouseSettleNote: string;
+
+    memberTitle: string;
+    memberDescription: string;
+    memberOwed: string;
+    memberOwedHint: string;
+    memberPaid: string;
+    memberPaidHint: string;
+    memberWaivedCount: string;
+    memberWaivedHint: string;
+    memberNothingTitle: string;
+    memberNothingBody: string;
+    memberHowToClear: string;
+    memberOpenRules: string;
+    memberOpenWarehouse: string;
+  };
+
   /// Whose money is whose.
   funds: {
     title: string;
@@ -314,6 +390,7 @@ export const rules: Record<Locale, RulesCopy> = {
       LENDING_ELIGIBILITY: "Who may borrow",
       LOAN_TERMS: "Loan terms",
       INTEREST_SHARING: "Where the interest goes",
+      WAREHOUSE_CREDIT: "Buying from the store on credit",
       GOVERNANCE: "How the rules work",
       OTHER: "Other rules",
     },
@@ -393,6 +470,9 @@ export const rules: Record<Locale, RulesCopy> = {
       daysOwed: "Days since you started",
       oneDayCosts: "One day costs",
       oneDayCostsHint: "{savings} saved for you, plus {fee} service fee",
+      dailyCostRule: "One day of membership costs {total}",
+      dailyCostRuleBody:
+        "{savings} is saved into your own account and stays yours. {fee} is the service fee and is not savings. The two are separate rules below, but you owe both every day — paying only {savings} leaves you behind by {fee} a day, and that is what builds up into a fine.",
 
       yourFines: "Your fines",
       fineOn: "Assessed {date}, after {days} days behind",
@@ -565,6 +645,75 @@ export const rules: Record<Locale, RulesCopy> = {
         "Their savings do not cover the fine. It stays outstanding until they contribute, or you waive it.",
     },
 
+    fines: {
+      title: "Fines",
+      description:
+        "Every fine the association has raised — for missed daily saving and for late warehouse-credit instalments — with what it was raised for and how it ended.",
+
+      tileOutstanding: "Outstanding",
+      tileOutstandingHint: "Raised and not yet paid or waived",
+      tileMembers: "Members owing",
+      tileMembersHint: "People with at least one unpaid fine",
+      tileSettled: "Collected",
+      tileSettledHint: "Paid, in cash or out of savings",
+      tileWaived: "Waived",
+      tileWaivedHint: "Forgiven by an officer, with a written reason",
+
+      typeLabel: "Type",
+      typeAll: "All fines",
+      typeContribution: "Missed saving",
+      typeWarehouse: "Late instalment",
+      statusLabel: "Status",
+      statusAll: "Any status",
+      searchPlaceholder: "Name, member number or fine reference",
+
+      state: {
+        OUTSTANDING: "Unpaid",
+        SETTLED: "Paid",
+        WAIVED: "Waived",
+        CANCELLED: "Withdrawn",
+      },
+
+      colMember: "Member",
+      colWhy: "What for",
+      colAmount: "Amount",
+      colState: "Status",
+      colAssessed: "Raised",
+      colActions: "Actions",
+
+      whyContribution: "{days} day behind on saving|{days} days behind on saving",
+      whyWarehouse: "Instalment {number}, {days} day late|Instalment {number}, {days} days late",
+      sum: "{rate}% of {arrears}",
+      creditRef: "Credit {reference}",
+      waivedBecause: "Waived: {reason}",
+
+      noneTitle: "No fines match",
+      noneBody: "Try a different type, status or search.",
+      cleanTitle: "No fines have been raised",
+      cleanBody:
+        "Nobody in the association has been fined. Fines appear here the moment the nightly checks raise one.",
+
+      warehouseSettleNote:
+        "A late-instalment fine is cleared by paying the credit, not from savings — record the payment against the credit in the warehouse. It can still be waived here.",
+
+      memberTitle: "My fines",
+      memberDescription:
+        "Every fine you have been given, what it was for, and how it was worked out.",
+      memberOwed: "You owe",
+      memberOwedHint: "Unpaid fines. Clearing these restores your standing.",
+      memberPaid: "Already paid",
+      memberPaidHint: "Fines settled from your savings or in cash",
+      memberWaivedCount: "Waived",
+      memberWaivedHint: "Forgiven by the committee",
+      memberNothingTitle: "You have no fines",
+      memberNothingBody:
+        "Nothing has been raised against you. Keep your daily saving up to date and any warehouse instalments on time, and it stays that way.",
+      memberHowToClear:
+        "A fine for missed saving is taken from your savings once you have the balance, or the committee may waive it. A fine on a warehouse credit is cleared when you pay that instalment.",
+      memberOpenRules: "See the rules",
+      memberOpenWarehouse: "Open my warehouse credit",
+    },
+
     funds: {
       title: "Whose money is whose",
       description:
@@ -636,6 +785,7 @@ export const rules: Record<Locale, RulesCopy> = {
       LENDING_ELIGIBILITY: "Uwemerewe kuguza",
       LOAN_TERMS: "Amabwiriza y'inguzanyo",
       INTEREST_SHARING: "Aho inyungu ijya",
+      WAREHOUSE_CREDIT: "Kugura muri Warehouse ku ideni",
       GOVERNANCE: "Uko amategeko akora",
       OTHER: "Andi mategeko",
     },
@@ -715,6 +865,9 @@ export const rules: Record<Locale, RulesCopy> = {
       daysOwed: "Iminsi kuva watangira",
       oneDayCosts: "Umunsi umwe ugutwara",
       oneDayCostsHint: "{savings} bakuzigamira, hiyongereyeho {fee} ya serivisi",
+      dailyCostRule: "Umunsi umwe wo kuba umunyamuryango ugutwara {total}",
+      dailyCostRuleBody:
+        "{savings} abikwa muri konti yawe bwite kandi akomeza kuba ayawe. {fee} ni amafaranga ya serivisi, si ubuzigame. Ni amategeko abiri atandukanye hasi aha, ariko urimo yombi buri munsi — wishyura {savings} gusa usigara inyuma {fee} ku munsi, kandi ni byo byiyongera bigatuma uhabwa ihazabu.",
 
       yourFines: "Amahazabu yawe",
       fineOn: "Yatanzwe ku wa {date}, nyuma y'iminsi {days} usigaye inyuma",
@@ -886,6 +1039,75 @@ export const rules: Record<Locale, RulesCopy> = {
         "Bihindura umubare w'iminsi abarwaho. Bikoreshwa iyo umuntu yinjiye atinze cyangwa yari asanzwe azigama mbere yo kwinjira.",
       insufficientFunds:
         "Ubuzigame bwe ntibuhagije kuri iyo hazabu. Iguma iriho kugeza azigamye, cyangwa uyirekeye.",
+    },
+
+    fines: {
+      title: "Amahazabu",
+      description:
+        "Amahazabu yose ihuriro ryatanze — ku kuzigama kwa buri munsi kwabuze no ku kwishyura gutinze kw'ububiko — hamwe n'impamvu yayo n'uko yarangiye.",
+
+      tileOutstanding: "Akiriho",
+      tileOutstandingHint: "Yatanzwe ntiyishyurwe cyangwa ngo arekwe",
+      tileMembers: "Abafite umwenda",
+      tileMembersHint: "Abafite nibura ihazabu imwe itishyuwe",
+      tileSettled: "Yishyuwe",
+      tileSettledHint: "Yishyuwe, mu mafaranga cyangwa mu buzigame",
+      tileWaived: "Yarekewe",
+      tileWaivedHint: "Yarekewe n'umuyobozi, hari impamvu yanditse",
+
+      typeLabel: "Ubwoko",
+      typeAll: "Amahazabu yose",
+      typeContribution: "Kuzigama kwabuze",
+      typeWarehouse: "Kwishyura gutinze",
+      statusLabel: "Uko ihagaze",
+      statusAll: "Uko yaba ihagaze kose",
+      searchPlaceholder: "Izina, nimero y'umunyamuryango cyangwa iy'ihazabu",
+
+      state: {
+        OUTSTANDING: "Itishyuwe",
+        SETTLED: "Yishyuwe",
+        WAIVED: "Yarekewe",
+        CANCELLED: "Yakuweho",
+      },
+
+      colMember: "Umunyamuryango",
+      colWhy: "Impamvu",
+      colAmount: "Umubare",
+      colState: "Uko ihagaze",
+      colAssessed: "Yatanzwe",
+      colActions: "Ibikorwa",
+
+      whyContribution: "Asigaye umunsi {days} mu kuzigama|Asigaye iminsi {days} mu kuzigama",
+      whyWarehouse: "Kwishyura kwa {number}, gutinze umunsi {days}|Kwishyura kwa {number}, gutinze iminsi {days}",
+      sum: "{rate}% bya {arrears}",
+      creditRef: "Ideni {reference}",
+      waivedBecause: "Yarekewe: {reason}",
+
+      noneTitle: "Nta hazabu ihuye",
+      noneBody: "Gerageza ubundi bwoko, ubundi buryo cyangwa irindi shakisha.",
+      cleanTitle: "Nta hazabu yatanzwe",
+      cleanBody:
+        "Nta munyamuryango wahawe ihazabu. Amahazabu agaragara hano ako kanya igenzura rya buri joro riyatanze.",
+
+      warehouseSettleNote:
+        "Ihazabu yo gutinda kwishyura ivanwaho wishyuye ideni, ntivanwa mu buzigame — andika ubwishyu ku ideni mu bubiko. Ariko ishobora kurekerwa hano.",
+
+      memberTitle: "Amahazabu yanjye",
+      memberDescription:
+        "Ihazabu yose wahawe, impamvu yayo, n'uko yabaruwe.",
+      memberOwed: "Ufite umwenda wa",
+      memberOwedHint: "Amahazabu atishyuwe. Kuyishyura bigarura uko uhagaze.",
+      memberPaid: "Wamaze kwishyura",
+      memberPaidHint: "Amahazabu yishyuwe mu buzigame cyangwa mu mafaranga",
+      memberWaivedCount: "Yarekewe",
+      memberWaivedHint: "Yarekewe n'ubuyobozi",
+      memberNothingTitle: "Nta hazabu ufite",
+      memberNothingBody:
+        "Nta kintu wahaniwe. Komeza kuzigama buri munsi kandi wishyure ku gihe amadeni y'ububiko, bizakomeza gutya.",
+      memberHowToClear:
+        "Ihazabu yo kutazigama ikurwa mu buzigame bwawe iyo ufite amafaranga ahagije, cyangwa ubuyobozi bushobora kuyireka. Ihazabu y'ideni ry'ububiko ivaho iyo wishyuye ukwo kwishyura.",
+      memberOpenRules: "Reba amategeko",
+      memberOpenWarehouse: "Fungura ideni ryanjye ry'ububiko",
     },
 
     funds: {

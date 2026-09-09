@@ -217,6 +217,24 @@ export default async function MemberRulesPage() {
           {copy.member.theRules}
         </h2>
 
+        {/* THE SUM, BEFORE THE TWO RULES THAT MAKE IT UP. The daily saving and
+            the service fee are separate entries below, and a member who meets
+            them one at a time does not add them together — so they pay the
+            savings half exactly, believe they are square, and are found behind
+            by the fee. Stating the total first is what stops that. */}
+        <Alert
+          variant="info"
+          className="mb-4"
+          title={fill(copy.member.dailyCostRule, {
+            total: formatMoney(policy.dailyTotal, { currency }),
+          })}
+        >
+          {fill(copy.member.dailyCostRuleBody, {
+            savings: formatMoney(policy.dailySavings, { currency }),
+            fee: formatMoney(policy.platformFeePerDay, { currency }),
+          })}
+        </Alert>
+
         {rules.length === 0 ? (
           <EmptyState
             icon={Scale}

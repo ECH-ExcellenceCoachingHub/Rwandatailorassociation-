@@ -718,6 +718,49 @@ export interface AdminCopy {
     cancelIssue: string;
     cancelIntro: string;
 
+    // Goods bought on credit
+    creditTab: string;
+    creditOnCredit: string;
+    creditOnCreditHint: string;
+    creditOverdue: string;
+    creditOverdueHint: string;
+    creditInterestEarned: string;
+    creditInterestEarnedHint: string;
+    creditFinesOutstanding: string;
+    creditFinesOutstandingHint: string;
+    noCreditsTitle: string;
+    noCreditsBody: string;
+    creditReference: string;
+    creditGoods: string;
+    creditValue: string;
+    creditInterest: string;
+    creditTotal: string;
+    creditPaid: string;
+    creditOwed: string;
+    creditNextDue: string;
+    creditProgress: string;
+    creditMonth: string;
+    creditTermsSummary: string;
+    creditNothingDue: string;
+    creditDaysLate: string;
+    creditFineOn: string;
+    creditFineExplained: string;
+    recordPayment: string;
+    recordPaymentIntro: string;
+    paymentAmount: string;
+    paymentAmountHint: string;
+    paymentFromSavings: string;
+    paymentFromSavingsHint: string;
+    paymentCash: string;
+    paymentChannel: string;
+    paymentDate: string;
+    paymentAllocationNote: string;
+    waiveFine: string;
+    waiveFineIntro: string;
+    writeOffCredit: string;
+    writeOffCreditIntro: string;
+    creditClosed: string;
+
     saved: string;
     saving: string;
     noPermission: string;
@@ -1638,6 +1681,54 @@ export const admin: Record<Locale, AdminCopy> = {
       cancelIntro:
         "Withdraws an issue recorded in error and returns every unreturned item to stock. The record survives with your reason on it.",
 
+      creditTab: "On credit",
+      creditOnCredit: "Financed",
+      creditOnCreditHint: "Goods issued on credit and not yet paid for",
+      creditOverdue: "Behind",
+      creditOverdueHint: "Credits with a month past its date unpaid",
+      creditInterestEarned: "Interest earned",
+      creditInterestEarnedHint: "Collected on warehouse goods — the association's in full",
+      creditFinesOutstanding: "Fines owed",
+      creditFinesOutstandingHint: "Charged for missed months and not yet paid",
+      noCreditsTitle: "Nothing is being paid off",
+      noCreditsBody:
+        "When goods are issued on credit terms, the three monthly payments are generated here and the member sees them the same day.",
+      creditReference: "Credit",
+      creditGoods: "Goods",
+      creditValue: "Value",
+      creditInterest: "Interest",
+      creditTotal: "To pay",
+      creditPaid: "Paid",
+      creditOwed: "Owed",
+      creditNextDue: "Next due",
+      creditProgress: "Progress",
+      creditMonth: "Month {number} of {total}",
+      creditTermsSummary: "{rate}% over {months} months · {fine}% fine per missed month",
+      creditNothingDue: "Nothing due",
+      creditDaysLate: "{count} day late|{count} days late",
+      creditFineOn: "Fine on month {number}",
+      creditFineExplained:
+        "{amount} — {rate}% of the {arrears} unpaid on that month, {days} after the due date.",
+      recordPayment: "Record a payment",
+      recordPaymentIntro:
+        "Payments clear the oldest month first, and within a month the fine, then the interest, then the goods. You cannot choose which month it lands on — that is what keeps an unpaid first month visible.",
+      paymentAmount: "Amount paid",
+      paymentAmountHint: "Cannot exceed what is still owed on this credit",
+      paymentFromSavings: "Take it from the member's savings",
+      paymentFromSavingsHint:
+        "Posts a debit on their savings account. It will fail rather than overdraw them — if the balance is short, collect it in cash instead.",
+      paymentCash: "Record a cash payment",
+      paymentChannel: "How it was paid",
+      paymentDate: "Date paid",
+      paymentAllocationNote:
+        "The split is recorded on the payment, so the member can be shown where their money went.",
+      waiveFine: "Forgive this fine",
+      waiveFineIntro:
+        "The fine comes off the month it was raised against and off what the member owes. The reason is kept on the record and in the audit log.",
+      writeOffCredit: "Write this credit off",
+      writeOffCreditIntro:
+        "The association gives up on collecting and bears the loss. The goods are not returned to stock — they are with the member. Kept on the record, never deleted.",
+      creditClosed: "Closed",
       saved: "Saved",
       saving: "Saving…",
       noPermission: "You do not have permission to change stock.",
@@ -2593,6 +2684,56 @@ export const admin: Record<Locale, AdminCopy> = {
       cancelIntro:
         "Bikuraho ifishi yanditswe mu makosa kandi bigarure mu bubiko ibitaragaruka. Inyandiko isigara ifite impamvu yawe.",
 
+      creditTab: "Ku ideni",
+      creditOnCredit: "Byatanzwe ku ideni",
+      creditOnCreditHint: "Ibintu byatanzwe ku ideni bitarishyurwa",
+      creditOverdue: "Batinze",
+      creditOverdueHint: "Amadeni afite ukwezi kwarengeje itariki kutishyuwe",
+      creditInterestEarned: "Inyungu yinjiye",
+      creditInterestEarnedHint:
+        "Yakiriwe ku bintu bya Warehouse — iy'ihuriro yose uko ingana",
+      creditFinesOutstanding: "Amahazabu asabwa",
+      creditFinesOutstandingHint: "Yaciwe ku mezi yasibwe ataritishyurwa",
+      noCreditsTitle: "Nta kintu kiri kwishyurwa",
+      noCreditsBody:
+        "Igihe ibintu bizatangwa ku ideni, ibyishyurwa bitatu bya buri kwezi bizakorwa hano kandi umunyamuryango abibone uwo munsi.",
+      creditReference: "Ideni",
+      creditGoods: "Ibintu",
+      creditValue: "Agaciro",
+      creditInterest: "Inyungu",
+      creditTotal: "Byose bigomba kwishyurwa",
+      creditPaid: "Byishyuwe",
+      creditOwed: "Bisabwa",
+      creditNextDue: "Ubwishyu bukurikira",
+      creditProgress: "Aho bigeze",
+      creditMonth: "Ukwezi kwa {number} muri {total}",
+      creditTermsSummary:
+        "{rate}% mu mezi {months} · ihazabu ya {fine}% kuri buri kwezi kwasibwe",
+      creditNothingDue: "Nta cyo asabwa",
+      creditDaysLate: "yatinze umunsi {count}|yatinze iminsi {count}",
+      creditFineOn: "Ihazabu y'ukwezi kwa {number}",
+      creditFineExplained:
+        "{amount} — {rate}% bya {arrears} atarishyuwe kuri uko kwezi, {days} nyuma y'itariki yagenwe.",
+      recordPayment: "Andika ubwishyu",
+      recordPaymentIntro:
+        "Ubwishyu bubanza gukuraho ukwezi kwa mbere, kandi muri ukwo kwezi bubanza ihazabu, hanyuma inyungu, hanyuma ibintu. Ntushobora guhitamo ukwezi bujyamo — ni byo bituma ukwezi kutishyuwe kugaragara.",
+      paymentAmount: "Amafaranga yishyuwe",
+      paymentAmountHint: "Ntashobora kurenza ibisabwa kuri iri deni",
+      paymentFromSavings: "Bikure mu buzigame bw'umunyamuryango",
+      paymentFromSavingsHint:
+        "Bishyira umwenda kuri konti ye y'ubuzigame. Bizanga aho kumushyira mu mwenda — niba amafaranga adahagije, akwishyure mu mafaranga.",
+      paymentCash: "Andika ubwishyu bw'amafaranga",
+      paymentChannel: "Uko yishyuye",
+      paymentDate: "Itariki yishyuriyeho",
+      paymentAllocationNote:
+        "Uko bugabanyijwe bwandikwa ku bwishyu, kugira ngo umunyamuryango yerekwe aho amafaranga ye yagiye.",
+      waiveFine: "Reka iyi hazabu",
+      waiveFineIntro:
+        "Ihazabu ikurwa ku kwezi yaciwemo no ku byo umunyamuryango asabwa. Impamvu ibikwa ku nyandiko no mu gitabo cy'igenzura.",
+      writeOffCredit: "Andika iri deni nk'iryatakaye",
+      writeOffCreditIntro:
+        "Ihuriro rireka kuryishyuza kandi ryemera igihombo. Ibintu ntibisubizwa mu bubiko — biri ku munyamuryango. Bibikwa ku nyandiko, ntibihanagurwa.",
+      creditClosed: "Byarangiye",
       saved: "Byabitswe",
       saving: "Birabikwa…",
       noPermission: "Nta burenganzira ufite bwo guhindura ibiri mu bubiko.",

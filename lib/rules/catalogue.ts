@@ -71,6 +71,13 @@ export const RULE_KEYS = {
   INTEREST_MEMBER_POINTS: "interest.member_share_points",
   INTEREST_ASSOCIATION_POINTS: "interest.association_share_points",
 
+  // Buying from the store on credit ----------------------------------------
+  WAREHOUSE_CREDIT_INTEREST: "warehouse_credit.interest_percent",
+  WAREHOUSE_CREDIT_TERM_MONTHS: "warehouse_credit.term_months",
+  WAREHOUSE_CREDIT_FINE_RATE: "warehouse_credit.fine_percent",
+  WAREHOUSE_CREDIT_FINE_GRACE_DAYS: "warehouse_credit.fine_grace_days",
+  WAREHOUSE_CREDIT_INTEREST_DESTINATION: "warehouse_credit.interest_destination",
+
   // How the rules themselves work ------------------------------------------
   RULES_PUBLISHED: "governance.rules_are_published",
   AMENDMENT_PROCESS: "governance.amendment_process",
@@ -460,6 +467,94 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
   },
 
   // -------------------------------------------------------------------------
+  // BUYING FROM THE STORE ON CREDIT
+  //
+  // Placed after the lending rules and before governance, because a member
+  // reads them in that order: this is the other way to get something from the
+  // association, and it is the one with the shortest leash.
+  // -------------------------------------------------------------------------
+  {
+    key: RULE_KEYS.WAREHOUSE_CREDIT_INTEREST,
+    category: "WAREHOUSE_CREDIT",
+    valueType: "PERCENT",
+    enforcement: "AUTOMATIC",
+    defaultValue: "2.0000",
+    displayOrder: 212,
+    title: {
+      en: "Goods taken on credit cost 2% in total",
+      rw: "Ibikoresho ufatiye ku ideni bikugusaba 2% muri rusange",
+    },
+    body: {
+      en: "Take fabric, thread or a machine out of the store without paying that day and 2% of its price is added once — for the whole three months, not every month. A machine priced at 200,000 is repaid as 204,000. The price you are charged is the one on the shelf the day you take it, and it never changes afterwards.",
+      rw: "Nufata umwenda, urudodo cyangwa imashini muri Warehouse utishyuye uwo munsi, hiyongeraho 2% by'igiciro cyabyo rimwe gusa — ku mezi atatu yose, si buri kwezi. Imashini ihenda 200,000 yishyurwa 204,000. Igiciro ucibwa ni icyari ku rutonde umunsi ubifashe, kandi ntikizigera gihinduka nyuma.",
+    },
+  },
+  {
+    key: RULE_KEYS.WAREHOUSE_CREDIT_TERM_MONTHS,
+    category: "WAREHOUSE_CREDIT",
+    valueType: "MONTHS",
+    enforcement: "AUTOMATIC",
+    defaultValue: "3",
+    displayOrder: 213,
+    title: {
+      en: "Paid off within three months, in equal monthly parts",
+      rw: "Byishyurwa mu mezi atatu, mu bice bingana bya buri kwezi",
+    },
+    body: {
+      en: "The amount is split into this many equal monthly payments, the first falling one month after you take the goods. You are shown all three dates and amounts the day the credit is opened. Paying early is allowed and costs nothing extra — the 2% does not grow, so settling in month one is cheaper in time but not in money.",
+      rw: "Umubare ugabanywamo ibice bingana bya buri kwezi bingana, icya mbere kikagera nyuma y'ukwezi kumwe umaze gufata ibikoresho. Werekwa amatariki yose atatu n'imibare umunsi ideni rifunguwe. Kwishyura kare biremewe kandi nta kiguzi cyiyongera — 2% ntiyiyongera, bityo kwishyura mu kwezi kwa mbere bikugabanyiriza igihe, ariko si amafaranga.",
+    },
+  },
+  {
+    key: RULE_KEYS.WAREHOUSE_CREDIT_FINE_RATE,
+    category: "WAREHOUSE_CREDIT",
+    valueType: "PERCENT",
+    enforcement: "AUTOMATIC",
+    defaultValue: "7.0000",
+    displayOrder: 214,
+    title: {
+      en: "Miss a month and the fine is 7%",
+      rw: "Nusiba ukwezi, ihazabu ni 7%",
+    },
+    body: {
+      en: "A monthly payment left unpaid past its date is fined this percentage of what is still unpaid on that month — not of the whole credit. Miss a month of 68,000 entirely and the fine is 4,760; pay 48,000 of it late and the fine is 7% of the 20,000 left, which is 1,400. Each month is fined at most once, however long it stays unpaid, and the fine is owed to the association.",
+      rw: "Amafaranga ya buri kwezi utishyuye igihe cyayo gishize ahanishwa iyi ijanisha ry'ibisigaye kuri uko kwezi — si ku ideni ryose. Usibye ukwezi kwa 68,000 kwose ihazabu ni 4,760; wishyuye 48,000 utinze, ihazabu ni 7% ya 20,000 isigaye, ni ukuvuga 1,400. Buri kwezi guhanwa rimwe gusa, uko kwaba kumaze igihe kingana kose kutishyuwe, kandi ihazabu igenerwa ihuriro.",
+    },
+  },
+  {
+    key: RULE_KEYS.WAREHOUSE_CREDIT_FINE_GRACE_DAYS,
+    category: "WAREHOUSE_CREDIT",
+    valueType: "DAYS",
+    enforcement: "AUTOMATIC",
+    defaultValue: "0",
+    displayOrder: 215,
+    title: {
+      en: "How long after the date before the fine falls",
+      rw: "Igihe gishira nyuma y'itariki mbere y'uko ihazabu igwa",
+    },
+    body: {
+      en: "The fine is assessed once this many days have passed since the due date. At zero it falls the day after. You are reminded before the date arrives, and the date and amount of every remaining payment are on your warehouse page from the day the credit is opened.",
+      rw: "Ihazabu itangwa iyi minsi imaze gushira uhereye ku itariki yagenwe. Iyo ari zeru, igwa bukeye. Uributswa mbere y'uko itariki igera, kandi itariki n'umubare wa buri kwishyura gusigaye biboneka ku ipaji yawe ya Warehouse uhereye umunsi ideni rifunguwe.",
+    },
+  },
+  {
+    key: RULE_KEYS.WAREHOUSE_CREDIT_INTEREST_DESTINATION,
+    category: "WAREHOUSE_CREDIT",
+    valueType: "TEXT",
+    enforcement: "AUTOMATIC",
+    defaultValue: null,
+    displayOrder: 216,
+    title: {
+      en: "This 2% goes to the association alone",
+      rw: "Iyi 2% igenerwa ihuriro ryonyine",
+    },
+    body: {
+      en: "Unlike the interest on a cash loan, which is split half back into the borrower's own savings, none of the 2% on goods returns to you. It stays with the association, because the association paid the supplier for stock you are using before you have paid for it. It appears on the association's money page as warehouse income, and not one franc of it goes to the platform.",
+      rw: "Bitandukanye n'inyungu z'inguzanyo y'amafaranga, igabanywamo kimwe cya kabiri kikagaruka mu buzigame bw'uwaguze, nta na kimwe muri 2% y'ibikoresho kigarukira wowe. Isigara ku ihuriro, kuko ari ryo ryishyuye uwatanze ibicuruzwa ku bikoresho ukoresha utarabyishyura. Igaragara ku ipaji y'amafaranga y'ihuriro nk'inyungu za Warehouse, kandi nta n'ifaranga rimwe rijya ku rubuga.",
+    },
+  },
+
+  // -------------------------------------------------------------------------
   // HOW THE RULES THEMSELVES WORK
   // -------------------------------------------------------------------------
   {
@@ -514,6 +609,7 @@ export const RULE_CATEGORY_ORDER: readonly RuleCategory[] = [
   "LENDING_ELIGIBILITY",
   "LOAN_TERMS",
   "INTEREST_SHARING",
+  "WAREHOUSE_CREDIT",
   "GOVERNANCE",
   "OTHER",
 ] as const;

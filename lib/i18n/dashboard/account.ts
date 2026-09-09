@@ -65,12 +65,28 @@ export interface AccountCopy {
     sharesDaysHint: string;
     dailyRate: string;
     perDay: string;
+    /// What a day of membership actually costs, and the two parts of it. Split
+    /// out because a member shown only the savings half pays exactly that and
+    /// then finds themselves in arrears by a fee nobody named.
+    dailyCost: string;
+    dailyCostHint: string;
+    dailyCostNote: string;
     paidAhead: string;
     paidAheadHint: string;
     behindBy: string;
     behindByHint: string;
     finesOwed: string;
     contributionStatus: string;
+
+    // Discipline — the fine, before and after it lands ----------------------
+    fineRiskTitle: string;
+    fineRiskBody: string;
+    fineTonightTitle: string;
+    fineTonightBody: string;
+    finesTitle: string;
+    finesHint: string;
+    finesSeeAll: string;
+    finesCleared: string;
 
     // What has been paid in --------------------------------------------------
     contributionsTitle: string;
@@ -289,12 +305,28 @@ export const account: Record<Locale, AccountCopy> = {
       sharesDaysHint: "{days} days at {rate}",
       dailyRate: "Daily saving",
       perDay: "per day",
+      dailyCost: "One day costs",
+      dailyCostHint: "{savings} becomes your shares + {fee} service fee",
+      dailyCostNote:
+        "A full day of membership is {total}. Paying only {savings} leaves you short by the {fee} service fee each day, and those shortfalls are what put you behind.",
       paidAhead: "Paid in advance",
       paidAheadHint: "{days} days ahead",
       behindBy: "Behind by",
       behindByHint: "{days} days not yet paid",
       finesOwed: "Fines owed",
       contributionStatus: "Contribution standing",
+
+      fineRiskTitle: "A fine lands in {days} day|A fine lands in {days} days",
+      fineRiskBody:
+        "You are {behind} day(s) behind. Pay {amount} before then and no fine is raised.",
+      fineTonightTitle: "A fine is due tonight",
+      fineTonightBody:
+        "You are {behind} day(s) behind. Paying {amount} today is the last chance to avoid it.",
+      finesTitle: "Fines against you",
+      finesHint:
+        "Raised for falling behind on the daily saving, or for paying a warehouse instalment late. Each one shows how it was worked out.",
+      finesSeeAll: "See all my fines",
+      finesCleared: "No unpaid fines",
 
       contributionsTitle: "What you have paid in",
       totalContributed: "Total paid in",
@@ -530,12 +562,28 @@ export const account: Record<Locale, AccountCopy> = {
       sharesDaysHint: "Iminsi {days} kuri {rate}",
       dailyRate: "Ubwizigame bwa buri munsi",
       perDay: "ku munsi",
+      dailyCost: "Umunsi umwe ugutwara",
+      dailyCostHint: "{savings} bihinduka umugabane wawe + {fee} ya serivisi",
+      dailyCostNote:
+        "Umunsi wuzuye wo kuba umunyamuryango ni {total}. Wishyura {savings} gusa usigara ubura {fee} ya serivisi buri munsi, kandi ubwo buke ni bwo bugutera gusigara inyuma.",
       paidAhead: "Wishyuye mbere",
       paidAheadHint: "Iminsi {days} imbere",
       behindBy: "Usigaye inyuma",
       behindByHint: "Iminsi {days} itarishyurwa",
       finesOwed: "Amande urimo",
       contributionStatus: "Uko uhagaze mu misanzu",
+
+      fineRiskTitle: "Ihazabu izatangwa mu munsi {days}|Ihazabu izatangwa mu minsi {days}",
+      fineRiskBody:
+        "Usigaye inyuma iminsi {behind}. Wishyura {amount} mbere y'aho nta hazabu izatangwa.",
+      fineTonightTitle: "Ihazabu izatangwa muri iri joro",
+      fineTonightBody:
+        "Usigaye inyuma iminsi {behind}. Kwishyura {amount} uyu munsi ni wo mwanya wa nyuma wo kuyirinda.",
+      finesTitle: "Amahazabu wahawe",
+      finesHint:
+        "Atangwa iyo usigaye inyuma mu kuzigama kwa buri munsi, cyangwa iyo wishyuye utinze ideni ry'ububiko. Buri kimwe kigaragaza uko cyabaruwe.",
+      finesSeeAll: "Reba amahazabu yanjye yose",
+      finesCleared: "Nta hazabu itishyuwe",
 
       contributionsTitle: "Amafaranga yose watanze",
       totalContributed: "Amafaranga yose watanze",

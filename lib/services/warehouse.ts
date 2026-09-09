@@ -12,7 +12,11 @@ import {
   toQuantityString,
 } from "@/lib/quantity";
 import { postSavingsTransaction } from "@/lib/services/ledger";
+import { openCreditWithin } from "@/lib/services/warehouse-credit";
+import { getPolicy } from "@/lib/services/rulebook";
 import type {
+  InstallmentStatus,
+  WarehouseCreditStatus,
   WarehouseIssuanceStatus,
   WarehouseIssueTerms,
   WarehouseItemCategory,
@@ -788,8 +792,18 @@ export interface IssuanceLineInput {
 /// Terms on which the goods are expected back rather than paid for.
 const RETURNABLE_TERMS: WarehouseIssueTerms[] = ["LOAN_OUT"];
 
-/// Terms under which the member owes the value.
+/// Terms under which the member owes the value ON THE ISSUE ITSELF, settled
+/// with `settleIssuance`.
+///
+/// CREDIT is deliberately absent. Goods bought on credit are owed too, but the
+/// debt lives on the WarehouseCredit — with its interest, its three dated
+/// instalments and any fine — and counting it here as well would show the
+/// member the same machine twice and let an officer collect for it in two
+/// places. See lib/services/warehouse-credit.ts.
 const CHARGEABLE_TERMS: WarehouseIssueTerms[] = ["PURCHASE", "AGAINST_LOAN"];
+
+/// Terms that open an instalment arrangement instead.
+const CREDIT_TERMS: WarehouseIssueTerms[] = ["CREDIT"];
 
 export async function issueToMember(params: {
   associationId: string;
@@ -844,6 +858,13 @@ export async function issueToMember(params: {
     where: { id: params.associationId },
     select: { currency: true },
   });
+
+  // Read OUTSIDE the transaction: the rulebook is a handful of rows and does
+  // not change during an issue, and holding the stock lock while querying it
+  // would widen the critical section for nothing.
+  const policy = CREDIT_TERMS.includes(params.terms)
+    ? await getPolicy(params.associationId)
+    : null;
 
   const issuanceId = await withFinancialTransaction(async (tx) => {
     const issuance = await tx.warehouseIssuance.create({
@@ -931,6 +952,23 @@ export async function issueToMember(params: {
       where: { id: issuance.id },
       data: { totalValue: toMoneyString(total) },
     });
+
+    // IN THE SAME TRANSACTION as the stock leaving. Goods out of the store
+    // with no credit against them are goods nobody owes for, and a second
+    // transaction that failed would leave exactly that.
+    if (policy) {
+      await openCreditWithin(tx, {
+        policy,
+        associationId: params.associationId,
+        memberId: params.memberId,
+        issuanceId: issuance.id,
+        goodsValue: toMoneyString(total),
+        currency: association.currency,
+        actorId: params.actorId,
+        startedAt: params.issuedAt,
+        note: params.note ?? null,
+      });
+    }
 
     return issuance.id;
   });
@@ -1146,6 +1184,13 @@ export async function settleIssuance(params: {
 
   if (!issuance) throw new WarehouseError("That issue was not found", "NOT_FOUND");
 
+  if (CREDIT_TERMS.includes(issuance.terms)) {
+    throw new WarehouseError(
+      "These goods were bought on credit. Record the payment against the credit so it lands on the right instalment.",
+      "INVALID_STATE"
+    );
+  }
+
   if (!CHARGEABLE_TERMS.includes(issuance.terms)) {
     throw new WarehouseError(
       "Nothing is owed on this issue, so there is nothing to settle",
@@ -1277,6 +1322,7 @@ export async function cancelIssuance(params: {
       terms: true,
       amountSettled: true,
       member: { select: { memberNumber: true } },
+      credit: { select: { id: true, reference: true, totalPaid: true } },
       lines: {
         select: {
           id: true,
@@ -1301,6 +1347,16 @@ export async function cancelIssuance(params: {
   if (isPositive(issuance.amountSettled)) {
     throw new WarehouseError(
       "This issue has already been paid for. Reverse the payment before cancelling it.",
+      "INVALID_STATE"
+    );
+  }
+
+  // Same rule for goods bought on credit: once the member has paid an
+  // instalment, withdrawing the issue would strand that payment against a
+  // record that no longer says they took anything.
+  if (issuance.credit && isPositive(issuance.credit.totalPaid)) {
+    throw new WarehouseError(
+      `Payments have already been made against credit ${issuance.credit.reference}. Reverse them before cancelling this issue.`,
       "INVALID_STATE"
     );
   }
@@ -1348,6 +1404,37 @@ export async function cancelIssuance(params: {
         returnedAt: new Date(),
       },
     });
+
+    // An unpaid credit against withdrawn goods is withdrawn with them, and its
+    // instalments stop counting toward anything. The row survives with the
+    // reason on it, like every other cancellation here.
+    if (issuance.credit) {
+      await tx.warehouseCredit.update({
+        where: { id: issuance.credit.id },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+          cancelReason: params.reason,
+          principalOutstanding: "0.00",
+          interestOutstanding: "0.00",
+          penaltyOutstanding: "0.00",
+        },
+      });
+
+      await tx.warehouseCreditInstallment.updateMany({
+        where: { creditId: issuance.credit.id, status: { not: "PAID" } },
+        data: { status: "WAIVED", waiverReason: params.reason },
+      });
+
+      await tx.warehouseCreditFine.updateMany({
+        where: { creditId: issuance.credit.id, status: "OUTSTANDING" },
+        data: {
+          status: "CANCELLED",
+          cancelledAt: new Date(),
+          cancelReason: params.reason,
+        },
+      });
+    }
   });
 
   await recordAudit({
@@ -1406,6 +1493,19 @@ export interface WarehouseIssuanceDetail {
   note: string | null;
   issuedByName: string | null;
   lines: WarehouseIssuanceLineDetail[];
+
+  /// Set only on CREDIT terms. The instalment arrangement this issue opened,
+  /// which is where the money owed for these goods actually lives — see the
+  /// note on CHARGEABLE_TERMS above.
+  credit: {
+    id: string;
+    reference: string;
+    status: WarehouseCreditStatus;
+    totalPayable: string;
+    outstanding: string;
+    nextDueDate: Date | null;
+    isOverdue: boolean;
+  } | null;
 }
 
 const ISSUANCE_SELECT = {
@@ -1431,6 +1531,25 @@ const ISSUANCE_SELECT = {
     },
   },
   loan: { select: { reference: true } },
+  credit: {
+    select: {
+      id: true,
+      reference: true,
+      status: true,
+      totalPayable: true,
+      principalOutstanding: true,
+      interestOutstanding: true,
+      penaltyOutstanding: true,
+      installments: {
+        // Typed rather than left to `as const`, which would freeze the array
+        // readonly and Prisma's filter wants a mutable one.
+        where: { status: { notIn: ["PAID", "WAIVED"] as InstallmentStatus[] } },
+        orderBy: { installmentNumber: "asc" as const },
+        take: 1,
+        select: { dueDate: true },
+      },
+    },
+  },
   issuedBy: { select: { firstName: true, lastName: true } },
   lines: {
     orderBy: { createdAt: "asc" as const },
@@ -1500,6 +1619,24 @@ function toIssuanceDetail(row: IssuanceRow, asOf: Date): WarehouseIssuanceDetail
       unitValue: toMoneyString(line.unitValue),
       lineValue: toMoneyString(line.lineValue),
     })),
+    credit: row.credit
+      ? {
+          id: row.credit.id,
+          reference: row.credit.reference,
+          status: row.credit.status,
+          totalPayable: toMoneyString(row.credit.totalPayable),
+          outstanding: toMoneyString(
+            add(
+              row.credit.principalOutstanding,
+              row.credit.interestOutstanding,
+              row.credit.penaltyOutstanding
+            )
+          ),
+          nextDueDate: row.credit.installments[0]?.dueDate ?? null,
+          isOverdue:
+            row.credit.status === "OVERDUE" || row.credit.status === "DEFAULTED",
+        }
+      : null,
   };
 }
 
@@ -1802,13 +1939,21 @@ export interface MemberWarehouseSummary {
   totalIssuedValue: string;
   /// Value of goods they still hold on returnable terms.
   outstandingValue: string;
-  /// Money still owed for goods taken. The figure that belongs on their
-  /// account page beside what they owe on a loan.
+  /// Money still owed for goods taken OUTRIGHT. The figure that belongs on
+  /// their account page beside what they owe on a loan.
   totalOwed: string;
   totalSettled: string;
+  /// Still owed on goods bought on credit — instalments, interest and any
+  /// fine. Reported separately from `totalOwed` because the two are settled in
+  /// different places and only one of them carries a due date.
+  creditOutstanding: string;
+  /// The two added: everything the store is owed by this member.
+  totalDueToStore: string;
   currency: string;
   openCount: number;
   overdueReturnCount: number;
+  activeCreditCount: number;
+  overdueCreditCount: number;
 }
 
 /**
@@ -1840,6 +1985,9 @@ export async function getMemberWarehouseSummary(
   let outstandingValue = toMoney(0);
   let openCount = 0;
   let overdueReturnCount = 0;
+  let creditOutstanding = toMoney(0);
+  let activeCreditCount = 0;
+  let overdueCreditCount = 0;
 
   for (const issuance of issuances) {
     totalIssuedValue = add(totalIssuedValue, issuance.totalValue);
@@ -1863,6 +2011,28 @@ export async function getMemberWarehouseSummary(
     }
 
     if (issuance.isOverdueBack) overdueReturnCount += 1;
+
+    if (issuance.credit) {
+      // Only what is still being collected. A written-off credit keeps its
+      // balance on the record but is not a bill this member is being sent —
+      // see getMemberCreditSummary, which applies the same rule.
+      const collectable =
+        issuance.credit.status === "ACTIVE" ||
+        issuance.credit.status === "OVERDUE" ||
+        issuance.credit.status === "DEFAULTED";
+
+      if (collectable) {
+        creditOutstanding = add(creditOutstanding, issuance.credit.outstanding);
+      }
+
+      if (
+        issuance.credit.status === "ACTIVE" ||
+        issuance.credit.status === "OVERDUE"
+      ) {
+        activeCreditCount += 1;
+      }
+      if (issuance.credit.isOverdue) overdueCreditCount += 1;
+    }
   }
 
   return {
@@ -1871,8 +2041,12 @@ export async function getMemberWarehouseSummary(
     outstandingValue: toMoneyString(outstandingValue),
     totalOwed: toMoneyString(totalOwed),
     totalSettled: toMoneyString(totalSettled),
+    creditOutstanding: toMoneyString(creditOutstanding),
+    totalDueToStore: toMoneyString(add(totalOwed, creditOutstanding)),
     currency: member.association.currency,
     openCount,
     overdueReturnCount,
+    activeCreditCount,
+    overdueCreditCount,
   };
 }

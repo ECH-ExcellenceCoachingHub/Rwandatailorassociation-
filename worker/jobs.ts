@@ -10,6 +10,7 @@ import {
   chargePlatformFees,
   sendContributionReminders,
 } from "@/lib/services/contributions";
+import { assessCreditFines } from "@/lib/services/warehouse-credit";
 import { purgeExpiredSessions } from "@/lib/auth/session";
 import { purgeExpiredQrCodes } from "@/lib/auth/qr-access";
 import { notify, retryFailedDeliveries, NOTIFICATION_EVENTS } from "@/lib/notifications";
@@ -563,6 +564,81 @@ export function workerConfig() {
  * One association failing does not stop the others. An association whose rules
  * are misconfigured must not cost every other tenant their nightly run.
  */
+/**
+ * THE WAREHOUSE CREDIT SWEEP.
+ *
+ * Finds every monthly instalment on goods bought from the store that passed
+ * its date unpaid, charges the rulebook's 7% on what is still owed for that
+ * month, and moves the credit's own standing to OVERDUE — or to DEFAULTED once
+ * the three months have run out with money still owed.
+ *
+ * DAILY, NOT MONTHLY, even though the instalments are monthly. A job that ran
+ * on the first of the month would leave a member who missed the 14th unfined
+ * and unwarned for a fortnight, and would fine everybody who missed anything
+ * on the same morning. Running nightly means a fine falls the day after the
+ * date it was earned, which is what the member was told would happen.
+ *
+ * IDEMPOTENT BY UNIQUE INDEX, not by care: one fine per instalment, enforced
+ * by warehouse_credit_fines.installmentId. A double-run, a retry after a
+ * crash, or a manual trigger mid-flight all converge on the same state.
+ *
+ * Runs AFTER the contribution sweep. Both can take money out of the same
+ * member's savings, and the daily obligation is the older claim.
+ */
+export async function assessWarehouseCredits(): Promise<JobResult> {
+  const associations = await prisma.association.findMany({
+    where: { status: "ACTIVE" },
+    select: { id: true, code: true },
+  });
+
+  let finesAssessed = 0;
+  let markedOverdue = 0;
+  let defaulted = 0;
+  let failed = 0;
+  let fineTotal = "0.00";
+
+  for (const association of associations) {
+    try {
+      const result = await assessCreditFines(association.id);
+
+      finesAssessed += result.assessed;
+      markedOverdue += result.creditsMarkedOverdue;
+      defaulted += result.creditsDefaulted;
+      fineTotal = toMoneyString(add(fineTotal, result.totalAssessed));
+
+      if (result.assessed > 0 || result.creditsMarkedOverdue > 0) {
+        workerLogger.info(
+          {
+            association: association.code,
+            fines: result.assessed,
+            total: result.totalAssessed,
+            overdue: result.creditsMarkedOverdue,
+            defaulted: result.creditsDefaulted,
+          },
+          "warehouse credit sweep complete for association"
+        );
+      }
+    } catch (error) {
+      failed++;
+      workerLogger.error(
+        { association: association.code, ...serialiseError(error) },
+        "warehouse credit sweep failed for association"
+      );
+    }
+  }
+
+  return {
+    associations: associations.length,
+    finesAssessed,
+    fineTotal,
+    markedOverdue,
+    defaulted,
+    failed,
+    processed: finesAssessed + markedOverdue,
+    succeeded: finesAssessed + markedOverdue,
+  };
+}
+
 export async function runContributionDiscipline(): Promise<JobResult> {
   const associations = await prisma.association.findMany({
     where: { status: "ACTIVE" },

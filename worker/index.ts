@@ -3,6 +3,7 @@ import cron from "node-cron";
 import { prisma } from "@/lib/db/prisma";
 import { workerLogger, serialiseError } from "@/lib/logger";
 import {
+  assessWarehouseCredits,
   cleanupExpiredRecords,
   dailyFinancialSummary,
   detectOverdueLoans,
@@ -49,6 +50,10 @@ const JOBS = {
   contributions: {
     name: "contribution-discipline",
     fn: runContributionDiscipline,
+  },
+  warehouseCredits: {
+    name: "warehouse-credit-sweep",
+    fn: assessWarehouseCredits,
   },
 } as const;
 
@@ -225,6 +230,14 @@ async function main() {
     void runJob(JOBS.contributions.name, JOBS.contributions.fn);
   });
 
+  // Goods bought on credit: the 7% for a missed month, and the standing of
+  // every credit. Fifteen minutes after the contribution sweep, so the older
+  // claim on a member's savings is settled first and this job reads balances
+  // as they stand afterwards.
+  cron.schedule("45 1 * * *", () => {
+    void runJob(JOBS.warehouseCredits.name, JOBS.warehouseCredits.fn);
+  });
+
   // Integrity sweep nightly. The one job whose failure is an emergency.
   cron.schedule("30 2 * * *", () => {
     void runJob(JOBS.integrity.name, JOBS.integrity.fn);
@@ -250,6 +263,7 @@ async function main() {
       overdue: config.overdueCron,
       reminders: config.reminderCron,
       contributions: "30 1 * * *",
+      warehouseCredits: "45 1 * * *",
       integrity: "30 2 * * *",
       notificationRetry: "*/10 * * * *",
       cleanup: "0 3 * * *",

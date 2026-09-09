@@ -110,6 +110,7 @@ export const warehouseItemCategorySchema = z.enum([
 
 export const warehouseIssueTermsSchema = z.enum([
   "PURCHASE",
+  "CREDIT",
   "LOAN_OUT",
   "AGAINST_LOAN",
   "FREE_ISSUE",
@@ -261,6 +262,42 @@ export const settleIssuanceSchema = z.object({
 });
 
 export const cancelIssuanceSchema = z.object({ reason });
+
+// ---------------------------------------------------------------------------
+// Goods bought on credit
+// ---------------------------------------------------------------------------
+
+/**
+ * A payment against a credit.
+ *
+ * No instalment is named. The service allocates oldest-first, deliberately: an
+ * officer choosing which month a payment lands on is how arrears get hidden
+ * behind an up-to-date-looking final instalment.
+ */
+export const creditPaymentSchema = z.object({
+  amount: money(),
+  /// True takes it out of the member's savings; false records a cash payment.
+  fromSavings: z.boolean(),
+  channel: z
+    .enum([
+      "CASH",
+      "BANK_TRANSFER",
+      "MOBILE_MONEY",
+      "CHEQUE",
+      "INTERNAL_TRANSFER",
+      "OTHER",
+    ])
+    .optional(),
+  note: optionalText(500),
+  occurredAt: optionalDate,
+});
+
+export const waiveCreditFineSchema = z.object({ reason });
+export const writeOffCreditSchema = z.object({ reason });
+
+export type CreditPaymentInput = z.infer<typeof creditPaymentSchema>;
+export type WaiveCreditFineInput = z.infer<typeof waiveCreditFineSchema>;
+export type WriteOffCreditInput = z.infer<typeof writeOffCreditSchema>;
 
 export type CreateWarehouseItemInput = z.infer<typeof createWarehouseItemSchema>;
 export type UpdateWarehouseItemInput = z.infer<typeof updateWarehouseItemSchema>;

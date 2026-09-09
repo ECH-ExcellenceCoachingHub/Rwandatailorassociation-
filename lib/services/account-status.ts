@@ -7,6 +7,7 @@ import {
   getMemberWarehouseSummary,
   type MemberWarehouseSummary,
 } from "@/lib/services/warehouse";
+import { listMemberFines, type MemberFines } from "@/lib/services/fines";
 import type {
   MemberStatus,
   KycStatus,
@@ -79,6 +80,15 @@ export interface ShareholdingSummary {
   /// The daily rate the shares accrue at — the savings half of the daily
   /// obligation, excluding the platform's service fee.
   dailyRate: string;
+  /// WHAT A DAY ACTUALLY COSTS THE MEMBER: the savings rate plus the service
+  /// fee. Carried beside `dailyRate` because showing only the savings half is
+  /// how a member comes to believe they owe 1,000 a day, pays exactly that, and
+  /// is then found to be in arrears by the fee they were never told about. The
+  /// page shows this total and names both parts underneath it.
+  dailyTotal: string;
+  /// The service-fee portion of a day. `dailyTotal` − `dailyRate`, resolved
+  /// here so the page never has to subtract two money strings itself.
+  dailyFee: string;
   /// daysCredited × dailyRate. The shareholding figure itself.
   sharesHeld: string;
   /// Paid for days still in the future. Real money, already the member's, but
@@ -93,6 +103,11 @@ export interface ShareholdingSummary {
   status: ContributionStatus;
   /// Unpaid fines, so the page never shows a clean shareholding beside a debt.
   outstandingFines: string;
+  /// Days left before the next fine lands; 0 means tonight. The single most
+  /// actionable number on the page for somebody who is behind — a member told
+  /// only that they are "behind" has no reason to act today rather than next
+  /// week, which is precisely how the fine arrives.
+  daysUntilFine: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -165,6 +180,12 @@ export interface AccountStatusSummary {
   loan: AccountLoanSummary | null;
   warehouse: MemberWarehouseSummary | null;
 
+  /// Every fine against this member, of both kinds — missed daily saving and
+  /// late warehouse-credit instalments. A penalty is money taken off somebody,
+  /// and the page that exists to answer "where do I stand" cannot answer it
+  /// while the discipline half of the answer lives on another screen.
+  fines: MemberFines;
+
   /// Every movement on the member's ledger, newest first, capped. The page
   /// links onward to the full statement rather than paginating here.
   transactions: AccountTransactionRow[];
@@ -215,8 +236,16 @@ export async function getAccountStatusSummary(
 
   if (!member) return null;
 
-  const [activeLoan, loanTotals, loanCount, transactions, transactionCount, standing, warehouse] =
-    await Promise.all([
+  const [
+    activeLoan,
+    loanTotals,
+    loanCount,
+    transactions,
+    transactionCount,
+    standing,
+    warehouse,
+    fines,
+  ] = await Promise.all([
       prisma.loan.findFirst({
         where: { memberId, status: { in: ["DISBURSED", "ACTIVE", "OVERDUE"] } },
         orderBy: { createdAt: "desc" },
@@ -304,6 +333,7 @@ export async function getAccountStatusSummary(
       // zero days and an empty warehouse position respectively.
       getMemberStanding(memberId),
       getMemberWarehouseSummary(memberId),
+      listMemberFines(memberId),
     ]);
 
   const account = member.savingsAccounts[0] ?? null;
@@ -348,6 +378,7 @@ export async function getAccountStatusSummary(
     }),
 
     warehouse,
+    fines,
 
     transactions: transactions.map((transaction) => ({
       id: transaction.id,
@@ -378,6 +409,8 @@ function buildShareholding(
     daysOwed: standing.dueDays,
     daysCovered: standing.coveredDays,
     dailyRate: standing.dailySavings,
+    dailyTotal: standing.dailyTotal,
+    dailyFee: toMoneyString(subtract(standing.dailyTotal, standing.dailySavings)),
     sharesHeld: toMoneyString(multiply(standing.dailySavings, daysCredited)),
     advanceDays,
     // Valued at the savings rate, not the full daily cost: the fee portion of
@@ -387,6 +420,7 @@ function buildShareholding(
     behindAmount: standing.arrearsTotal,
     status: standing.status,
     outstandingFines: standing.outstandingFineAmount,
+    daysUntilFine: standing.daysUntilFine,
   };
 }
 

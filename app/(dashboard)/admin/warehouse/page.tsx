@@ -19,10 +19,15 @@ import {
   listMovements,
   type WarehouseItemSummary,
 } from "@/lib/services/warehouse";
-import { formatMoney, toMoneyString } from "@/lib/money";
+import {
+  getCreditOverview,
+  listCredits,
+} from "@/lib/services/warehouse-credit";
+import { getPolicy } from "@/lib/services/rulebook";
+import { formatMoney, toMoney, toMoneyString } from "@/lib/money";
 import { formatQuantity } from "@/lib/quantity";
 import { getDashboardCopy } from "@/lib/i18n/server";
-import { pluralize } from "@/lib/i18n/fill";
+import { fill, pluralize } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
 import type { Locale } from "@/types";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
@@ -48,8 +53,11 @@ import {
   NewItemButton,
   ReceiveStockButton,
   RecordReturnButton,
+  RecordCreditPaymentButton,
   SettleIssuanceButton,
+  WaiveCreditFineButton,
   WriteOffButton,
+  WriteOffCreditButton,
 } from "@/components/dashboard/WarehouseForms";
 
 /**
@@ -98,7 +106,17 @@ export default async function AdminWarehousePage() {
     );
   }
 
-  const [overview, items, issuances, movements, members, loans] = await Promise.all([
+  const [
+    overview,
+    items,
+    issuances,
+    movements,
+    members,
+    loans,
+    creditOverview,
+    creditPage,
+    policy,
+  ] = await Promise.all([
     getWarehouseOverview(associationId),
     listItems(associationId, { includeInactive: true }),
     listIssuances(associationId, { pageSize: 50 }),
@@ -125,6 +143,10 @@ export default async function AdminWarehousePage() {
       orderBy: { createdAt: "desc" },
       select: { id: true, memberId: true, reference: true },
     }),
+
+    getCreditOverview(associationId),
+    listCredits(associationId, { take: 50 }),
+    getPolicy(associationId),
   ]);
 
   const currency = overview.currency;
@@ -149,6 +171,16 @@ export default async function AdminWarehousePage() {
     name: `${member.user.firstName} ${member.user.lastName}`,
   }));
 
+  // Trailing zeros dropped: "2.0000" is a database column, "2" is the rule the
+  // committee agreed and the member was told.
+  const creditTerms = {
+    interestRate: trimRate(policy.warehouseCreditInterest),
+    termMonths: policy.warehouseCreditTermMonths,
+    fineRate: trimRate(policy.warehouseCreditFineRate),
+  };
+
+  const credits = creditPage.credits;
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -162,6 +194,7 @@ export default async function AdminWarehousePage() {
                 items={itemOptions}
                 members={memberOptions}
                 loans={loans}
+                creditTerms={creditTerms}
               />
             )}
           </>
@@ -213,6 +246,9 @@ export default async function AdminWarehousePage() {
           </TabsTrigger>
           <TabsTrigger value="issues" count={issuances.total}>
             {copy.issuesTab}
+          </TabsTrigger>
+          <TabsTrigger value="credits" count={creditPage.total}>
+            {copy.creditTab}
           </TabsTrigger>
           <TabsTrigger value="movements">{copy.movementsTab}</TabsTrigger>
         </TabsList>
@@ -396,6 +432,238 @@ export default async function AdminWarehousePage() {
           )}
         </TabsContent>
 
+        <TabsContent value="credits" className="space-y-5 pt-5">
+          {/* The four figures a treasurer asks of this tab: how much stock is
+              out unpaid, how much of it is behind, what the arrangement has
+              actually earned, and what the fines have added. */}
+          <StatGrid columns={4}>
+            <StatCard
+              label={copy.creditOnCredit}
+              value={formatMoney(creditOverview.totalOutstanding, { currency })}
+              hint={copy.creditOnCreditHint}
+              icon={Coins}
+            />
+            <StatCard
+              label={copy.creditOverdue}
+              value={String(creditOverview.overdueCount)}
+              hint={copy.creditOverdueHint}
+              icon={AlertTriangle}
+              tone={creditOverview.overdueCount > 0 ? "danger" : "default"}
+            />
+            <StatCard
+              label={copy.creditInterestEarned}
+              value={formatMoney(creditOverview.interestEarned, { currency })}
+              hint={copy.creditInterestEarnedHint}
+              icon={ArrowUpRight}
+              tone="success"
+            />
+            <StatCard
+              label={copy.creditFinesOutstanding}
+              value={formatMoney(creditOverview.finesOutstanding, { currency })}
+              hint={copy.creditFinesOutstandingHint}
+              icon={CalendarClock}
+              tone={
+                Number(creditOverview.finesOutstanding) > 0 ? "warning" : "default"
+              }
+            />
+          </StatGrid>
+
+          <p className="text-sm text-ink-muted">
+            {fill(copy.creditTermsSummary, {
+              rate: creditTerms.interestRate,
+              months: creditTerms.termMonths,
+              fine: creditTerms.fineRate,
+            })}
+          </p>
+
+          {credits.length === 0 ? (
+            <EmptyState
+              icon={Coins}
+              title={copy.noCreditsTitle}
+              description={copy.noCreditsBody}
+            />
+          ) : (
+            <ul className="space-y-3">
+              {credits.map((credit) => {
+                const closed =
+                  credit.status === "COMPLETED" ||
+                  credit.status === "WRITTEN_OFF" ||
+                  credit.status === "CANCELLED";
+
+                // Every fine still owed on this credit, so an officer can
+                // forgive one without opening a second screen to find it.
+                const openFines = credit.installments
+                  .filter((row) => row.fine && row.fine.status === "OUTSTANDING")
+                  .map((row) => ({ row, fine: row.fine! }));
+
+                return (
+                  <li
+                    key={credit.id}
+                    className="rounded-2xl border border-border bg-surface p-4"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs text-ink-muted">
+                            {credit.reference}
+                          </span>
+                          <StatusBadge status={credit.status} size="sm" />
+                          {credit.isOverdue && credit.daysOverdue > 0 && (
+                            <span className="text-xs font-medium text-danger">
+                              {pluralize(copy.creditDaysLate, credit.daysOverdue)}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 font-medium text-ink">
+                          {credit.memberName}{" "}
+                          <span className="text-xs font-normal text-ink-muted">
+                            {credit.memberNumber}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 truncate text-sm text-ink-muted">
+                          {credit.itemSummary}
+                        </p>
+                      </div>
+
+                      <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-right text-sm sm:grid-cols-4">
+                        <div>
+                          <dt className="text-xs text-ink-muted">
+                            {copy.creditValue}
+                          </dt>
+                          <dd className="tabular-nums text-ink">
+                            {formatMoney(credit.goodsValue, { currency })}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-ink-muted">
+                            {copy.creditInterest}
+                          </dt>
+                          <dd className="tabular-nums text-ink">
+                            {formatMoney(credit.interestAmount, { currency })}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-ink-muted">
+                            {copy.creditPaid}
+                          </dt>
+                          <dd className="tabular-nums text-ink-muted">
+                            {formatMoney(credit.totalPaid, { currency })}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs text-ink-muted">
+                            {copy.creditOwed}
+                          </dt>
+                          <dd
+                            className={
+                              credit.isOverdue
+                                ? "font-semibold tabular-nums text-danger"
+                                : "font-semibold tabular-nums text-ink"
+                            }
+                          >
+                            {formatMoney(credit.totalOutstanding, { currency })}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+
+                    {/* Where it stands: the next payment owed, and by when. */}
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+                      <p className="text-sm text-ink-muted">
+                        {credit.nextDue ? (
+                          <>
+                            {copy.creditNextDue}:{" "}
+                            <strong
+                              className={
+                                credit.nextDue.isOverdue ? "text-danger" : "text-ink"
+                              }
+                            >
+                              {formatMoney(credit.nextDue.amount, { currency })}
+                            </strong>{" "}
+                            ·{" "}
+                            {fill(copy.creditMonth, {
+                              number: credit.nextDue.installmentNumber,
+                              total: credit.termMonths,
+                            })}{" "}
+                            · {formatDate(credit.nextDue.dueDate, locale)}
+                          </>
+                        ) : (
+                          <span>
+                            {closed ? copy.creditClosed : copy.creditNothingDue}
+                          </span>
+                        )}
+                      </p>
+
+                      <div className="flex flex-wrap gap-2">
+                        {canIssue && !closed && (
+                          <RecordCreditPaymentButton
+                            credit={{
+                              id: credit.id,
+                              reference: credit.reference,
+                              memberName: credit.memberName,
+                              totalOutstanding: credit.totalOutstanding,
+                              currency: credit.currency,
+                              nextDueAmount: credit.nextDue?.amount ?? null,
+                            }}
+                          />
+                        )}
+                        {canAdjust &&
+                          openFines.map(({ row, fine }) => (
+                            <WaiveCreditFineButton
+                              key={fine.id}
+                              fine={{
+                                id: fine.id,
+                                reference: fine.reference,
+                                amount: fine.amount,
+                                currency: credit.currency,
+                                installmentNumber: row.installmentNumber,
+                                creditReference: credit.reference,
+                              }}
+                            />
+                          ))}
+                        {canAdjust && !closed && (
+                          <WriteOffCreditButton
+                            credit={{
+                              id: credit.id,
+                              reference: credit.reference,
+                              memberName: credit.memberName,
+                              totalOutstanding: credit.totalOutstanding,
+                              currency: credit.currency,
+                              nextDueAmount: credit.nextDue?.amount ?? null,
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* The arithmetic behind every fine, so an officer taking a
+                        call about one can read it out rather than look it up. */}
+                    {openFines.length > 0 && (
+                      <ul className="mt-3 space-y-1 border-t border-border pt-3">
+                        {openFines.map(({ row, fine }) => (
+                          <li key={fine.id} className="text-xs text-danger">
+                            <strong>
+                              {fill(copy.creditFineOn, {
+                                number: row.installmentNumber,
+                              })}
+                            </strong>{" "}
+                            {fill(copy.creditFineExplained, {
+                              amount: formatMoney(fine.amount, { currency }),
+                              rate: trimRate(fine.rate),
+                              arrears: formatMoney(fine.arrearsAmount, { currency }),
+                              days: pluralize(copy.creditDaysLate, fine.daysLate),
+                            })}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </TabsContent>
+
         <TabsContent value="movements" className="pt-5">
           <MovementsTable
             movements={movements}
@@ -513,6 +781,14 @@ function Cell({ label, value }: { label: string; value: string }) {
  * as by colour — the same rule the savings ledger follows, and for the same
  * reason: on a movement row, the direction is the whole meaning.
  */
+/**
+ * "7.0000" is a database column; "7" is the rule the committee agreed. Trailing
+ * zeros are dropped wherever a rate is shown to a person.
+ */
+function trimRate(rate: string): string {
+  return toMoney(rate).toDecimalPlaces(2).toString();
+}
+
 function MovementsTable({
   movements,
   currency,

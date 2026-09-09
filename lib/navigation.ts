@@ -15,6 +15,7 @@ import {
   FileText,
   FileUp,
   Gauge,
+  Gavel,
   HandCoins,
   LayoutDashboard,
   Link2,
@@ -101,6 +102,18 @@ const MEMBER_NAV: NavSection[] = [
         icon: Scale,
         exact: true,
       },
+      // Beside the association's money and its rules, because the store is
+      // both: stock the members' money paid for, and the one place a member
+      // can take something home before they have paid for it. Carries no
+      // permission for the same reason the other two do not — a member is
+      // entitled to see what the association bought with their savings, and
+      // what taking a machine would cost them.
+      {
+        labelKey: "warehouse",
+        href: "/dashboard/warehouse",
+        icon: Warehouse,
+        exact: true,
+      },
     ],
   },
   {
@@ -123,6 +136,13 @@ const MEMBER_NAV: NavSection[] = [
   {
     titleKey: "account",
     items: [
+      // First in the section, and named the thing it is. A member who has been
+      // fined should not have to work out that the penalty against them lives
+      // under "Our rules" — the word they are looking for is "fines", so that
+      // is the word in the sidebar. Carries no permission and no
+      // `requiresMemberAccount`: the page tells a member with a clean record
+      // that they have none, which is itself worth being able to check.
+      { labelKey: "myFines", href: "/dashboard/fines", icon: Gavel, exact: true },
       { labelKey: "accountStatus", href: "/account/status", icon: ShieldQuestion },
       { labelKey: "qrCode", href: "/account/qr", icon: QrCode },
       { labelKey: "membershipCard", href: "/account/card", icon: IdCard },
@@ -168,6 +188,16 @@ const PERSONAL_SECTION: NavSection = {
       labelKey: "myLoans",
       href: "/dashboard/loans",
       icon: HandCoins,
+      requiresMemberAccount: true,
+    },
+    // An officer who saves with the association is fined by the same rules as
+    // anybody else, and the register next door shows them everyone's fines but
+    // not their own in the personal terms this page uses.
+    {
+      labelKey: "myFines",
+      href: "/dashboard/fines",
+      icon: Gavel,
+      exact: true,
       requiresMemberAccount: true,
     },
     {
@@ -306,6 +336,18 @@ const ADMIN_NAV: NavSection[] = [
         labelKey: "contributionStanding",
         href: "/admin/compliance",
         icon: CalendarCheck,
+        permission: PERMISSIONS.COMPLIANCE_VIEW,
+        exact: true,
+      },
+      // Beside the arrears list rather than inside it. The two answer different
+      // questions: that screen is "who do I call today", this one is "what have
+      // we raised, collected and forgiven" — and the second is the one a
+      // committee is asked at a meeting. It also gathers the warehouse-credit
+      // fines, which have no home on the compliance screen at all.
+      {
+        labelKey: "fines",
+        href: "/admin/fines",
+        icon: Gavel,
         permission: PERMISSIONS.COMPLIANCE_VIEW,
         exact: true,
       },
@@ -493,6 +535,8 @@ export const BREADCRUMB_LABELS: Record<string, string> = {
   borrowings: "Bank borrowing",
   investments: "Investments",
   warehouse: "Warehouse",
+  fines: "Fines",
+  compliance: "Contribution standing",
   deposit: "Make a deposit",
   account: "Account",
   status: "Account status",
