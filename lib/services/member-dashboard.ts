@@ -2,6 +2,8 @@ import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { add, subtract, toMoneyString } from "@/lib/money";
 import { availableBalance } from "@/lib/services/ledger";
+import { getMemberStanding, type ContributionStatus } from "@/lib/services/contributions";
+import { listMemberFines, type MemberFines } from "@/lib/services/fines";
 
 /**
  * Member dashboard data.
@@ -70,6 +72,38 @@ export interface MemberDashboardData {
   monthlySavings: { month: string; deposits: string; withdrawals: string; balance: string }[];
   unreadNotifications: number;
   paymentReference: string;
+
+  /// WHERE THEY STAND ON THE DAILY OBLIGATION.
+  ///
+  /// The dashboard used to answer only "what have I got" — balance, loan, next
+  /// repayment — and never "what do I owe today". That is the half a member is
+  /// fined over, so leaving it to another screen meant the first many people
+  /// heard of the rule was the day it caught them.
+  ///
+  /// Null only when the member has no standing record to compute from, which
+  /// the page renders as absence rather than as zeroes.
+  standing: {
+    status: ContributionStatus;
+    /// What one day of membership actually costs, and its two halves. Shown
+    /// together for the same reason the account page shows them together: a
+    /// member told only the savings figure pays exactly that and is then found
+    /// behind by a fee nobody named.
+    dailyTotal: string;
+    dailySavings: string;
+    dailyFee: string;
+    dueDays: number;
+    coveredDays: number;
+    missedDays: number;
+    /// Days left before the next fine; 0 means tonight.
+    daysUntilFine: number;
+    arrearsTotal: string;
+    /// Arrears plus unpaid fines — the one figure a member can act on.
+    clearingAmount: string;
+    outstandingFines: string;
+  } | null;
+
+  /// Fines of both kinds, so the discipline record travels with the money.
+  fines: MemberFines;
 }
 
 export async function getMemberDashboard(
@@ -94,8 +128,16 @@ export async function getMemberDashboard(
 
   const account = member.savingsAccounts[0];
 
-  const [activeLoan, pendingApplication, products, recentTransactions, unread, history] =
-    await Promise.all([
+  const [
+    activeLoan,
+    pendingApplication,
+    products,
+    recentTransactions,
+    unread,
+    history,
+    standing,
+    fines,
+  ] = await Promise.all([
       prisma.loan.findFirst({
         where: {
           memberId,
@@ -198,6 +240,11 @@ export async function getMemberDashboard(
         GROUP BY date_trunc('month', "createdAt"), "savingsAccountId", "createdAt"
         ORDER BY month ASC
       `,
+
+      // Both scope themselves to this member and are safe for somebody with no
+      // fines and no standing record — an empty position, not a failure.
+      getMemberStanding(memberId),
+      listMemberFines(memberId),
     ]);
 
   // Borrowing capacity: best offer across active products, computed from the
@@ -288,6 +335,25 @@ export async function getMemberDashboard(
         }
       : null,
     borrowing: { maxEligible, productName, minimumSavings, meetsMinimum },
+
+    standing: standing
+      ? {
+          status: standing.status,
+          dailyTotal: standing.dailyTotal,
+          dailySavings: standing.dailySavings,
+          dailyFee: toMoneyString(
+            subtract(standing.dailyTotal, standing.dailySavings)
+          ),
+          dueDays: standing.dueDays,
+          coveredDays: standing.coveredDays,
+          missedDays: standing.missedDays,
+          daysUntilFine: standing.daysUntilFine,
+          arrearsTotal: standing.arrearsTotal,
+          clearingAmount: standing.clearingAmount,
+          outstandingFines: standing.outstandingFineAmount,
+        }
+      : null,
+    fines,
     recentTransactions: recentTransactions.map((t) => ({
       id: t.id,
       reference: t.reference,

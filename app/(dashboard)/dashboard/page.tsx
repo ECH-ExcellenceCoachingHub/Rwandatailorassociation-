@@ -4,16 +4,21 @@ import {
   ArrowDownToLine,
   ArrowRight,
   ArrowUpFromLine,
+  CalendarCheck,
   CalendarClock,
+  Coins,
+  Gavel,
   HandCoins,
   Landmark,
   PiggyBank,
   Receipt,
   TrendingUp,
+  TriangleAlert,
   Wallet,
 } from "lucide-react";
 import { requireMember } from "@/lib/auth/guards";
-import { getMemberDashboard } from "@/lib/services/member-dashboard";
+import { getMemberDashboard, type MemberDashboardData } from "@/lib/services/member-dashboard";
+import { getPolicyEnsured } from "@/lib/services/rulebook";
 import { formatMoney } from "@/lib/money";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { fill, pluralize } from "@/lib/i18n/fill";
@@ -60,7 +65,15 @@ export default async function MemberDashboardPage() {
   const { d, locale } = await getDashboardCopy();
   const copy = d.member.overview;
 
-  const data = await getMemberDashboard(context.member!.id, context.user.id);
+  // The rulebook alongside the figures: the fine copy quotes the grace period,
+  // and reading it from the policy is what keeps the sentence true after a
+  // committee changes the rule.
+  const [data, policy] = await Promise.all([
+    getMemberDashboard(context.member!.id, context.user.id),
+    context.user.associationId
+      ? getPolicyEnsured(context.user.associationId)
+      : Promise.resolve(null),
+  ]);
 
   if (!data) {
     return (
@@ -72,8 +85,16 @@ export default async function MemberDashboardPage() {
     );
   }
 
-  const { savings, loan, borrowing, application, recentTransactions, monthlySavings } =
-    data;
+  const {
+    savings,
+    loan,
+    borrowing,
+    application,
+    recentTransactions,
+    monthlySavings,
+    standing,
+    fines,
+  } = data;
 
   const firstName = context.user.firstName;
   const dueSoon = loan.nextInstalment
@@ -95,6 +116,41 @@ export default async function MemberDashboardPage() {
             : copy.firstContribution}
         </p>
       </div>
+
+      {/* THE FINE, WHILE IT CAN STILL BE AVOIDED. Above the balances, beside
+          the overdue-loan warning, because it is the one thing on this screen
+          with a deadline attached — and a member who only ever opens the
+          dashboard would otherwise meet the rule on the day it catches them. */}
+      {standing &&
+        (standing.status === "AT_RISK" || standing.status === "FINABLE") && (
+          <Alert
+            variant={standing.status === "FINABLE" ? "error" : "warning"}
+            title={
+              standing.status === "FINABLE"
+                ? d.rules.member.finedTitle
+                : fill(d.rules.member.fineWarning, {
+                    days: standing.daysUntilFine,
+                  })
+            }
+          >
+            {standing.status === "FINABLE"
+              ? fill(d.rules.member.finedBody, {
+                  behind: standing.missedDays,
+                  grace: policy?.graceDays ?? 0,
+                  amount: formatMoney(standing.clearingAmount),
+                })
+              : fill(d.rules.member.fineWarningBody, {
+                  behind: standing.missedDays,
+                  amount: formatMoney(standing.clearingAmount),
+                })}{" "}
+            <Link
+              href="/dashboard/savings/deposit"
+              className="font-semibold underline"
+            >
+              {copy.makeDeposit}
+            </Link>
+          </Alert>
+        )}
 
       {loan.daysOverdue > 0 && (
         <Alert variant="error" title={copy.overdueTitle}>
@@ -179,6 +235,20 @@ export default async function MemberDashboardPage() {
           }
         />
       </StatGrid>
+
+      {/* THE DAILY OBLIGATION, in full. The figures above are what the member
+          has; this is what they owe, and it is the half the association acts
+          on. The daily cost leads with the TOTAL rather than the savings
+          portion — a member shown only the savings figure pays exactly that
+          and falls behind by the fee every day. */}
+      {standing && (
+        <StandingSection
+          standing={standing}
+          fines={fines}
+          d={d}
+          locale={locale}
+        />
+      )}
 
       {/* Quick actions + payment reference */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -362,6 +432,187 @@ export default async function MemberDashboardPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * WHERE THE MEMBER STANDS ON THE DAILY SAVING, on the screen they actually open.
+ *
+ * The dashboard used to answer only "what have I got" — balance, loan, next
+ * repayment. It never answered "what do I owe today", which is the half a
+ * member is fined over. Somebody who never opened the rulebook or their account
+ * status could therefore accrue arrears and a penalty without the app once
+ * putting the figure in front of them.
+ *
+ * THE DAILY COST LEADS WITH THE TOTAL. The savings portion and the service fee
+ * are two separate rules, and a member who meets them one at a time does not
+ * add them up: they pay the savings half exactly, believe they are square, and
+ * fall behind by the fee every single day. The total is the figure; the two
+ * halves are named underneath it.
+ *
+ * Copy is reused wholesale from the rulebook's member vocabulary rather than
+ * duplicated here, so the same position reads identically on this page, on the
+ * rules page and on the account status page. Three screens describing one
+ * member's arrears in three different phrasings is how people conclude the
+ * numbers disagree.
+ */
+function StandingSection({
+  standing,
+  fines,
+  d,
+  locale,
+}: {
+  standing: NonNullable<MemberDashboardData["standing"]>;
+  fines: MemberDashboardData["fines"];
+  d: Awaited<ReturnType<typeof getDashboardCopy>>["d"];
+  locale: "en" | "rw";
+}) {
+  const copy = d.rules;
+  const behind = standing.missedDays > 0;
+
+  return (
+    <section className="rounded-2xl border border-border bg-surface p-5 shadow-card">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-heading text-base font-semibold text-ink">
+          {copy.member.yourStanding}
+        </h2>
+        <Button asChild variant="ghost" size="sm">
+          <Link href="/dashboard/rules">
+            {copy.member.theRules}
+            <ArrowRight className="size-4" aria-hidden="true" />
+          </Link>
+        </Button>
+      </div>
+
+      <StatGrid columns={4} className="mt-4">
+        <StatCard
+          label={copy.member.oneDayCosts}
+          value={formatMoney(standing.dailyTotal)}
+          hint={fill(copy.member.oneDayCostsHint, {
+            savings: formatMoney(standing.dailySavings),
+            fee: formatMoney(standing.dailyFee),
+          })}
+          icon={Coins}
+        />
+        <StatCard
+          label={copy.member.daysCovered}
+          value={String(standing.coveredDays)}
+          hint={fill(copy.member.daysCoveredHint, { owed: standing.dueDays })}
+          icon={CalendarCheck}
+        />
+        <StatCard
+          label={copy.standing[standing.status]}
+          value={behind ? String(standing.missedDays) : String(standing.dueDays)}
+          hint={
+            behind
+              ? fill(copy.member.behindBy, { days: standing.missedDays })
+              : copy.member.daysOwed
+          }
+          icon={behind ? TriangleAlert : CalendarCheck}
+          tone={
+            standing.status === "FINABLE"
+              ? "danger"
+              : standing.status === "AT_RISK" || standing.status === "BEHIND"
+                ? "warning"
+                : "success"
+          }
+        />
+        <StatCard
+          label={copy.member.payToClear}
+          value={formatMoney(standing.clearingAmount)}
+          hint={copy.member.payToClearHint}
+          icon={PiggyBank}
+          tone={behind ? "danger" : "success"}
+          href="/dashboard/savings/deposit"
+        />
+      </StatGrid>
+
+      {/* The discipline record, compact. Three at most — this is a summary, and
+          the full list with every fine's arithmetic is one link away. */}
+      {fines.rows.length > 0 && (
+        <div className="mt-5 border-t border-border pt-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h3 className="font-heading text-sm font-semibold text-ink">
+              {copy.member.yourFines}
+            </h3>
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/dashboard/fines">
+                {d.account.status.finesSeeAll}
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+
+          <ul className="mt-3 space-y-2">
+            {fines.rows.slice(0, 3).map((fine) => {
+              const outstanding = fine.status === "OUTSTANDING";
+
+              const why =
+                fine.kind === "CONTRIBUTION"
+                  ? pluralize(copy.fines.whyContribution, fine.missedDays ?? 0, {
+                      days: fine.missedDays ?? 0,
+                    })
+                  : pluralize(copy.fines.whyWarehouse, fine.daysLate ?? 0, {
+                      number: fine.installmentNumber ?? 0,
+                      days: fine.daysLate ?? 0,
+                    });
+
+              return (
+                <li
+                  key={`${fine.kind}-${fine.id}`}
+                  className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 ${
+                    outstanding
+                      ? "border-red-200 bg-red-50/50"
+                      : "border-border bg-background"
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink">{why}</p>
+                    <p className="text-xs text-ink-muted">
+                      {formatDate(fine.assessedAt, locale)} ·{" "}
+                      {fill(copy.fines.sum, {
+                        rate: fine.rate,
+                        arrears: formatMoney(fine.arrearsAmount, {
+                          currency: fine.currency,
+                        }),
+                      })}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-sm font-bold tabular-nums ${
+                        outstanding ? "text-red-600" : "text-ink"
+                      }`}
+                    >
+                      {formatMoney(fine.amount, { currency: fine.currency })}
+                    </span>
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                        outstanding
+                          ? "border-red-300 bg-red-50 text-red-700"
+                          : fine.status === "SETTLED"
+                            ? "border-success/30 bg-success/10 text-emerald-700"
+                            : "border-ink/12 bg-ink/[0.04] text-ink-muted"
+                      }`}
+                    >
+                      {copy.fines.state[fine.status]}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {fines.outstandingCount > 0 && (
+            <p className="mt-3 flex items-center gap-2 text-sm font-semibold text-red-700">
+              <Gavel className="size-4" aria-hidden="true" />
+              {d.account.status.finesOwed}: {formatMoney(fines.outstandingAmount)}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 
