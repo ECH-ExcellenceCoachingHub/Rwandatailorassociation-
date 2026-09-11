@@ -355,6 +355,13 @@ export async function registerMember(
             occupation: input.occupation ?? null,
             district: input.district ?? null,
             province: input.province ?? null,
+            successorName: input.successorName ?? null,
+            successorPhone: input.successorPhone ?? null,
+            successorRelation: input.successorRelation ?? null,
+            sharesSubscribed: input.sharesSubscribed,
+            hasCompany: input.hasCompany ?? null,
+            acceptsInterns: input.acceptsInterns ?? null,
+            internCapacity: input.internCapacity ?? null,
             savingsAccounts: {
               create: {
                 associationId,

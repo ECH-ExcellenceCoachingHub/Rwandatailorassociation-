@@ -7,6 +7,7 @@ import {
 } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getMemberProfile } from "@/lib/services/members";
+import { getPolicy } from "@/lib/services/rulebook";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/fill";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
@@ -29,6 +30,11 @@ export async function generateMetadata({
   };
 }
 
+/** Null — never asked — stays blank rather than reading as "no". */
+function yesNo(value: boolean | null): string {
+  return value === null ? "" : value ? "YES" : "NO";
+}
+
 export default async function EditMemberPage({
   params,
 }: {
@@ -47,7 +53,10 @@ export default async function EditMemberPage({
   // rather than assumed.
   assertSameAssociation(context, member, "Member");
 
-  const { d } = await getDashboardCopy();
+  const [{ d }, policy] = await Promise.all([
+    getDashboardCopy(),
+    getPolicy(member.associationId),
+  ]);
   const copy = d.admin.members;
 
   return (
@@ -65,6 +74,7 @@ export default async function EditMemberPage({
       />
 
       <MemberForm
+        sharePrice={policy.dailySavings}
         member={{
           id: member.id,
           memberNumber: member.memberNumber,
@@ -88,6 +98,13 @@ export default async function EditMemberPage({
           nextOfKinName: member.nextOfKinName ?? "",
           nextOfKinPhone: member.nextOfKinPhone ?? "",
           nextOfKinRelation: member.nextOfKinRelation ?? "",
+          successorName: member.successorName ?? "",
+          successorPhone: member.successorPhone ?? "",
+          successorRelation: member.successorRelation ?? "",
+          sharesSubscribed: member.sharesSubscribed?.toString() ?? "",
+          hasCompany: yesNo(member.hasCompany),
+          acceptsInterns: yesNo(member.acceptsInterns),
+          internCapacity: member.internCapacity?.toString() ?? "",
         }}
       />
     </div>

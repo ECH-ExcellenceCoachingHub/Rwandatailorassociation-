@@ -1,0 +1,12 @@
+<svg width="240" height="80" viewBox="0 0 240 80" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ese Niba">
+  <foreignObject x="0" y="0" width="240" height="80">
+    <style>
+      .en-bg{fill:#ffffff}
+      .en-accent{fill:#20b2aa}
+      .en-text{font-family:"Poppins",system-ui,ui-sans-serif;font-weight:700;font-size:28px;fill:#1f2937}
+      .en-sub{font-family:"Manrope",system-ui,ui-sans-serif;font-weight:600;font-size:12px;fill:#4b5563}
+    </style>
+    <rect class="en-bg" x="0" y="0" width="240" height="80" rx="10"/>
+    <text class="en-text" x="120" y="50" text-anchor="middle">Ese Niba</text>
+  </foreignObject>
+</svg>

@@ -11,15 +11,20 @@ import {
   UserPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input, NativeSelect } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { Alert } from "@/components/ui/alert";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { RwandaLocationFields } from "@/components/ui/rwanda-location-fields";
 import { useLanguage } from "@/components/LanguageProvider";
-import { split } from "@/lib/i18n/fill";
+import { fill, split } from "@/lib/i18n/fill";
+import { add, formatMoney, gt, multiply } from "@/lib/money";
 import { assessPasswordStrength } from "@/lib/auth/password.shared";
 import { isValidRwandanPhone } from "@/lib/phone";
+import {
+  MAX_APPLICATION_SHARES,
+  MAX_INTERN_CAPACITY,
+} from "@/lib/application-limits";
 
 /**
  * Membership application form.
@@ -50,14 +55,32 @@ const INITIAL = {
   occupation: "",
   province: "",
   district: "",
+  sharesSubscribed: "",
+  hasCompany: "",
+  acceptsInterns: "",
+  internCapacity: "",
+  successorName: "",
+  successorPhone: "",
+  successorRelation: "",
   password: "",
   confirmPassword: "",
 };
 
-export default function RegisterForm() {
+const SHARE_OPTIONS = Array.from({ length: MAX_APPLICATION_SHARES }, (_, i) => i + 1);
+
+export default function RegisterForm({
+  sharePrice,
+  dailyFee,
+}: {
+  /// The rulebook's daily saving — the price of one share, per day.
+  sharePrice: string;
+  /// The platform's service fee, per member per day.
+  dailyFee: string;
+}) {
   const { d } = useLanguage();
   const copy = d.forms.register;
   const field = d.forms.field;
+  const app = d.forms.application;
 
   const [values, setValues] = useState(INITIAL);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -67,6 +90,32 @@ export default function RegisterForm() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<SuccessState | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // What the chosen shares cost each day, shown beside the choice so nobody
+  // commits to a figure they first discover on their statement.
+  const shareCount = Number(values.sharesSubscribed) || 0;
+  const dailySavings = multiply(sharePrice, shareCount);
+  const sharesHint =
+    shareCount > 0
+      ? [
+          fill(app.sharesDaily, {
+            count: shareCount,
+            price: formatMoney(sharePrice),
+            savings: formatMoney(dailySavings),
+          }),
+          gt(dailyFee, 0)
+            ? fill(app.sharesFee, {
+                fee: formatMoney(dailyFee),
+                total: formatMoney(add(dailySavings, dailyFee)),
+              })
+            : "",
+        ]
+          .join(" ")
+          .trim()
+      : fill(app.sharesHintRegister, {
+          price: formatMoney(sharePrice),
+          max: MAX_APPLICATION_SHARES,
+        });
 
   function update(name: keyof typeof INITIAL, value: string) {
     setValues((prev) => ({ ...prev, [name]: value }));
@@ -91,6 +140,33 @@ export default function RegisterForm() {
     }
     if (values.nationalId && !/^\d{16}$/.test(values.nationalId.trim())) {
       next.nationalId = [copy.error.nationalId];
+    }
+    if (!values.sharesSubscribed) {
+      next.sharesSubscribed = [fill(app.sharesError, { max: MAX_APPLICATION_SHARES })];
+    }
+    if (!values.hasCompany) {
+      next.hasCompany = [app.hasCompanyError];
+    }
+    // The interns questions only appear beside a company, so only then can
+    // they be left unanswered.
+    if (values.hasCompany === "YES" && !values.acceptsInterns) {
+      next.acceptsInterns = [app.acceptsInternsError];
+    }
+    if (values.hasCompany === "YES" && values.acceptsInterns === "YES") {
+      const capacity = Number(values.internCapacity);
+      if (
+        !values.internCapacity.trim() ||
+        !Number.isInteger(capacity) ||
+        capacity < 1 ||
+        capacity > MAX_INTERN_CAPACITY
+      ) {
+        next.internCapacity = [
+          fill(app.internCapacityError, { max: MAX_INTERN_CAPACITY }),
+        ];
+      }
+    }
+    if (values.successorPhone && !isValidRwandanPhone(values.successorPhone)) {
+      next.successorPhone = [copy.error.phone];
     }
 
     // The strength assessment reports its own reasons, which are English-only
@@ -343,6 +419,165 @@ export default function RegisterForm() {
             errors={{ province: errors.province, district: errors.district }}
             districtHint={d.forms.hint.districtRegister}
           />
+        </div>
+
+        <hr className="border-border" />
+
+        {/*
+          The association's own questions. Shares and the interns answer are
+          required, because the applicant is here to give them; the successor
+          may not be to hand, and an administrator can add them at approval.
+        */}
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field
+            id="sharesSubscribed"
+            label={app.shares}
+            error={errors.sharesSubscribed}
+            hint={sharesHint}
+            required
+          >
+            {(props) => (
+              <NativeSelect
+                {...props}
+                value={values.sharesSubscribed}
+                onChange={(e) => update("sharesSubscribed", e.target.value)}
+              >
+                <option value="">{app.choose}</option>
+                {SHARE_OPTIONS.map((count) => (
+                  <option key={count} value={count}>
+                    {count}
+                  </option>
+                ))}
+              </NativeSelect>
+            )}
+          </Field>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field
+            id="hasCompany"
+            label={app.hasCompanyQuestion}
+            error={errors.hasCompany}
+            required
+          >
+            {(props) => (
+              <NativeSelect
+                {...props}
+                value={values.hasCompany}
+                onChange={(e) => {
+                  update("hasCompany", e.target.value);
+                  // Answers left behind a "no" would still be sent, and
+                  // refused, for questions no longer on screen.
+                  if (e.target.value !== "YES") {
+                    update("acceptsInterns", "");
+                    update("internCapacity", "");
+                  }
+                }}
+              >
+                <option value="">{app.choose}</option>
+                <option value="YES">{d.common.yes}</option>
+                <option value="NO">{d.common.no}</option>
+              </NativeSelect>
+            )}
+          </Field>
+        </div>
+
+        {/* Interns are only asked of someone with a company to host them in. */}
+        {values.hasCompany === "YES" && (
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field
+              id="acceptsInterns"
+              label={app.acceptsInternsQuestion}
+              error={errors.acceptsInterns}
+              required
+            >
+              {(props) => (
+                <NativeSelect
+                  {...props}
+                  value={values.acceptsInterns}
+                  onChange={(e) => {
+                    update("acceptsInterns", e.target.value);
+                    if (e.target.value !== "YES") update("internCapacity", "");
+                  }}
+                >
+                  <option value="">{app.choose}</option>
+                  <option value="YES">{d.common.yes}</option>
+                  <option value="NO">{d.common.no}</option>
+                </NativeSelect>
+              )}
+            </Field>
+
+            {values.acceptsInterns === "YES" && (
+              <Field
+                id="internCapacity"
+                label={app.internCapacityQuestion}
+                error={errors.internCapacity}
+                required
+              >
+                {(props) => (
+                  <Input
+                    {...props}
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={MAX_INTERN_CAPACITY}
+                    value={values.internCapacity}
+                    onChange={(e) => update("internCapacity", e.target.value)}
+                  />
+                )}
+              </Field>
+            )}
+          </div>
+        )}
+
+        <div className="space-y-1">
+          <h3 className="font-heading text-base font-semibold text-ink">
+            {app.successor}
+          </h3>
+          <p className="text-sm leading-relaxed text-ink-muted">
+            {app.successorHintRegister}
+          </p>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field id="successorName" label={app.successorName} error={errors.successorName}>
+            {(props) => (
+              <Input
+                {...props}
+                value={values.successorName}
+                onChange={(e) => update("successorName", e.target.value)}
+                autoComplete="off"
+              />
+            )}
+          </Field>
+
+          <Field id="successorPhone" label={app.successorPhone} error={errors.successorPhone}>
+            {(props) => (
+              <Input
+                {...props}
+                type="tel"
+                value={values.successorPhone}
+                onChange={(e) => update("successorPhone", e.target.value)}
+                autoComplete="off"
+                placeholder={d.forms.placeholder.phone}
+              />
+            )}
+          </Field>
+
+          <Field
+            id="successorRelation"
+            label={app.successorRelation}
+            error={errors.successorRelation}
+          >
+            {(props) => (
+              <Input
+                {...props}
+                value={values.successorRelation}
+                onChange={(e) => update("successorRelation", e.target.value)}
+                placeholder={d.forms.placeholder.relation}
+              />
+            )}
+          </Field>
         </div>
 
         <hr className="border-border" />

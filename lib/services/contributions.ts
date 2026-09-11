@@ -112,6 +112,10 @@ export interface StandingInputs {
   /// Fines still owed, in money. Folded into the clearing figure.
   outstandingFineAmount: string;
   isExempt: boolean;
+  /// Shares the member holds. Each saves the daily amount set in the rulebook;
+  /// absent counts as one, which is what members enrolled before shares were
+  /// recorded were already paying.
+  shares?: number;
 }
 
 export type ContributionStatus =
@@ -173,7 +177,13 @@ export interface ContributionStanding {
 export function computeStanding(input: StandingInputs): ContributionStanding {
   const { policy } = input;
 
-  const dailyTotal = toMoney(policy.dailyTotal);
+  // The rulebook's daily saving is the price of ONE share. A member who took
+  // five saves five times it each day; the service fee is per member, not per
+  // share. Anyone enrolled before shares were recorded counts as one share,
+  // which is exactly what they were already paying.
+  const shares = Math.max(1, input.shares ?? 1);
+  const dailySavings = multiply(policy.dailySavings, shares);
+  const dailyTotal = toMoney(add(dailySavings, policy.platformFeePerDay));
 
   const startIndex = dayIndexIn(input.timeZone, input.obligationStart);
   const todayIndex = dayIndexIn(input.timeZone, input.asOf);
@@ -191,7 +201,7 @@ export function computeStanding(input: StandingInputs): ContributionStanding {
 
   const missedDays = Math.max(0, dueDays - coveredDays);
 
-  const arrearsSavings = multiply(policy.dailySavings, missedDays);
+  const arrearsSavings = multiply(dailySavings, missedDays);
   const arrearsFee = multiply(policy.platformFeePerDay, missedDays);
   const arrearsTotal = add(arrearsSavings, arrearsFee);
 
@@ -240,7 +250,7 @@ export function computeStanding(input: StandingInputs): ContributionStanding {
     feeDaysOwed: input.isExempt ? 0 : feeDaysOwed,
     feeAmountOwed: toMoneyString(input.isExempt ? 0 : feeAmountOwed),
     dailyTotal: toMoneyString(dailyTotal),
-    dailySavings: toMoneyString(policy.dailySavings),
+    dailySavings: toMoneyString(dailySavings),
   };
 }
 
@@ -363,6 +373,7 @@ export async function getMemberStanding(
         select: { balance: true, totalDeposits: true },
       },
       contributionStanding: true,
+      sharesSubscribed: true,
       contributionFines: {
         where: { status: { in: ["OUTSTANDING", "SETTLED"] } },
         orderBy: { dueDayIndex: "desc" },
@@ -415,6 +426,7 @@ export async function getMemberStanding(
     policy,
     timeZone: member.association.timezone,
     obligationStart: resolveObligationStart(member),
+    shares: member.sharesSubscribed ?? 1,
     asOf: options.asOf ?? new Date(),
     totalContributed: toMoneyString(totalContributed),
     feeChargedThroughDay: member.platformFeeCharges[0]?.coveredThroughDay ?? 0,
@@ -594,6 +606,7 @@ export async function listStandings(
           select: { balance: true, totalDeposits: true },
         },
         contributionStanding: true,
+        sharesSubscribed: true,
         contributionFines: {
           where: { status: { in: ["OUTSTANDING", "SETTLED"] } },
           orderBy: { dueDayIndex: "desc" },
@@ -642,6 +655,7 @@ export async function listStandings(
       policy,
       timeZone,
       obligationStart,
+      shares: member.sharesSubscribed ?? 1,
       asOf,
       totalContributed: toMoneyString(totalContributed),
       feeChargedThroughDay: member.platformFeeCharges[0]?.coveredThroughDay ?? 0,
@@ -791,6 +805,7 @@ export async function chargePlatformFees(
       approvedAt: true,
       createdAt: true,
       contributionStanding: true,
+      sharesSubscribed: true,
       savingsAccounts: {
         where: { isActive: true },
         orderBy: { openedAt: "asc" },
@@ -821,6 +836,7 @@ export async function chargePlatformFees(
       policy,
       timeZone,
       obligationStart: resolveObligationStart(member),
+      shares: member.sharesSubscribed ?? 1,
       asOf,
       totalContributed: toMoneyString(account.totalDeposits),
       feeChargedThroughDay: chargedThrough,
@@ -957,6 +973,7 @@ export async function assessFines(
       paymentReference: true,
       userId: true,
       contributionStanding: true,
+      sharesSubscribed: true,
       savingsAccounts: {
         where: { isActive: true },
         select: { totalDeposits: true },
@@ -1001,6 +1018,7 @@ export async function assessFines(
       policy,
       timeZone,
       obligationStart: resolveObligationStart(member),
+      shares: member.sharesSubscribed ?? 1,
       asOf,
       totalContributed: toMoneyString(totalContributed),
       feeChargedThroughDay: member.platformFeeCharges[0]?.coveredThroughDay ?? 0,
@@ -1395,6 +1413,7 @@ export async function sendContributionReminders(
       createdAt: true,
       paymentReference: true,
       contributionStanding: true,
+      sharesSubscribed: true,
       savingsAccounts: {
         where: { isActive: true },
         select: { balance: true, totalDeposits: true },
@@ -1435,6 +1454,7 @@ export async function sendContributionReminders(
       policy,
       timeZone,
       obligationStart: resolveObligationStart(member),
+      shares: member.sharesSubscribed ?? 1,
       asOf,
       totalContributed: toMoneyString(totalContributed),
       feeChargedThroughDay: member.platformFeeCharges[0]?.coveredThroughDay ?? 0,

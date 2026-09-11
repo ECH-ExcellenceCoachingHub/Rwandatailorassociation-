@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requirePermission, resolveAssociationScope } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
+import { getPolicy } from "@/lib/services/rulebook";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/fill";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
@@ -48,6 +49,10 @@ export default async function NewMemberPage() {
     );
   }
 
+  // The share price is the association's own daily saving, so the form quotes
+  // what a share actually costs here rather than a figure written into code.
+  const policy = await getPolicy(associationId);
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -62,7 +67,7 @@ export default async function NewMemberPage() {
         }
       />
 
-      <MemberForm />
+      <MemberForm sharePrice={policy.dailySavings} />
     </div>
   );
 }

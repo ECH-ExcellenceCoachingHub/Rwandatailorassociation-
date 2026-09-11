@@ -6,6 +6,13 @@ import {
   optionalDistrict,
   optionalProvince,
 } from "@/lib/validation/rwanda";
+import {
+  normaliseInternAnswers,
+  memberFieldsSchema,
+  requireInternAnswers,
+  wholeNumber,
+} from "@/lib/validation/members";
+import { MAX_APPLICATION_SHARES } from "@/lib/application-limits";
 
 /**
  * Auth request schemas.
@@ -83,6 +90,26 @@ export const registerSchema = z
     // crafted request or a stale client — either way it is not saved.
     province: optionalProvince(),
     district: optionalDistrict(),
+    // The association's application questions. Shares and whether they have
+    // a company are required here, because the applicant is present to give
+    // them; the interns questions follow only a yes, which the refinement
+    // below enforces. The rest follow the desk form's rules, so they are
+    // picked from it rather than restated.
+    sharesSubscribed: wholeNumber(
+      1,
+      MAX_APPLICATION_SHARES,
+      `Choose between 1 and ${MAX_APPLICATION_SHARES} shares`
+    ),
+    hasCompany: z
+      .enum(["YES", "NO"], { message: "Answer whether you have a company" })
+      .transform((value) => value === "YES"),
+    ...memberFieldsSchema.pick({
+      acceptsInterns: true,
+      internCapacity: true,
+      successorName: true,
+      successorPhone: true,
+      successorRelation: true,
+    }).shape,
     password: passwordSchema,
     confirmPassword: z.string(),
     acceptedTerms: z
@@ -93,7 +120,9 @@ export const registerSchema = z
     message: "Passwords do not match",
     path: ["confirmPassword"],
   })
-  .superRefine(checkDistrictInProvince);
+  .superRefine(checkDistrictInProvince)
+  .superRefine(requireInternAnswers)
+  .transform(normaliseInternAnswers);
 
 export const forgotPasswordSchema = z.object({
   identifier: identifierSchema,

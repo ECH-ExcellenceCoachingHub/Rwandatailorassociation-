@@ -117,12 +117,12 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
     defaultValue: "1000.00",
     displayOrder: 10,
     title: {
-      en: "Save every day",
-      rw: "Kuzigama buri munsi",
+      en: "Save every day, for each share",
+      rw: "Kuzigama buri munsi, ku mugabane",
     },
     body: {
-      en: "Every member saves this amount each day. It is your own money: it goes straight into your savings account and stays yours. Together with the service fee below, one day costs you the two added together.",
-      rw: "Buri munyamuryango azigama aya mafaranga buri munsi. Ni amafaranga yawe bwite: ajya mu konti yawe y'ubuzigame kandi akomeza kuba ayawe. Hamwe n'amafaranga ya serivisi ari hasi aha, umunsi umwe ugutwara ayo yombi ateranyijwe.",
+      en: "Each share you hold saves this amount every day — a member with five shares saves five times it. It is your own money: it goes straight into your savings account and stays yours. The service fee below is added once a day, however many shares you hold.",
+      rw: "Buri mugabane ufite uzigama aya mafaranga buri munsi — umunyamuryango ufite imigabane itanu azigama inshuro eshanu zayo. Ni amafaranga yawe bwite: ajya mu konti yawe y'ubuzigame kandi akomeza kuba ayawe. Amafaranga ya serivisi ari hasi aha yongerwaho rimwe ku munsi, utitaye ku mubare w'imigabane ufite.",
     },
   },
   {

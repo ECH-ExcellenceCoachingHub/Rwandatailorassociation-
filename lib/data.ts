@@ -97,6 +97,7 @@ export const PARTNERS: PartnerLogo[] = [
   { name: "Rwanda Development Board", short: "RDB", logo: "/images/partner-rdb.png" },
   { name: "Rwanda TVET Board", short: "TVET Rwanda", logo: "/images/partner-rtb.jpg" },
   { name: "Ministry of Trade and Industry", short: "MINICOM", logo: "/images/partner-minicom.png" },
+  { name: "Ese Niba", short: "Ese Niba", logo: "/images/partner-eseniba.svg" },
 ];
 
 export const SERVICES: ServiceItem[] = [

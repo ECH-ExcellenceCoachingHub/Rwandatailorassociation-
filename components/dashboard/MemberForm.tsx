@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { RwandaLocationFields } from "@/components/ui/rwanda-location-fields";
 import { useLanguage } from "@/components/LanguageProvider";
+import { fill } from "@/lib/i18n/fill";
+import { formatMoney } from "@/lib/money";
+import {
+  MAX_APPLICATION_SHARES,
+  MAX_INTERN_CAPACITY,
+  MAX_RECORDED_SHARES,
+} from "@/lib/application-limits";
 import {
   canonicalDistrict,
   canonicalProvince,
@@ -63,6 +70,14 @@ export interface MemberFormValues {
   nextOfKinName: string;
   nextOfKinPhone: string;
   nextOfKinRelation: string;
+  successorName: string;
+  successorPhone: string;
+  successorRelation: string;
+  sharesSubscribed: string;
+  /// "YES", "NO", or "" for never asked — both of these.
+  hasCompany: string;
+  acceptsInterns: string;
+  internCapacity: string;
 }
 
 interface CreatedMember {
@@ -73,13 +88,21 @@ interface CreatedMember {
   message: string;
 }
 
-export function MemberForm({ member }: { member?: MemberFormValues }) {
+export function MemberForm({
+  member,
+  sharePrice,
+}: {
+  member?: MemberFormValues;
+  /// The rulebook's daily saving — the price of one share, per day.
+  sharePrice: string;
+}) {
   const router = useRouter();
   const editing = Boolean(member);
 
   const { d } = useLanguage();
   const copy = d.forms.member;
   const field = d.forms.field;
+  const app = d.forms.application;
 
   const genders = [
     { value: "", label: d.common.notRecorded },
@@ -95,9 +118,10 @@ export function MemberForm({ member }: { member?: MemberFormValues }) {
   const [created, setCreated] = useState<CreatedMember | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // The one part of this form React has to hold: the province and district are
-  // linked, so each depends on the other's current value. Everything else is
-  // uncontrolled and read from FormData on submit.
+  // The parts of this form React has to hold: the province and district are
+  // linked, so each depends on the other's current value; the interns
+  // questions only show beside a company, and the capacity only beside a yes.
+  // Everything else is uncontrolled and read from FormData on submit.
   //
   // An older file may carry a district with no province — it was free text
   // once. The district settles the question, so fill the province in from it
@@ -112,6 +136,8 @@ export function MemberForm({ member }: { member?: MemberFormValues }) {
       "",
     district: canonicalDistrict(member?.district) ?? "",
   }));
+  const [hasCompany, setHasCompany] = useState(member?.hasCompany ?? "");
+  const [acceptsInterns, setAcceptsInterns] = useState(member?.acceptsInterns ?? "");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -221,8 +247,10 @@ export function MemberForm({ member }: { member?: MemberFormValues }) {
                 setCreated(null);
                 setCopied(false);
                 // The uncontrolled fields come back empty on their own; these
-                // two live in React state and would keep the last member's.
+                // live in React state and would keep the last member's.
                 setLocation({ province: "", district: "" });
+                setHasCompany("");
+                setAcceptsInterns("");
               }}
             >
               {copy.enrolAnother}
@@ -407,6 +435,107 @@ export function MemberForm({ member }: { member?: MemberFormValues }) {
           >
             {(props) => <Input name="nextOfKinRelation" defaultValue={member?.nextOfKinRelation ?? ""} placeholder={d.forms.placeholder.relation} {...props} />}
           </Field>
+        </div>
+      </Section>
+
+      <Section title={app.successor} description={app.successorHintAdmin}>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field id="successorName" label={app.successorName} error={errors.successorName}>
+            {(props) => <Input name="successorName" defaultValue={member?.successorName ?? ""} {...props} />}
+          </Field>
+
+          <Field id="successorPhone" label={app.successorPhone} error={errors.successorPhone}>
+            {(props) => (
+              <Input name="successorPhone" defaultValue={member?.successorPhone ?? ""} placeholder={d.forms.placeholder.phone} {...props} />
+            )}
+          </Field>
+
+          <Field
+            id="successorRelation"
+            label={app.successorRelation}
+            error={errors.successorRelation}
+          >
+            {(props) => <Input name="successorRelation" defaultValue={member?.successorRelation ?? ""} placeholder={d.forms.placeholder.relation} {...props} />}
+          </Field>
+        </div>
+      </Section>
+
+      <Section title={app.section} description={app.sectionHint}>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field
+            id="sharesSubscribed"
+            label={app.shares}
+            error={errors.sharesSubscribed}
+            hint={fill(app.sharesHintAdmin, {
+              price: formatMoney(sharePrice),
+              max: MAX_APPLICATION_SHARES,
+            })}
+          >
+            {(props) => (
+              <Input
+                name="sharesSubscribed"
+                defaultValue={member?.sharesSubscribed ?? ""}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={MAX_RECORDED_SHARES}
+                {...props}
+              />
+            )}
+          </Field>
+
+          <Field id="hasCompany" label={app.hasCompany} error={errors.hasCompany}>
+            {(props) => (
+              <NativeSelect
+                name="hasCompany"
+                value={hasCompany}
+                onChange={(e) => {
+                  setHasCompany(e.target.value);
+                  // The interns questions leave the form with the company;
+                  // clearing the answer keeps a stale "yes" from coming back.
+                  if (e.target.value !== "YES") setAcceptsInterns("");
+                }}
+                {...props}
+              >
+                <option value="">{d.common.notRecorded}</option>
+                <option value="YES">{d.common.yes}</option>
+                <option value="NO">{d.common.no}</option>
+              </NativeSelect>
+            )}
+          </Field>
+
+          {hasCompany === "YES" && (
+            <Field id="acceptsInterns" label={app.acceptsInterns} error={errors.acceptsInterns}>
+              {(props) => (
+                <NativeSelect
+                  name="acceptsInterns"
+                  value={acceptsInterns}
+                  onChange={(e) => setAcceptsInterns(e.target.value)}
+                  {...props}
+                >
+                  <option value="">{d.common.notRecorded}</option>
+                  <option value="YES">{d.common.yes}</option>
+                  <option value="NO">{d.common.no}</option>
+                </NativeSelect>
+              )}
+            </Field>
+          )}
+
+          {hasCompany === "YES" && acceptsInterns === "YES" && (
+            <Field id="internCapacity" label={app.internCapacity} error={errors.internCapacity}>
+              {(props) => (
+                <Input
+                  name="internCapacity"
+                  defaultValue={member?.internCapacity ?? ""}
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={MAX_INTERN_CAPACITY}
+                  {...props}
+                />
+              )}
+            </Field>
+          )}
         </div>
       </Section>
 

@@ -141,6 +141,36 @@ export interface FormsCopy {
     enrolAnother: string;
     passwordWarning: string;
   };
+  /// The association's own application questions — shares, interns and a
+  /// successor — asked on the public form and at the desk alike. The
+  /// `…Question` and `…Register` strings address the applicant; the rest are
+  /// neutral, for the admin form and the member file.
+  application: {
+    section: string;
+    sectionHint: string;
+    shares: string;
+    sharesHintRegister: string;
+    sharesHintAdmin: string;
+    sharesError: string;
+    sharesDaily: string;
+    sharesFee: string;
+    choose: string;
+    hasCompany: string;
+    hasCompanyQuestion: string;
+    hasCompanyError: string;
+    acceptsInterns: string;
+    acceptsInternsQuestion: string;
+    acceptsInternsError: string;
+    internCapacity: string;
+    internCapacityQuestion: string;
+    internCapacityError: string;
+    successor: string;
+    successorHintRegister: string;
+    successorHintAdmin: string;
+    successorName: string;
+    successorPhone: string;
+    successorRelation: string;
+  };
 }
 
 export const forms: Record<Locale, FormsCopy> = {
@@ -281,6 +311,37 @@ export const forms: Record<Locale, FormsCopy> = {
       passwordWarning:
         "Write the temporary password down or copy it now. It is stored only as a hash, so nobody — including you — can look it up later. If it is lost the member has to reset their password instead.",
     },
+    application: {
+      section: "Shares, company and interns",
+      sectionHint: "As given on the application.",
+      shares: "Number of shares",
+      sharesHintRegister:
+        "Each share is {price} saved every day. Choose 1 to {max}; for more than {max}, ask the association.",
+      sharesHintAdmin:
+        "Each share is {price} saved every day. The application allows 1 to {max}; record more only when the association has agreed it.",
+      sharesError: "Choose between 1 and {max} shares",
+      sharesDaily: "{count} × {price}: you save {savings} every day.",
+      sharesFee: "With the {fee} daily service fee, you pay {total} a day.",
+      choose: "Choose…",
+      hasCompany: "Has a company",
+      hasCompanyQuestion: "Do you have a company?",
+      hasCompanyError: "Answer yes or no",
+      acceptsInterns: "Takes on interns",
+      acceptsInternsQuestion:
+        "Would you take on interns (people learning the trade)?",
+      acceptsInternsError: "Answer yes or no",
+      internCapacity: "Interns they can take on",
+      internCapacityQuestion: "How many interns can you take on?",
+      internCapacityError: "Enter a number between 1 and {max}",
+      successor: "Successor",
+      successorHintRegister:
+        "Someone who can act for you when you are not available — for example, collecting goods from the warehouse. Not the same as next of kin.",
+      successorHintAdmin:
+        "Who may act for the member when they are not available — for example, collecting goods from the warehouse. Not the same as next of kin.",
+      successorName: "Successor's full name",
+      successorPhone: "Successor's phone number",
+      successorRelation: "Relationship",
+    },
   },
 
   rw: {
@@ -420,6 +481,39 @@ export const forms: Record<Locale, FormsCopy> = {
       enrolAnother: "Injiza undi",
       passwordWarning:
         "Andika ijambobanga ry'agateganyo cyangwa urikoporore ubu. Ribikwa nk'ibanga ryahishwe, ku buryo nta muntu — nawe ubwawe — ushobora kongera kuribona. Nirikubura, umunyamuryango agomba gusaba ijambobanga rishya.",
+    },
+    application: {
+      section: "Imigabane, sosiyete n'abimenyereza umwuga",
+      sectionHint: "Nk'uko byanditswe ku busabe.",
+      shares: "Umubare w'imigabane",
+      sharesHintRegister:
+        "Umugabane umwe ni {price} uzigama buri munsi. Hitamo kuva kuri 1 kugeza kuri {max}; niba ushaka irenze {max}, baza ihuriro.",
+      sharesHintAdmin:
+        "Umugabane umwe ni {price} azigama buri munsi. Ubusabe bwemera kuva kuri 1 kugeza kuri {max}; andika irenzeho gusa iyo ihuriro ryabyemeje.",
+      sharesError: "Hitamo imigabane iri hagati ya 1 na {max}",
+      sharesDaily: "{count} × {price}: uzajya uzigama {savings} buri munsi.",
+      sharesFee:
+        "Hamwe n'amafaranga ya serivisi {fee} ku munsi, uzajya wishyura {total} ku munsi.",
+      choose: "Hitamo…",
+      hasCompany: "Afite sosiyete",
+      hasCompanyQuestion: "Ese ufite sosiyete (kompanyi)?",
+      hasCompanyError: "Subiza yego cyangwa oya",
+      acceptsInterns: "Yakira abimenyereza umwuga",
+      acceptsInternsQuestion:
+        "Ese wakwemera kwakira abimenyereza umwuga (abastajiyeri)?",
+      acceptsInternsError: "Subiza yego cyangwa oya",
+      internCapacity: "Abastajiyeri ashobora kwakira",
+      internCapacityQuestion:
+        "Ufite ubushobozi bwo kwakira abastajiyeri bangahe?",
+      internCapacityError: "Andika umubare uri hagati ya 1 na {max}",
+      successor: "Umusimbura",
+      successorHintRegister:
+        "Umuntu ushobora kuguhagararira igihe udahari — urugero, gufata ibikoresho mu bubiko. Si kimwe n'uwo mwegereye.",
+      successorHintAdmin:
+        "Umuntu ushobora guhagararira umunyamuryango igihe adahari — urugero, gufata ibikoresho mu bubiko. Si kimwe n'uwo begereye.",
+      successorName: "Amazina y'umusimbura",
+      successorPhone: "Telefone y'umusimbura",
+      successorRelation: "Isano",
     },
   },
 };

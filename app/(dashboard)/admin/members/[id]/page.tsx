@@ -80,7 +80,18 @@ export default async function AdminMemberDetailPage({
   const { d, locale } = await getDashboardCopy();
   const copy = d.admin.file;
   const field = d.forms.field;
+  const app = d.forms.application;
   const date = (value: Date | null | undefined) => formatDate(value, locale);
+
+  // Null is "never asked", which must not read as "no".
+  const interns =
+    member.acceptsInterns === null
+      ? "—"
+      : member.acceptsInterns
+        ? member.internCapacity
+          ? `${d.common.yes} (${member.internCapacity})`
+          : d.common.yes
+        : d.common.no;
 
   const account = member.savingsAccounts[0] ?? null;
   const recent = await getMemberTransactions(member.id, { pageSize: 15 });
@@ -177,6 +188,18 @@ export default async function AdminMemberDetailPage({
           <Row label={field.dateOfBirth} value={date(member.dateOfBirth)} />
           <Row label={field.occupation} value={member.occupation ?? "—"} />
           <Row label={copy.business} value={member.businessName ?? "—"} />
+          <Row label={app.shares} value={member.sharesSubscribed ?? "—"} />
+          <Row
+            label={app.hasCompany}
+            value={
+              member.hasCompany === null
+                ? "—"
+                : member.hasCompany
+                  ? d.common.yes
+                  : d.common.no
+            }
+          />
+          <Row label={app.acceptsInterns} value={interns} />
           <Row label={field.district} value={member.district ?? "—"} />
           <Row label={field.province} value={member.province ?? "—"} />
           <Row
@@ -205,6 +228,18 @@ export default async function AdminMemberDetailPage({
           <Row label={copy.lastSignIn} value={date(member.user.lastLoginAt)} />
           <Row label={copy.nextOfKin} value={member.nextOfKinName ?? "—"} />
           <Row label={copy.theirPhone} value={member.nextOfKinPhone ?? "—"} />
+          <Row
+            label={app.successor}
+            value={
+              [
+                member.successorName,
+                member.successorRelation && `(${member.successorRelation})`,
+              ]
+                .filter(Boolean)
+                .join(" ") || "—"
+            }
+          />
+          <Row label={copy.theirPhone} value={member.successorPhone ?? "—"} />
         </Panel>
       </div>
 

@@ -5,6 +5,7 @@ import {
   optionalDistrict,
   optionalProvince,
 } from "@/lib/validation/rwanda";
+import { MAX_INTERN_CAPACITY, MAX_RECORDED_SHARES } from "@/lib/application-limits";
 
 /**
  * Admin member enrolment.
@@ -67,6 +68,90 @@ function optionalPhone(message: string) {
       }
       return normalised;
     });
+}
+
+/**
+ * A whole number within bounds. Arrives as a string from a form field and as a
+ * number from a JSON body, so both are accepted.
+ */
+export function wholeNumber(min: number, max: number, message: string) {
+  return z.union([z.string(), z.number()]).transform((value, ctx) => {
+    const n = String(value).trim() === "" ? NaN : Number(value);
+    if (!Number.isInteger(n) || n < min || n > max) {
+      ctx.addIssue({ code: "custom", message });
+      return z.NEVER;
+    }
+    return n;
+  });
+}
+
+/** The same, with a blank read as unanswered rather than as a bad number. */
+function optionalWholeNumber(min: number, max: number, message: string) {
+  return z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((value, ctx) => {
+      if (value === undefined || String(value).trim() === "") return undefined;
+      const n = Number(value);
+      if (!Number.isInteger(n) || n < min || n > max) {
+        ctx.addIssue({ code: "custom", message });
+        return z.NEVER;
+      }
+      return n;
+    });
+}
+
+/**
+ * A yes/no question, sent as "YES" / "NO" by a select. Blank is unanswered,
+ * which is not the same as "no".
+ */
+function optionalYesNo() {
+  return z
+    .enum(["YES", "NO"])
+    .optional()
+    .or(z.literal("").transform(() => undefined))
+    .transform((value) => (value === undefined ? undefined : value === "YES"));
+}
+
+/**
+ * The interns questions are only for someone with a company, and a capacity
+ * only means something beside a yes. On the public form each answer is
+ * required once the one before it says yes — the applicant is there to finish
+ * it. The desk form does not insist: a paper application with a blank is
+ * still worth saving.
+ */
+export function requireInternAnswers(
+  data: { hasCompany?: boolean; acceptsInterns?: boolean; internCapacity?: number },
+  ctx: z.RefinementCtx
+) {
+  if (data.hasCompany && data.acceptsInterns === undefined) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["acceptsInterns"],
+      message: "Answer whether you would take on interns",
+    });
+  }
+  if (data.hasCompany && data.acceptsInterns && data.internCapacity === undefined) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["internCapacity"],
+      message: "Enter how many interns you can take on",
+    });
+  }
+}
+
+/**
+ * Drops answers to questions that no longer apply — the interns answers
+ * without a company, the capacity without a yes — so a value typed before an
+ * earlier answer changed is not saved as if it still stood.
+ */
+export function normaliseInternAnswers<
+  T extends { hasCompany?: boolean; acceptsInterns?: boolean; internCapacity?: number },
+>(data: T): T {
+  if (!data.hasCompany) {
+    return { ...data, acceptsInterns: undefined, internCapacity: undefined };
+  }
+  return data.acceptsInterns ? data : { ...data, internCapacity: undefined };
 }
 
 /**
@@ -178,6 +263,27 @@ export const memberFieldsSchema = z.object({
   nextOfKinPhone: optionalPhone("Enter a valid next of kin phone number"),
   nextOfKinRelation: optionalText(60, "Relationship"),
 
+  // Successor (umusimbura) --------------------------------------------------
+  successorName: optionalText(120, "Successor name"),
+  successorPhone: optionalPhone("Enter a valid phone number for the successor"),
+  successorRelation: optionalText(60, "Relationship"),
+
+  // Application: shares and interns -----------------------------------------
+  /// The public form caps this at MAX_APPLICATION_SHARES; the desk may record
+  /// more, because more than that is agreed with the association first.
+  sharesSubscribed: optionalWholeNumber(
+    1,
+    MAX_RECORDED_SHARES,
+    `Enter a number of shares between 1 and ${MAX_RECORDED_SHARES}`
+  ),
+  hasCompany: optionalYesNo(),
+  acceptsInterns: optionalYesNo(),
+  internCapacity: optionalWholeNumber(
+    1,
+    MAX_INTERN_CAPACITY,
+    `Enter a number of interns between 1 and ${MAX_INTERN_CAPACITY}`
+  ),
+
   /// Recorded on the audit entry. Not optional: creating a member is creating
   /// a claim on the association's money.
   note: optionalText(500, "Note"),
@@ -191,7 +297,8 @@ export const createMemberSchema = memberFieldsSchema
     /// PENDING_APPROVAL exists for a form that still needs a second pair of eyes.
     status: z.enum(["ACTIVE", "PENDING_APPROVAL"]).default("ACTIVE"),
   })
-  .superRefine(checkDistrictInProvince);
+  .superRefine(checkDistrictInProvince)
+  .transform(normaliseInternAnswers);
 
 export type CreateMemberInput = z.infer<typeof createMemberSchema>;
 
@@ -209,8 +316,8 @@ export type CreateMemberInput = z.infer<typeof createMemberSchema>;
  * been given. Editing a payment reference would orphan the payments already
  * matched by it and silently break the matching of future ones.
  */
-export const updateMemberSchema = memberFieldsSchema.superRefine(
-  checkDistrictInProvince
-);
+export const updateMemberSchema = memberFieldsSchema
+  .superRefine(checkDistrictInProvince)
+  .transform(normaliseInternAnswers);
 
 export type UpdateMemberInput = z.infer<typeof updateMemberSchema>;

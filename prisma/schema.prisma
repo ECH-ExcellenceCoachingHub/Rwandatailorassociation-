@@ -828,6 +828,32 @@ model Member {
   nextOfKinPhone    String?
   nextOfKinRelation String?
 
+  /// Umusimbura — who may act for the member when they are not available:
+  /// collecting goods from the warehouse, and the other errands that would
+  /// otherwise need the member in person. Not the same as next of kin, who is
+  /// who to call.
+  successorName     String?
+  successorPhone    String?
+  successorRelation String?
+
+  /// Imigabane: how many shares the member holds, 1–30 on the public form.
+  /// Each share saves the rulebook's daily amount (1,000 RWF by default), so
+  /// the daily obligation is that times this — see computeStanding in
+  /// lib/services/contributions.ts. Null counts as one share, which is what
+  /// every member enrolled before shares were recorded was paying.
+  sharesSubscribed Int?
+
+  /// Whether the member has a company. The interns questions below are only
+  /// asked of those who do. Null means never asked.
+  hasCompany Boolean?
+
+  /// Whether the member will take on interns (abimenyereza umwuga). Null means
+  /// never asked — every member enrolled before the question existed, and
+  /// every member without a company.
+  acceptsInterns Boolean?
+  /// How many at once. Only kept beside acceptsInterns = true.
+  internCapacity Int?
+
   joinedAt         DateTime?
   approvedAt       DateTime?
   approvedById     String?

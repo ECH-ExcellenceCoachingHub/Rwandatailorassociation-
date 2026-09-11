@@ -309,6 +309,13 @@ export async function createMember(params: {
             nextOfKinName: input.nextOfKinName ?? null,
             nextOfKinPhone: input.nextOfKinPhone ?? null,
             nextOfKinRelation: input.nextOfKinRelation ?? null,
+            successorName: input.successorName ?? null,
+            successorPhone: input.successorPhone ?? null,
+            successorRelation: input.successorRelation ?? null,
+            sharesSubscribed: input.sharesSubscribed ?? null,
+            hasCompany: input.hasCompany ?? null,
+            acceptsInterns: input.acceptsInterns ?? null,
+            internCapacity: input.internCapacity ?? null,
             joinedAt: active ? now : null,
             approvedAt: active ? now : null,
             approvedById: active ? actorId : null,
@@ -528,6 +535,13 @@ const EDITABLE_FIELDS = [
   "nextOfKinName",
   "nextOfKinPhone",
   "nextOfKinRelation",
+  "successorName",
+  "successorPhone",
+  "successorRelation",
+  "sharesSubscribed",
+  "hasCompany",
+  "acceptsInterns",
+  "internCapacity",
 ] as const;
 
 type EditableSnapshot = Record<(typeof EDITABLE_FIELDS)[number], unknown>;
@@ -647,6 +661,13 @@ export async function updateMember(params: {
     nextOfKinName: existing.nextOfKinName,
     nextOfKinPhone: existing.nextOfKinPhone,
     nextOfKinRelation: existing.nextOfKinRelation,
+    successorName: existing.successorName,
+    successorPhone: existing.successorPhone,
+    successorRelation: existing.successorRelation,
+    sharesSubscribed: existing.sharesSubscribed,
+    hasCompany: existing.hasCompany,
+    acceptsInterns: existing.acceptsInterns,
+    internCapacity: existing.internCapacity,
   };
 
   const after: EditableSnapshot = {
@@ -669,6 +690,13 @@ export async function updateMember(params: {
     nextOfKinName: input.nextOfKinName ?? null,
     nextOfKinPhone: input.nextOfKinPhone ?? null,
     nextOfKinRelation: input.nextOfKinRelation ?? null,
+    successorName: input.successorName ?? null,
+    successorPhone: input.successorPhone ?? null,
+    successorRelation: input.successorRelation ?? null,
+    sharesSubscribed: input.sharesSubscribed ?? null,
+    hasCompany: input.hasCompany ?? null,
+    acceptsInterns: input.acceptsInterns ?? null,
+    internCapacity: input.internCapacity ?? null,
   };
 
   const { oldValue, newValue } = diffFields(before, after, [...EDITABLE_FIELDS]);
@@ -715,6 +743,13 @@ export async function updateMember(params: {
         nextOfKinName: input.nextOfKinName ?? null,
         nextOfKinPhone: input.nextOfKinPhone ?? null,
         nextOfKinRelation: input.nextOfKinRelation ?? null,
+        successorName: input.successorName ?? null,
+        successorPhone: input.successorPhone ?? null,
+        successorRelation: input.successorRelation ?? null,
+        sharesSubscribed: input.sharesSubscribed ?? null,
+        hasCompany: input.hasCompany ?? null,
+        acceptsInterns: input.acceptsInterns ?? null,
+        internCapacity: input.internCapacity ?? null,
         kycStatus,
       },
     });

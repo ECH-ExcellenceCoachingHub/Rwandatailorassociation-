@@ -57,6 +57,35 @@ function standing(overrides: Partial<StandingInputs> = {}) {
 }
 
 describe("the daily contribution", () => {
+  it("multiplies the daily saving by the member's shares, but not the fee", () => {
+    const result = standing({
+      obligationStart: at("2026-01-01"),
+      asOf: at("2026-01-01"),
+      shares: 5,
+    });
+
+    expect(result.dailySavings).toBe("5000.00");
+    expect(result.dailyTotal).toBe("5050.00");
+    expect(result.arrearsTotal).toBe("5050.00");
+  });
+
+  it("counts a member with no shares recorded as holding one", () => {
+    expect(standing({ shares: undefined }).dailyTotal).toBe("1050.00");
+  });
+
+  it("covers days at the member's own daily total", () => {
+    // Five shares cost 5,050 a day, so 15,150 buys three days — not fourteen.
+    const result = standing({
+      obligationStart: at("2026-01-01"),
+      asOf: at("2026-01-03"),
+      totalContributed: "15150",
+      shares: 5,
+    });
+
+    expect(result.coveredDays).toBe(3);
+    expect(result.missedDays).toBe(0);
+  });
+
   it("counts the first day as owed", () => {
     const result = standing({
       obligationStart: at("2026-01-01"),

@@ -103,6 +103,18 @@ export const updateOwnProfileSchema = selfContactSchema
       // member who could set their own would print themselves a card reading
       // "Chairman". Only an administrator awards it.
       title: true,
+      // The application answers. Shares are a commitment the association
+      // holds the member to, so once recorded only an administrator changes
+      // the count; the successor and interns answers are not on the
+      // self-service form yet. Omitted rather than accepted and then silently
+      // dropped by the service, which writes only the fields it lists.
+      successorName: true,
+      successorPhone: true,
+      successorRelation: true,
+      sharesSubscribed: true,
+      hasCompany: true,
+      acceptsInterns: true,
+      internCapacity: true,
     }).shape
   )
   .superRefine(checkDistrictInProvince);
