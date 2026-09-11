@@ -306,7 +306,7 @@ export const account: Record<Locale, AccountCopy> = {
       dailyRate: "Daily saving",
       perDay: "per day",
       dailyCost: "One day costs",
-      dailyCostHint: "{savings} becomes your shares + {fee} service fee",
+      dailyCostHint: "{savings} becomes your shares + {fee} service fee per share",
       dailyCostNote:
         "A full day of membership is {total}. Paying only {savings} leaves you short by the {fee} service fee each day, and those shortfalls are what put you behind.",
       paidAhead: "Paid in advance",
@@ -563,7 +563,7 @@ export const account: Record<Locale, AccountCopy> = {
       dailyRate: "Ubwizigame bwa buri munsi",
       perDay: "ku munsi",
       dailyCost: "Umunsi umwe ugutwara",
-      dailyCostHint: "{savings} bihinduka umugabane wawe + {fee} ya serivisi",
+      dailyCostHint: "{savings} bihinduka umugabane wawe + {fee} ya serivisi ku buri mugabane",
       dailyCostNote:
         "Umunsi wuzuye wo kuba umunyamuryango ni {total}. Wishyura {savings} gusa usigara ubura {fee} ya serivisi buri munsi, kandi ubwo buke ni bwo bugutera gusigara inyuma.",
       paidAhead: "Wishyuye mbere",

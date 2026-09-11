@@ -30,11 +30,11 @@ import type {
  * reword their own rules; the wording is stored per association for exactly
  * that reason, and these are only the defaults.
  *
- * THE DEFAULTS BELOW ARE RTA'S OWN RULES, as stated by the association:
- * 1,000 saved daily plus 50 service fee, a 7% fine after 7 missed days,
- * lending after six months, 80% of your own savings without collateral,
- * 2% a month over at most six months, and that 2% split half to the borrower's
- * savings and half to the association.
+* THE DEFAULTS BELOW ARE RTA'S OWN RULES, as stated by the association:
+   * 1,000 saved daily plus 50 service fee per share, a 7% fine after 7 missed days,
+   * lending after six months, 80% of your own savings without collateral,
+   * 2% a month over at most six months, and that 2% split half to the borrower's
+   * savings and half to the association.
  */
 
 export const RULE_KEYS = {
@@ -121,8 +121,8 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
       rw: "Kuzigama buri munsi, ku mugabane",
     },
     body: {
-      en: "Each share you hold saves this amount every day — a member with five shares saves five times it. It is your own money: it goes straight into your savings account and stays yours. The service fee below is added once a day, however many shares you hold.",
-      rw: "Buri mugabane ufite uzigama aya mafaranga buri munsi — umunyamuryango ufite imigabane itanu azigama inshuro eshanu zayo. Ni amafaranga yawe bwite: ajya mu konti yawe y'ubuzigame kandi akomeza kuba ayawe. Amafaranga ya serivisi ari hasi aha yongerwaho rimwe ku munsi, utitaye ku mubare w'imigabane ufite.",
+      en: "Each share you hold saves this amount every day — a member with five shares saves five times it. It is your own money: it goes straight into your savings account and stays yours. The service fee below is also charged per share, so a member with five shares pays five times it each day.",
+      rw: "Buri mugabane ufite uzigama aya mafaranga buri munsi — umunyamuryango ufite imigabane itanu azigama inshuro eshanu zayo. Ni amafaranga yawe bwite: ajya mu konti yawe y'ubuzigame kandi akomeza kuba ayawe. Amafaranga ya serivisi ari hasi aha yongerwaho buri mugabane, bityo umunyamuryango ufite imigabane itanu asahura inshuro eshanu zayo buri munsi.",
     },
   },
   {
@@ -157,8 +157,8 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
       rw: "Amafaranga ya serivisi ya buri munsi",
     },
     body: {
-      en: "This pays for running the platform that keeps your record. It is charged for each day your contributions cover, and it is not savings — it does not build up in your account and it is not returned to you.",
-      rw: "Aya afasha gukoresha urubuga rubika amakuru yawe. Asabwa kuri buri munsi amafaranga wishyuye ahagarariye, kandi si ubuzigame — ntiyiyongera muri konti yawe kandi ntagusubizwa.",
+      en: "This pays for running the platform that keeps your record. It is charged per share for each day your contributions cover — a member with three shares pays three times it each day — and it is not savings: it does not build up in your account and it is not returned to you.",
+      rw: "Aya afasha gukoresha urubuga rubika amakuru yawe. Asabwa kuri buri mugabane kuri buri munsi amafaranga wishyuye ahagarariye — umunyamuryango ufite imigabane itatu asahura inshuro zitatu buri munsi — kandi si ubuzigame: ntiyiyongera muri konti yawe kandi ntagusubizwa.",
     },
   },
   {

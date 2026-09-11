@@ -167,6 +167,10 @@ export interface ContributionStanding {
   /// account page builds the shareholding figure from it, and reading the
   /// rulebook a second time there could disagree with what was used here.
   dailySavings: string;
+  /// The service-fee half of a day, per share. Carried beside dailySavings so
+  /// the dashboard never subtracts two money strings itself and so a member
+  /// with several shares sees the fee multiplied rather than a flat figure.
+  dailyFee: string;
 }
 
 /**
@@ -177,13 +181,14 @@ export interface ContributionStanding {
 export function computeStanding(input: StandingInputs): ContributionStanding {
   const { policy } = input;
 
-  // The rulebook's daily saving is the price of ONE share. A member who took
-  // five saves five times it each day; the service fee is per member, not per
-  // share. Anyone enrolled before shares were recorded counts as one share,
-  // which is exactly what they were already paying.
+  // The rulebook's daily saving and daily service fee are both per share. A
+  // member who took five shares saves five times the saving and pays five
+  // times the service fee each day. Anyone enrolled before shares were
+  // recorded counts as one share, which is exactly what they were paying.
   const shares = Math.max(1, input.shares ?? 1);
   const dailySavings = multiply(policy.dailySavings, shares);
-  const dailyTotal = toMoney(add(dailySavings, policy.platformFeePerDay));
+  const dailyFee = multiply(policy.platformFeePerDay, shares);
+  const dailyTotal = toMoney(add(dailySavings, dailyFee));
 
   const startIndex = dayIndexIn(input.timeZone, input.obligationStart);
   const todayIndex = dayIndexIn(input.timeZone, input.asOf);
@@ -202,7 +207,7 @@ export function computeStanding(input: StandingInputs): ContributionStanding {
   const missedDays = Math.max(0, dueDays - coveredDays);
 
   const arrearsSavings = multiply(dailySavings, missedDays);
-  const arrearsFee = multiply(policy.platformFeePerDay, missedDays);
+  const arrearsFee = multiply(dailyFee, missedDays);
   const arrearsTotal = add(arrearsSavings, arrearsFee);
 
   const daysUntilFine = Math.max(0, policy.graceDays - missedDays);
@@ -212,7 +217,7 @@ export function computeStanding(input: StandingInputs): ContributionStanding {
   // member for a service they did not use and drive their balance down while
   // they were already struggling.
   const feeDaysOwed = Math.max(0, coveredDays - input.feeChargedThroughDay);
-  const feeAmountOwed = multiply(policy.platformFeePerDay, feeDaysOwed);
+  const feeAmountOwed = multiply(dailyFee, feeDaysOwed);
 
   const fineDue = resolveFineDue({
     policy,
@@ -251,6 +256,7 @@ export function computeStanding(input: StandingInputs): ContributionStanding {
     feeAmountOwed: toMoneyString(input.isExempt ? 0 : feeAmountOwed),
     dailyTotal: toMoneyString(dailyTotal),
     dailySavings: toMoneyString(dailySavings),
+    dailyFee: toMoneyString(dailyFee),
   };
 }
 
@@ -527,6 +533,10 @@ export interface MemberStandingRow {
   clearingAmount: string;
   savingsBalance: string;
   feeDaysOwed: number;
+  /// The daily service fee for this member, multiplied by their share count.
+  dailyFee: string;
+  /// Shares held.
+  shares: number;
   isExempt: boolean;
   /// The fines still owed, so the admin table can offer "collect" and "waive"
   /// without a query per row. Carried here rather than fetched per member
@@ -680,6 +690,8 @@ export async function listStandings(
       clearingAmount: standing.clearingAmount,
       savingsBalance: toMoneyString(savingsBalance),
       feeDaysOwed: standing.feeDaysOwed,
+      dailyFee: standing.dailyFee,
+      shares: member.sharesSubscribed ?? 1,
       isExempt: standing.status === "EXEMPT",
       outstandingFines: outstandingFines.map((fine) => ({
         id: fine.id,
@@ -707,7 +719,7 @@ export async function listStandings(
     ),
     feesPending: toMoneyString(
       computed.reduce(
-        (total, row) => add(total, multiply(policy.platformFeePerDay, row.feeDaysOwed)),
+        (total, row) => add(total, multiply(row.dailyFee, row.feeDaysOwed)),
         toMoney(0)
       )
     ),
@@ -750,25 +762,28 @@ export interface FeeRunResult {
 }
 
 /**
- * Takes the service fee for every contribution-day a member has paid for and
- * not yet been charged.
- *
- * THE SEQUENCE THIS PRODUCES ON A STATEMENT, which is the whole point of doing
- * it as a debit rather than by splitting the deposit:
- *
- *     DEPOSIT   +1,050    balance 1,050
- *     FEE          -50    balance 1,000
- *
- * The member sees what they paid, what the service cost, and what they saved.
- * Crediting 1,000 and quietly pocketing 50 would show a member who paid 1,050
- * a deposit of 1,000, and there is no honest way to explain that on a receipt.
- *
- * IDEMPOTENT by the unique index on (memberId, coveredThroughDay): a second run
- * finds the charge already there and does nothing.
- *
- * A member whose balance cannot cover the fee is SKIPPED, not overdrawn. They
- * are caught up on the next run once they contribute again.
- */
+   * Takes the service fee for every contribution-day a member has paid for and
+   * not yet been charged.
+   *
+   * THE SEQUENCE THIS PRODUCES ON A STATEMENT, which is the whole point of doing
+   * it as a debit rather than by splitting the deposit:
+   *
+   *     DEPOSIT   +1,050    balance 1,050
+   *     FEE          -50    balance 1,000
+   *
+   * The member sees what they paid, what the service cost, and what they saved.
+   * Crediting 1,000 and quietly pocketing 50 would show a member who paid 1,050
+   * a deposit of 1,000, and there is no honest way to explain that on a receipt.
+   *
+   * The daily fee is per share, so a member holding three shares is debited
+   * 150 per day and the PlatformFeeCharge records that 150 as its feePerDay.
+   *
+   * IDEMPOTENT by the unique index on (memberId, coveredThroughDay): a second run
+   * finds the charge already there and does nothing.
+   *
+   * A member whose balance cannot cover the fee is SKIPPED, not overdrawn. They
+   * are caught up on the next run once they contribute again.
+   */
 export async function chargePlatformFees(
   associationId: string,
   options: { actorId?: string | null; asOf?: Date; memberIds?: string[] } = {}
@@ -872,7 +887,7 @@ export async function chargePlatformFees(
             reference: buildTransactionReference("PSF"),
             daysCovered: standing.feeDaysOwed,
             coveredThroughDay,
-            feePerDay: policy.platformFeePerDay,
+            feePerDay: standing.dailyFee,
             amount: standing.feeAmountOwed,
             savingsTransactionId: posted.id,
             chargedById: options.actorId ?? null,

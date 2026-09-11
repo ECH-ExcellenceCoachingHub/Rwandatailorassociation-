@@ -18,6 +18,8 @@ interface FieldProps {
   label: string;
   error?: string | string[] | null;
   hint?: string;
+  /// Replaces the hint's muted styling, for a hint the reader must not miss.
+  hintClassName?: string;
   required?: boolean;
   className?: string;
   children: (props: {
@@ -32,6 +34,7 @@ export function Field({
   label,
   error,
   hint,
+  hintClassName,
   required,
   className,
   children,
@@ -57,7 +60,10 @@ export function Field({
       {children({ id, invalid: hasError, "aria-describedby": describedBy })}
 
       {hint && !hasError && (
-        <p id={hintId} className="text-xs leading-relaxed text-ink-muted">
+        <p
+          id={hintId}
+          className={hintClassName ?? "text-xs leading-relaxed text-ink-muted"}
+        >
           {hint}
         </p>
       )}

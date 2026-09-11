@@ -219,13 +219,13 @@ export async function getAssociationFinances(
 
     // Fees the ASSOCIATION charged — withdrawal fees and the like.
     //
-    // `platformFeeCharge: null` is load-bearing. The daily service fee is also
-    // a FEE debit, and it is not the association's money: it is collected on
-    // the platform operator's behalf and owed straight back to them. Counting
-    // it here would inflate the association's income by 50 per member per day,
-    // inflate the surplus by the same, and inflate every member's indicative
-    // share of a surplus that does not exist. See lib/services/funds.ts, which
-    // reports the service fee as its own pot.
+// `platformFeeCharge: null` is load-bearing. The daily service fee is also
+   // a FEE debit, and it is not the association's money: it is collected on
+   // the platform operator's behalf and owed straight back to them. Counting
+   // it here would inflate the association's income by 50 per share per day,
+   // inflate the surplus by the same, and inflate every member's indicative
+   // share of a surplus that does not exist. See lib/services/funds.ts, which
+   // reports the service fee as its own pot.
     prisma.savingsTransaction.aggregate({
       where: {
         associationId,

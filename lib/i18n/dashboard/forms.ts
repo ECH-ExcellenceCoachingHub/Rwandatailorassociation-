@@ -321,7 +321,7 @@ export const forms: Record<Locale, FormsCopy> = {
         "Each share is {price} saved every day. The application allows 1 to {max}; record more only when the association has agreed it.",
       sharesError: "Choose between 1 and {max} shares",
       sharesDaily: "{count} × {price}: you save {savings} every day.",
-      sharesFee: "With the {fee} daily service fee, you pay {total} a day.",
+      sharesFee: "With the {fee} daily service fee per share, you pay {total} a day.",
       choose: "Choose…",
       hasCompany: "Has a company",
       hasCompanyQuestion: "Do you have a company?",
@@ -493,7 +493,7 @@ export const forms: Record<Locale, FormsCopy> = {
       sharesError: "Hitamo imigabane iri hagati ya 1 na {max}",
       sharesDaily: "{count} × {price}: uzajya uzigama {savings} buri munsi.",
       sharesFee:
-        "Hamwe n'amafaranga ya serivisi {fee} ku munsi, uzajya wishyura {total} ku munsi.",
+        "Hamwe n'amafaranga ya serivisi {fee} ku buri mugabane ku munsi, uzajya wishyura {total} ku munsi.",
       choose: "Hitamo…",
       hasCompany: "Afite sosiyete",
       hasCompanyQuestion: "Ese ufite sosiyete (kompanyi)?",

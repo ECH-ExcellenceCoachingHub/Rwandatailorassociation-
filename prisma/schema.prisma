@@ -2368,12 +2368,12 @@ enum PlatformFeeStatus {
 
 /// THE PLATFORM'S SERVICE FEE — MONEY THAT IS NOT THE ASSOCIATION'S.
 ///
-/// The daily contribution is 1,000 of savings plus 50 of service fee. Those 50
-/// belong to whoever operates this platform; the association merely collects
-/// them. Recording the fee in its own table, rather than as one more credit in
-/// the association's income, is what stops a committee distributing money it
-/// never owned — and what lets the admin screens show the two apart, which is
-/// the first thing a member will ask to see.
+/// The daily contribution is 1,000 of savings plus 50 of service fee per share.
+   /// Those 50 belong to whoever operates this platform; the association merely
+   /// collects them. Recording the fee in its own table, rather than as one more credit in
+   /// the association's income, is what stops a committee distributing money it
+   /// never owned — and what lets the admin screens show the two apart, which is
+   /// the first thing a member will ask to see.
 ///
 /// `coveredThroughDay` is the member's cumulative contribution-day count that
 /// this charge takes the fee up to. Unique per member, so the charging job is

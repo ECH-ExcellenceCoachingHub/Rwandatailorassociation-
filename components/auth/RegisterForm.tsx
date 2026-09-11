@@ -52,7 +52,6 @@ const INITIAL = {
   email: "",
   phone: "",
   nationalId: "",
-  occupation: "",
   province: "",
   district: "",
   sharesSubscribed: "",
@@ -74,7 +73,7 @@ export default function RegisterForm({
 }: {
   /// The rulebook's daily saving — the price of one share, per day.
   sharePrice: string;
-  /// The platform's service fee, per member per day.
+  /// The platform's service fee, per share per day.
   dailyFee: string;
 }) {
   const { d } = useLanguage();
@@ -95,6 +94,7 @@ export default function RegisterForm({
   // commits to a figure they first discover on their statement.
   const shareCount = Number(values.sharesSubscribed) || 0;
   const dailySavings = multiply(sharePrice, shareCount);
+  const dailyFeeTotal = multiply(dailyFee, shareCount);
   const sharesHint =
     shareCount > 0
       ? [
@@ -105,8 +105,8 @@ export default function RegisterForm({
           }),
           gt(dailyFee, 0)
             ? fill(app.sharesFee, {
-                fee: formatMoney(dailyFee),
-                total: formatMoney(add(dailySavings, dailyFee)),
+                fee: formatMoney(dailyFeeTotal),
+                total: formatMoney(add(dailySavings, dailyFeeTotal)),
               })
             : "",
         ]
@@ -392,17 +392,6 @@ export default function RegisterForm({
               />
             )}
           </Field>
-
-          <Field id="occupation" label={field.occupation} error={errors.occupation}>
-            {(props) => (
-              <Input
-                {...props}
-                value={values.occupation}
-                onChange={(e) => update("occupation", e.target.value)}
-                placeholder={d.forms.placeholder.occupation}
-              />
-            )}
-          </Field>
         </div>
 
         {/*
@@ -434,6 +423,9 @@ export default function RegisterForm({
             label={app.shares}
             error={errors.sharesSubscribed}
             hint={sharesHint}
+            // What a share costs every day is the commitment being made here,
+            // so it reads as a callout rather than small print.
+            hintClassName="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold leading-relaxed text-emerald-700"
             required
           >
             {(props) => (

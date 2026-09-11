@@ -37,7 +37,7 @@ const TZ = "Africa/Kigali";
 /** Midday, so a timezone slip of a couple of hours cannot change the day. */
 const at = (iso: string) => new Date(`${iso}T12:00:00.000Z`);
 
-/** RTA's own rules: 1,000 + 50 a day, 7% after 7 days, 2% a month split 1/1. */
+/** RTA's own rules: 1,000 + 50 a day per share, 7% after 7 days, 2% a month split 1/1. */
 const POLICY: AssociationPolicy = DEFAULT_POLICY;
 
 function standing(overrides: Partial<StandingInputs> = {}) {
@@ -57,34 +57,35 @@ function standing(overrides: Partial<StandingInputs> = {}) {
 }
 
 describe("the daily contribution", () => {
-  it("multiplies the daily saving by the member's shares, but not the fee", () => {
-    const result = standing({
-      obligationStart: at("2026-01-01"),
-      asOf: at("2026-01-01"),
-      shares: 5,
+    it("multiplies both the daily saving and the service fee by the member's shares", () => {
+      const result = standing({
+        obligationStart: at("2026-01-01"),
+        asOf: at("2026-01-01"),
+        shares: 5,
+      });
+
+      expect(result.dailySavings).toBe("5000.00");
+      expect(result.dailyFee).toBe("250.00");
+      expect(result.dailyTotal).toBe("5250.00");
+      expect(result.arrearsTotal).toBe("5250.00");
     });
 
-    expect(result.dailySavings).toBe("5000.00");
-    expect(result.dailyTotal).toBe("5050.00");
-    expect(result.arrearsTotal).toBe("5050.00");
-  });
-
-  it("counts a member with no shares recorded as holding one", () => {
-    expect(standing({ shares: undefined }).dailyTotal).toBe("1050.00");
-  });
-
-  it("covers days at the member's own daily total", () => {
-    // Five shares cost 5,050 a day, so 15,150 buys three days — not fourteen.
-    const result = standing({
-      obligationStart: at("2026-01-01"),
-      asOf: at("2026-01-03"),
-      totalContributed: "15150",
-      shares: 5,
+    it("counts a member with no shares recorded as holding one", () => {
+      expect(standing({ shares: undefined }).dailyTotal).toBe("1050.00");
     });
 
-    expect(result.coveredDays).toBe(3);
-    expect(result.missedDays).toBe(0);
-  });
+    it("covers days at the member's own daily total", () => {
+      // Five shares cost 5,250 a day, so 15,150 buys two days — not three.
+      const result = standing({
+        obligationStart: at("2026-01-01"),
+        asOf: at("2026-01-03"),
+        totalContributed: "15150",
+        shares: 5,
+      });
+
+      expect(result.coveredDays).toBe(2);
+      expect(result.missedDays).toBe(1);
+    });
 
   it("counts the first day as owed", () => {
     const result = standing({

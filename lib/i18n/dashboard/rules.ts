@@ -545,9 +545,9 @@ export const rules: Record<Locale, RulesCopy> = {
         "The system is applying the standard figure for these until they are corrected. Open each one and check its value.",
 
       summaryDaily: "Daily saving",
-      summaryDailyHint: "Plus {fee} service fee — {total} a day in total",
+      summaryDailyHint: "Plus {fee} service fee per share — {total} a day in total",
       summaryFee: "Service fee",
-      summaryFeeHint: "Per day. Collected for the platform, not association income.",
+      summaryFeeHint: "Per share, per day. Collected for the platform, not association income.",
       summaryFine: "Fine after {days} days",
       summaryFineHint: "Of the unpaid saving. {example} on a missed week.",
       summaryBorrowing: "Borrow against savings",
@@ -727,7 +727,7 @@ export const rules: Record<Locale, RulesCopy> = {
       pledged: "Pledged against loans",
 
       serviceFee: "Platform service fee",
-      serviceFeeHint: "Collected from {members} member(s)",
+      serviceFeeHint: "Collected per share, per day",
       serviceFeeNote:
         "Collected on the platform operator's behalf. It is not association income, cannot be lent or invested, and is owed until it is paid over.",
       collected: "Collected all time",
@@ -1123,7 +1123,7 @@ export const rules: Record<Locale, RulesCopy> = {
       pledged: "Buri ku ngwate y'inguzanyo",
 
       serviceFee: "Amafaranga ya serivisi y'urubuga",
-      serviceFeeHint: "Yakusanyijwe ku banyamuryango {members}",
+      serviceFeeHint: "Yakusanyijwe ku buri mugabane, buri munsi",
       serviceFeeNote:
         "Akusanyirizwa nyir'urubuga. Si inyungu z'ihuriro, ntashobora kugurizwa cyangwa gushorwa, kandi ni umwenda kugeza yishyuwe.",
       collected: "Yakusanyijwe kuva kera",

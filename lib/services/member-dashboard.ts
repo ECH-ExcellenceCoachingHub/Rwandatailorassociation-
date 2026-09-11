@@ -341,9 +341,7 @@ export async function getMemberDashboard(
           status: standing.status,
           dailyTotal: standing.dailyTotal,
           dailySavings: standing.dailySavings,
-          dailyFee: toMoneyString(
-            subtract(standing.dailyTotal, standing.dailySavings)
-          ),
+          dailyFee: standing.dailyFee,
           dueDays: standing.dueDays,
           coveredDays: standing.coveredDays,
           missedDays: standing.missedDays,

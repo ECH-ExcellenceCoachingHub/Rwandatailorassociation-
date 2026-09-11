@@ -410,7 +410,7 @@ function buildShareholding(
     daysCovered: standing.coveredDays,
     dailyRate: standing.dailySavings,
     dailyTotal: standing.dailyTotal,
-    dailyFee: toMoneyString(subtract(standing.dailyTotal, standing.dailySavings)),
+    dailyFee: standing.dailyFee,
     sharesHeld: toMoneyString(multiply(standing.dailySavings, daysCredited)),
     advanceDays,
     // Valued at the savings rate, not the full daily cost: the fee portion of
