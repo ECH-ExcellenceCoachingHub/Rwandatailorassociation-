@@ -17,6 +17,7 @@ import {
   verifyLedgerIntegrity,
   workerConfig,
 } from "@/worker/jobs";
+import { dailyCron, lastDailySlot, type DailySlot } from "@/worker/schedule";
 
 /**
  * Background worker.
@@ -58,6 +59,86 @@ const JOBS = {
 } as const;
 
 type JobKey = keyof typeof JOBS;
+
+/**
+ * The nightly jobs that fine members, and when they run. In this order on
+ * purpose: the warehouse sweep must read balances as the contribution sweep
+ * leaves them, and the catch-up below walks these in insertion order.
+ *
+ * Both are idempotent by unique index, which is what makes it safe to run one
+ * late, or twice.
+ */
+const DAILY_SLOTS = {
+  contributions: { hour: 1, minute: 30 },
+  warehouseCredits: { hour: 1, minute: 45 },
+} satisfies Partial<Record<JobKey, DailySlot>>;
+
+type DailyJobKey = keyof typeof DAILY_SLOTS;
+
+/**
+ * A run that began this long before its slot still counts as that slot's run.
+ * `startedAt` is stamped by the database's clock and the slot is worked out on
+ * this machine's; a few seconds' disagreement between the two must not read as
+ * a missed night.
+ */
+const SLOT_CLOCK_TOLERANCE_MS = 5 * 60_000;
+
+/**
+ * Nightly jobs running in this process right now. The scheduled slot and the
+ * catch-up can reach for the same job in the same minute; this makes the
+ * second reach a no-op rather than a second concurrent sweep.
+ */
+const inFlight = new Set<DailyJobKey>();
+
+async function runDailyJob(key: DailyJobKey) {
+  if (inFlight.has(key)) return;
+  inFlight.add(key);
+  try {
+    await runJob(JOBS[key].name, JOBS[key].fn);
+  } finally {
+    inFlight.delete(key);
+  }
+}
+
+/**
+ * Runs any nightly job whose most recent slot passed without a successful run.
+ *
+ * Called at startup and every quarter hour, so the worst a deploy, a crash or
+ * a sleeping machine can do is make the night's fines late — never skip them.
+ * A run left RUNNING by a process that died mid-sweep does not count as done.
+ */
+async function catchUpDailyJobs() {
+  for (const key of Object.keys(DAILY_SLOTS) as DailyJobKey[]) {
+    if (inFlight.has(key)) continue;
+
+    const job = JOBS[key];
+    const slot = lastDailySlot(DAILY_SLOTS[key]);
+
+    try {
+      const done = await prisma.jobRun.findFirst({
+        where: {
+          jobName: job.name,
+          status: "SUCCESS",
+          startedAt: { gte: new Date(slot.getTime() - SLOT_CLOCK_TOLERANCE_MS) },
+        },
+        select: { id: true },
+      });
+
+      if (done) continue;
+
+      workerLogger.warn(
+        { jobName: job.name, missedSlot: slot.toISOString() },
+        "nightly job missed its slot — running it now"
+      );
+      await runDailyJob(key);
+    } catch (error) {
+      workerLogger.error(
+        { jobName: job.name, ...serialiseError(error) },
+        "catch-up check failed"
+      );
+    }
+  }
+}
 
 /**
  * The fast BK poll.
@@ -226,17 +307,26 @@ async function main() {
   //
   // Ahead of the integrity sweep deliberately: this job posts ledger rows, and
   // the sweep should verify the books as they stand after it, not before.
-  cron.schedule("30 1 * * *", () => {
-    void runJob(JOBS.contributions.name, JOBS.contributions.fn);
+  cron.schedule(dailyCron(DAILY_SLOTS.contributions), () => {
+    void runDailyJob("contributions");
   });
 
   // Goods bought on credit: the 7% for a missed month, and the standing of
   // every credit. Fifteen minutes after the contribution sweep, so the older
   // claim on a member's savings is settled first and this job reads balances
   // as they stand afterwards.
-  cron.schedule("45 1 * * *", () => {
-    void runJob(JOBS.warehouseCredits.name, JOBS.warehouseCredits.fn);
+  cron.schedule(dailyCron(DAILY_SLOTS.warehouseCredits), () => {
+    void runDailyJob("warehouseCredits");
   });
+
+  // Missed nights, made good. node-cron only fires if the worker is up at
+  // that minute, so a deploy or a crash across 01:30 would otherwise skip the
+  // night's fines until the next one. Checked at startup — the restart is
+  // usually what caused the miss — and every quarter hour after.
+  cron.schedule("*/15 * * * *", () => {
+    void catchUpDailyJobs();
+  });
+  void catchUpDailyJobs();
 
   // Integrity sweep nightly. The one job whose failure is an emergency.
   cron.schedule("30 2 * * *", () => {
@@ -262,8 +352,9 @@ async function main() {
       bkPoll: config.bkPollEnabled ? `every ${config.bkPollSeconds}s` : "disabled",
       overdue: config.overdueCron,
       reminders: config.reminderCron,
-      contributions: "30 1 * * *",
-      warehouseCredits: "45 1 * * *",
+      contributions: dailyCron(DAILY_SLOTS.contributions),
+      warehouseCredits: dailyCron(DAILY_SLOTS.warehouseCredits),
+      dailyCatchUp: "*/15 * * * *",
       integrity: "30 2 * * *",
       notificationRetry: "*/10 * * * *",
       cleanup: "0 3 * * *",
