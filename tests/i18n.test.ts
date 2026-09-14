@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import dashboardDictionary from "@/lib/i18n/dashboard";
 import { fill, pluralize, split } from "@/lib/i18n/fill";
 import { formatDate, formatDateTime } from "@/lib/i18n/dates";
-import { isLocale, parseLocale } from "@/lib/i18n/locale";
+import { DEFAULT_LOCALE, isLocale, parseLocale } from "@/lib/i18n/locale";
 
 /**
  * The type system already guarantees that both languages define every key.
@@ -154,12 +154,18 @@ describe("locale parsing", () => {
     expect(isLocale("fr")).toBe(false);
   });
 
-  it("falls back to English for anything unrecognised", () => {
+  it("falls back to the default language for anything unrecognised", () => {
     // A cookie is user-controlled input: it must never index the dictionary
     // with a value that is not there.
+    //
+    // The fallback is Kinyarwanda, not English — see DEFAULT_LOCALE in
+    // lib/i18n/locale.ts. This test asserted "en" long after that default was
+    // deliberately changed to the language the members actually read, so it
+    // was failing on a decision rather than on a defect.
     expect(parseLocale("rw")).toBe("rw");
-    expect(parseLocale("de")).toBe("en");
-    expect(parseLocale(undefined)).toBe("en");
-    expect(parseLocale({ nope: true })).toBe("en");
+    expect(parseLocale("en")).toBe("en");
+    expect(parseLocale("de")).toBe(DEFAULT_LOCALE);
+    expect(parseLocale(undefined)).toBe(DEFAULT_LOCALE);
+    expect(parseLocale({ nope: true })).toBe(DEFAULT_LOCALE);
   });
 });

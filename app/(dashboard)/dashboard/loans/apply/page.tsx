@@ -43,7 +43,11 @@ export default async function LoanApplyPage() {
     );
   }
 
-  if (data.hasActiveLoan && data.products.every((p) => p.singleActiveLoan)) {
+  // The rulebook's ACTIVE_LOAN blocker is unconditional — "You already have a
+  // loan running. It must be finished before you take another." This used to
+  // be gated on every product opting into `singleActiveLoan`, so a product
+  // that did not would let the member onto a form the server then refused.
+  if (data.hasActiveLoan) {
     return (
       <div>
         <PageHeader title={copy.title} />
@@ -67,8 +71,13 @@ export default async function LoanApplyPage() {
 
       <LoanApplicationForm
         products={data.products}
+        policy={data.policy}
         savingsBalance={data.savingsBalance}
         membershipMonths={data.membershipMonths}
+        associationMonths={data.associationMonths}
+        missedDays={data.missedDays}
+        outstandingFines={data.outstandingFines}
+        hasActiveLoan={data.hasActiveLoan}
       />
     </div>
   );

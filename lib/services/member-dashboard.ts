@@ -50,13 +50,6 @@ export interface MemberDashboardData {
     requestedAmount: string;
     submittedAt: Date | null;
   } | null;
-  borrowing: {
-    /// Maximum a member could request today under the best available product.
-    maxEligible: string;
-    productName: string | null;
-    minimumSavings: string;
-    meetsMinimum: boolean;
-  };
   recentTransactions: {
     id: string;
     reference: string;
@@ -131,7 +124,6 @@ export async function getMemberDashboard(
   const [
     activeLoan,
     pendingApplication,
-    products,
     recentTransactions,
     unread,
     history,
@@ -186,17 +178,6 @@ export async function getMemberDashboard(
         },
       }),
 
-      prisma.loanProduct.findMany({
-        where: { associationId: member.associationId, isActive: true },
-        select: {
-          name: true,
-          minimumSavings: true,
-          savingsMultiplier: true,
-          maxAmount: true,
-          absoluteMaxAmount: true,
-        },
-      }),
-
       prisma.savingsTransaction.findMany({
         where: { savingsAccountId: account.id },
         orderBy: { sequence: "desc" },
@@ -246,34 +227,6 @@ export async function getMemberDashboard(
       getMemberStanding(memberId),
       listMemberFines(memberId),
     ]);
-
-  // Borrowing capacity: best offer across active products, computed from the
-  // member's actual balance. Advisory only — the authoritative eligibility
-  // check runs server-side when an application is submitted.
-  const balance = account.balance;
-  let maxEligible = "0.00";
-  let productName: string | null = null;
-  let minimumSavings = "0.00";
-  let meetsMinimum = false;
-
-  for (const product of products) {
-    const qualifies = balance.greaterThanOrEqualTo(product.minimumSavings);
-    const ceiling = balance.times(product.savingsMultiplier);
-    const capped = [ceiling, product.maxAmount, product.absoluteMaxAmount]
-      .filter((v): v is NonNullable<typeof v> => v !== null && v !== undefined)
-      .reduce((lowest, current) => (current.lessThan(lowest) ? current : lowest));
-
-    if (qualifies && capped.greaterThan(maxEligible)) {
-      maxEligible = capped.toFixed(2);
-      productName = product.name;
-      meetsMinimum = true;
-    }
-
-    if (!meetsMinimum) {
-      minimumSavings = product.minimumSavings.toFixed(2);
-      productName ??= product.name;
-    }
-  }
 
   const outstanding = activeLoan
     ? add(
@@ -334,8 +287,6 @@ export async function getMemberDashboard(
           submittedAt: pendingApplication.submittedAt,
         }
       : null,
-    borrowing: { maxEligible, productName, minimumSavings, meetsMinimum },
-
     standing: standing
       ? {
           status: standing.status,

@@ -88,7 +88,6 @@ export default async function MemberDashboardPage() {
   const {
     savings,
     loan,
-    borrowing,
     application,
     recentTransactions,
     monthlySavings,
@@ -284,32 +283,6 @@ export default async function MemberDashboardPage() {
                 {copy.applyLoan}
               </Link>
             </Button>
-          </div>
-
-          <div className="mt-5 rounded-xl border border-border bg-background p-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-              {copy.borrowQuestion}
-            </p>
-            {borrowing.meetsMinimum ? (
-              <p className="mt-1.5 text-sm text-ink-muted">
-                {copy.borrowUpTo}{" "}
-                <span className="font-heading text-lg font-bold text-ink">
-                  {formatMoney(borrowing.maxEligible)}
-                </span>{" "}
-                {fill(copy.borrowUnder, { product: borrowing.productName ?? "" })}
-              </p>
-            ) : (
-              <p className="mt-1.5 text-sm text-ink-muted">
-                {copy.borrowNeedMinimum}{" "}
-                <strong className="text-ink">
-                  {formatMoney(borrowing.minimumSavings)}
-                </strong>{" "}
-                {fill(copy.borrowCurrentBalance, {
-                  product: borrowing.productName ? ` (${borrowing.productName})` : "",
-                  balance: formatMoney(savings.balance),
-                })}
-              </p>
-            )}
           </div>
         </div>
 

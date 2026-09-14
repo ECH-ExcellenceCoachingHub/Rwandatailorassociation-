@@ -29,7 +29,19 @@ let productId: string;
 
 beforeAll(async () => {
   const association = await prisma.association.create({
-    data: { code: CODE, name: `Loan Test ${RUN}`, status: "ACTIVE", currency: "RWF" },
+    data: {
+      code: CODE,
+      name: `Loan Test ${RUN}`,
+      status: "ACTIVE",
+      currency: "RWF",
+      // LENDING_UNLOCK_MONTHS: "The association builds its fund for this many
+      // months before it lends anything to anyone." A fixture association
+      // created a millisecond ago is zero months old, so every application
+      // here would be refused with LENDING_NOT_OPEN — a real rule firing on an
+      // unreal association. Backdated two years so the lending rules under
+      // test are the ones that actually get exercised.
+      createdAt: new Date(Date.now() - 730 * 86_400_000),
+    },
   });
   associationId = association.id;
 
@@ -51,20 +63,27 @@ beforeAll(async () => {
       associationId,
       code: "TESTSTD",
       name: "Test Standard Loan",
-      minimumSavings: "50000",
-      savingsMultiplier: "3",
-      minAmount: "50000",
+      // The rulebook, expressed in product columns — see prisma/seed.ts.
+      // 2% a month flat is stored as 24% a year because generateSchedule
+      // always reads the rate as annual. No fees, six months, monthly.
+      // The savings multiple, minimum balance and tenure gate are left
+      // non-binding so that assessBorrowing is the only thing deciding.
+      minimumSavings: "0",
+      savingsMultiplier: "10",
+      minAmount: "0",
       maxAmount: "5000000",
-      interestRate: "18",
-      interestMethod: "REDUCING_BALANCE",
-      processingFeeType: "PERCENTAGE",
-      processingFeeValue: "1",
-      insuranceFeeType: "PERCENTAGE",
-      insuranceFeeValue: "0.5",
+      interestRate: "24",
+      interestMethod: "FLAT",
+      processingFeeType: "FIXED",
+      processingFeeValue: "0",
+      insuranceFeeType: "FIXED",
+      insuranceFeeValue: "0",
       minimumMembershipMonths: 0,
-      minTermMonths: 3,
-      maxTermMonths: 24,
+      minTermMonths: 1,
+      maxTermMonths: 6,
       allowedFrequencies: ["MONTHLY"],
+      requiresGuarantors: false,
+      minimumGuarantors: 0,
       singleActiveLoan: true,
     },
   });
@@ -120,6 +139,15 @@ afterAll(async () => {
     where: { loanTransaction: { associationId } },
   });
   await prisma.savingsTransaction.deleteMany({ where: { associationId } });
+  // Before the loan transactions they point at. InterestDistribution holds a
+  // RESTRICT foreign key onto loanTransaction, so deleting the transactions
+  // first fails outright rather than cascading.
+  //
+  // This only started biting once the lifecycle actually reached repayment:
+  // every repayment credits the borrower's half of the interest back through
+  // `distributeInterest`, which writes one of these rows. While the suite was
+  // failing at approval, no repayment ran and none existed to block teardown.
+  await prisma.interestDistribution.deleteMany({ where: { associationId } });
   await prisma.loanTransaction.deleteMany({ where: { associationId } });
   await prisma.loanInstallment.deleteMany({ where: { loan: { associationId } } });
   await prisma.loanApplicationEvent.deleteMany({
@@ -136,34 +164,105 @@ afterAll(async () => {
 });
 
 describe("application", () => {
-  it("refuses a request above the savings multiple", async () => {
-    // Savings are 500,000, so the ceiling is 1,500,000.
+  // Savings are 500,000, so OWN_SAVINGS_PERCENT (80%) puts the no-collateral
+  // limit at 400,000 and anything above it needs collateral of equal value.
+
+  it("refuses more than the own-savings share when nothing is pledged", async () => {
     const result = await submitLoanApplication({
       memberId,
       loanProductId: productId,
-      requestedAmount: "2000000",
+      requestedAmount: "600000",
       purpose: "Expand tailoring workshop",
+      termMonths: 6,
+      frequency: "MONTHLY",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failures.map((f) => f.rule)).toContain("COLLATERAL");
+    }
+  });
+
+  /**
+   * LOAN_MAX_TERM_MONTHS, enforced twice over.
+   *
+   * The product now restates the six-month rule in its own term bounds, and
+   * `checkEligibility` runs before `assessBorrowing` and returns early — so an
+   * over-long term is caught by the product's TERM rule and never reaches the
+   * rulebook's TERM_TOO_LONG. Both say the same thing because the product was
+   * configured from the rulebook; this asserts the refusal, not which of the
+   * two gates happened to speak first.
+   */
+  it("refuses a term longer than the six months the rules allow", async () => {
+    const result = await submitLoanApplication({
+      memberId,
+      loanProductId: productId,
+      requestedAmount: "100000",
+      purpose: "Buy fabric in bulk for the season",
       termMonths: 12,
       frequency: "MONTHLY",
     });
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.failures.map((f) => f.rule)).toContain("MAXIMUM_AMOUNT");
+      const rules = result.failures.map((f) => f.rule);
+      expect(
+        rules.includes("TERM") || rules.includes("TERM_TOO_LONG"),
+        rules.join(",")
+      ).toBe(true);
     }
   });
 
-  it("accepts a request within the limit and snapshots eligibility", async () => {
+  /**
+   * The path that was impossible before collateral could be supplied.
+   *
+   * The rule says anything above your own share may be borrowed against
+   * pledged items, but nothing in the application flow accepted a pledge, so
+   * the COLLATERAL blocker could never be cleared and every such request was
+   * permanently refused. This is the regression test for that.
+   */
+  it("accepts more than the own share when collateral covers the difference", async () => {
     const result = await submitLoanApplication({
       memberId,
       loanProductId: productId,
-      requestedAmount: "1000000",
+      requestedAmount: "600000",
+      purpose: "Buy an industrial embroidery machine",
+      termMonths: 6,
+      frequency: "MONTHLY",
+      collateralDescription: "Two industrial sewing machines",
+      // 600,000 − 400,000 own share = 200,000 above, covered at 100%.
+      collateralValue: "200000",
+    });
+
+    // Naming the refusals in the assertion, so a failure here says which rule
+    // objected rather than only "expected false to be true".
+    expect(
+      result.ok,
+      result.ok ? "" : result.failures.map((f) => f.rule).join(",")
+    ).toBe(true);
+
+    if (result.ok) {
+      await prisma.loanApplicationEvent.deleteMany({
+        where: { applicationId: result.applicationId },
+      });
+      await prisma.loanApplication.delete({ where: { id: result.applicationId } });
+    }
+  });
+
+  it("accepts a request within the own share and snapshots the rulebook", async () => {
+    const result = await submitLoanApplication({
+      memberId,
+      loanProductId: productId,
+      requestedAmount: "400000",
       purpose: "Buy industrial sewing machines",
-      termMonths: 12,
+      termMonths: 6,
       frequency: "MONTHLY",
     });
 
-    expect(result.ok).toBe(true);
+    expect(
+      result.ok,
+      result.ok ? "" : result.failures.map((f) => f.rule).join(",")
+    ).toBe(true);
     if (!result.ok) return;
 
     const application = await prisma.loanApplication.findUniqueOrThrow({
@@ -173,8 +272,17 @@ describe("application", () => {
 
     expect(application.status).toBe("SUBMITTED");
     expect(application.savingsAtApplication?.toFixed(2)).toBe("500000.00");
-    expect(application.maxEligibleAmount?.toFixed(2)).toBe("1500000.00");
     expect(application.statusHistory).toHaveLength(1);
+
+    // The rulebook in force on the day is snapshotted beside the product's
+    // own assessment, so an approval questioned later can be judged against
+    // the rules that actually applied.
+    const report = application.eligibilityReport as {
+      ruleCheck?: { ownShareLimit?: string };
+      policyAtApplication?: { ownSavingsPercent?: string };
+    } | null;
+    expect(report?.ruleCheck?.ownShareLimit).toBe("400000.00");
+    expect(report?.policyAtApplication?.ownSavingsPercent).toBeDefined();
   });
 });
 
@@ -198,7 +306,7 @@ describe("full lifecycle", () => {
 
     const loan = await prisma.loan.findUniqueOrThrow({ where: { id: loanId } });
     expect(loan.status).toBe("PENDING_DISBURSEMENT");
-    expect(loan.principal.toFixed(2)).toBe("1000000.00");
+    expect(loan.principal.toFixed(2)).toBe("400000.00");
 
     // Approval must not move money.
     expect(loan.disbursedAt).toBeNull();
@@ -243,11 +351,12 @@ describe("full lifecycle", () => {
       disbursementDate: new Date("2026-01-15T00:00:00Z"),
     });
 
-    // 1,000,000 less 1% processing and 0.5% insurance = 985,000.
-    expect(result.netDisbursement).toBe("985000.00");
-    expect(result.instalments).toBe(12);
+    // LOAN_NO_EXTRA_CHARGES: no processing fee and no insurance fee, so the
+    // member receives the whole of what they borrowed.
+    expect(result.netDisbursement).toBe("400000.00");
+    expect(result.instalments).toBe(6);
 
-    expect(await savingsBalance()).toBe(balanceBefore + 985000);
+    expect(await savingsBalance()).toBe(balanceBefore + 400000);
 
     const loan = await prisma.loan.findUniqueOrThrow({
       where: { id: loanId },
@@ -255,8 +364,14 @@ describe("full lifecycle", () => {
     });
 
     expect(loan.status).toBe("ACTIVE");
-    expect(loan.installments).toHaveLength(12);
-    expect(loan.installments[11].balanceAfter.toFixed(2)).toBe("0.00");
+    expect(loan.installments).toHaveLength(6);
+    expect(loan.installments[5].balanceAfter.toFixed(2)).toBe("0.00");
+
+    // 2% a month for six months on 400,000 — the rulebook's own arithmetic,
+    // which a member can check on a phone calculator.
+    expect(loan.totalInterest.toFixed(2)).toBe("48000.00");
+    expect(loan.totalFees.toFixed(2)).toBe("0.00");
+    expect(loan.totalPayable.toFixed(2)).toBe("448000.00");
 
     // The schedule's instalments must sum to the recorded total payable.
     const scheduleTotal = loan.installments.reduce(
@@ -273,7 +388,7 @@ describe("full lifecycle", () => {
       where: { loanTransactionId: loanTx.id },
     });
     expect(savingsTx.type).toBe("LOAN_DISBURSEMENT");
-    expect(savingsTx.amount.toFixed(2)).toBe("985000.00");
+    expect(savingsTx.amount.toFixed(2)).toBe("400000.00");
   });
 
   it("refuses to disburse the same loan twice", async () => {
@@ -293,9 +408,10 @@ describe("full lifecycle", () => {
       fromSavings: true,
     });
 
-    // Fees (15,000) and interest (15,000) settled before principal.
-    expect(result.allocated.fees).toBe("15000.00");
-    expect(result.allocated.interest).toBe("15000.00");
+    // There are no fees to settle under the rulebook, so interest is taken
+    // first and the rest reduces principal. 48,000 over six instalments.
+    expect(result.allocated.fees).toBe("0.00");
+    expect(result.allocated.interest).toBe("8000.00");
     expect(Number(result.allocated.principal)).toBeGreaterThan(0);
     expect(result.instalmentsSettled).toBe(1);
 

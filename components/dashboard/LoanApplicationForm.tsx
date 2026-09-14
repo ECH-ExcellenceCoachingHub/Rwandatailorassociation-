@@ -14,24 +14,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatMoney, gt, lt, parseMoneyInput } from "@/lib/money";
+import {
+  add,
+  divide,
+  formatMoney,
+  gt,
+  lt,
+  multiply,
+  parseMoneyInput,
+  subtract,
+  toMoney,
+  toMoneyString,
+} from "@/lib/money";
 import { generateSchedule } from "@/lib/services/loan-calculator";
+import { assessBorrowing, type BlockerRule } from "@/lib/rules/borrowing";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill, pluralize, split } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
+import type { AssociationPolicy } from "@/lib/services/rulebook";
 import type { MemberCopy } from "@/lib/i18n/dashboard/member";
 import type { ChargeType, InterestMethod, RepaymentFrequency } from "@/lib/generated/prisma/enums";
 
 /**
- * Loan application form with a live repayment preview.
+ * Loan application form, decided by the rulebook.
  *
- * The preview runs the SAME `generateSchedule` the server uses at
- * disbursement. That is the point: a member should see the real instalment,
- * the real total interest and — most importantly — the real amount that will
- * reach them after fees, before they commit. Showing an approximation here and
- * a different figure at disbursement is how associations lose members' trust.
+ * WHY THIS RUNS `assessBorrowing` IN THE BROWSER. It is the same function the
+ * server decides with, and it is deliberately pure and not server-only for
+ * exactly this reason. The figure a member is shown before they apply is then
+ * the figure they are judged against when they do.
  *
- * It remains a preview. Eligibility and final terms are decided server-side.
+ * This form used to be driven by the LOAN PRODUCT instead — it offered a
+ * ceiling of three times savings, a term of up to 24 months, and a preview
+ * carrying a processing and an insurance fee. The rulebook allows 80% of a
+ * member's own savings without collateral, six months, and no charges of any
+ * kind. So the form invited requests the server then refused, with a rule the
+ * member had never been shown. That is how a committee comes to look as though
+ * it is playing favourites.
+ *
+ * The product is still what prices the schedule, because it is what the server
+ * builds the real instalments from at disbursement — but it is now configured
+ * to restate the rulebook rather than compete with it. Nothing on this screen
+ * reads the product's own savings multiple, minimum balance or tenure gate.
+ *
+ * THE SENTENCES ARE NOT WRITTEN HERE. Every refusal is rendered from
+ * `d.rules.blockers`, the same bilingual map the member's rulebook page uses,
+ * filled with the parameters `assessBorrowing` returns. A second set of
+ * wording on this screen would be a second set of rules.
  */
 
 interface Product {
@@ -42,8 +70,6 @@ interface Product {
   interestMethod: InterestMethod;
   minAmount: string;
   maxAmount: string;
-  minimumSavings: string;
-  savingsMultiplier: string;
   minTermMonths: number;
   maxTermMonths: number;
   allowedFrequencies: RepaymentFrequency[];
@@ -54,19 +80,24 @@ interface Product {
   insuranceFeeValue: string;
   requiresGuarantors: boolean;
   minimumGuarantors: number;
-  minimumMembershipMonths: number;
   singleActiveLoan: boolean;
-  maxEligible: string;
-  eligible: boolean;
 }
 
 /**
- * A repayment frequency in the reader's language.
+ * Refusals about the member rather than about this request.
  *
- * The dictionary keys carry the enum name so a new frequency in the schema is
- * a missing key rather than a silently English label; an unknown value falls
- * back to the raw enum, which is visible enough to get fixed.
+ * These are shown once at the top, because nothing the member types into the
+ * form below can change them today. Everything else is rendered against the
+ * field it concerns, where it can actually be acted on.
  */
+const STANDING_BLOCKERS: ReadonlySet<BlockerRule> = new Set<BlockerRule>([
+  "LENDING_NOT_OPEN",
+  "MEMBERSHIP_TOO_SHORT",
+  "IN_ARREARS",
+  "FINE_OUTSTANDING",
+  "ACTIVE_LOAN",
+]);
+
 function frequencyLabel(value: string, copy: MemberCopy["apply"]): string {
   const key = `freq${value}` as keyof MemberCopy["apply"];
   return (copy[key] as string | undefined) ?? value;
@@ -74,24 +105,34 @@ function frequencyLabel(value: string, copy: MemberCopy["apply"]): string {
 
 export function LoanApplicationForm({
   products,
+  policy,
   savingsBalance,
   membershipMonths,
+  associationMonths,
+  missedDays,
+  outstandingFines,
+  hasActiveLoan,
 }: {
   products: Product[];
+  policy: AssociationPolicy;
   savingsBalance: string;
   membershipMonths: number;
+  associationMonths: number;
+  missedDays: number;
+  outstandingFines: string;
+  hasActiveLoan: boolean;
 }) {
   const router = useRouter();
   const { d, locale } = useLanguage();
   const copy = d.member.apply;
+  const ruleCopy = d.rules;
 
-  const [productId, setProductId] = useState(
-    products.find((p) => p.eligible)?.id ?? products[0].id
-  );
+  const [productId, setProductId] = useState(products[0].id);
   const [amount, setAmount] = useState("");
   const [termMonths, setTermMonths] = useState("");
-  const [frequency, setFrequency] = useState<string>("");
   const [purpose, setPurpose] = useState("");
+  const [collateralDescription, setCollateralDescription] = useState("");
+  const [collateralValue, setCollateralValue] = useState("");
   const [guarantors, setGuarantors] = useState<{ fullName: string; phone: string }[]>([]);
 
   const [error, setError] = useState<string | null>(null);
@@ -101,23 +142,81 @@ export function LoanApplicationForm({
 
   const product = products.find((p) => p.id === productId)!;
 
-  const effectiveTerm = termMonths || String(product.minTermMonths);
-  const effectiveFrequency = (frequency || product.defaultFrequency) as RepaymentFrequency;
+  // LOAN_REPAYMENT_FREQUENCY: "Repayment is monthly, on the same date each
+  // month." There is no choice to offer, so none is drawn.
+  const frequency: RepaymentFrequency = "MONTHLY";
 
-  const preview = useMemo(() => {
+  // The rulebook's term, not the product's. Capped rather than defaulted to
+  // the product minimum, so the field starts on something the rules allow.
+  const maxTerm = policy.loanMaxTermMonths;
+  const effectiveTerm = termMonths || String(Math.min(product.minTermMonths, maxTerm));
+
+  const parsedAmount = useMemo(() => {
     const parsed = parseMoneyInput(amount, { allowZero: false });
-    if (!parsed.ok) return null;
+    return parsed.ok ? toMoneyString(parsed.value) : null;
+  }, [amount]);
 
+  const parsedTerm = useMemo(() => {
     const term = Number(effectiveTerm);
-    if (!Number.isInteger(term) || term < 1) return null;
+    return Number.isInteger(term) && term >= 1 ? term : null;
+  }, [effectiveTerm]);
 
+  /**
+   * The rulebook's verdict, recomputed as the member types.
+   *
+   * Given the whole request — amount, term and anything pledged — so the
+   * collateral arithmetic below is the association's own, not an approximation
+   * of it.
+   */
+  const assessment = useMemo(
+    () =>
+      assessBorrowing({
+        policy,
+        savingsBalance,
+        membershipMonths,
+        associationMonths,
+        missedDays,
+        outstandingFines,
+        hasActiveLoan,
+        requestedAmount: parsedAmount,
+        collateralValue: collateralValue.trim() || null,
+        termMonths: parsedTerm,
+      }),
+    [
+      policy,
+      savingsBalance,
+      membershipMonths,
+      associationMonths,
+      missedDays,
+      outstandingFines,
+      hasActiveLoan,
+      parsedAmount,
+      collateralValue,
+      parsedTerm,
+    ]
+  );
+
+  /** One blocker by rule, rendered in the reader's language. */
+  function blockerText(rule: BlockerRule): string | null {
+    const blocker = assessment.blockers.find((b) => b.rule === rule);
+    return blocker ? fill(ruleCopy.blockers[blocker.rule], blocker.params) : null;
+  }
+
+  const standingBlockers = assessment.blockers.filter((b) =>
+    STANDING_BLOCKERS.has(b.rule)
+  );
+
+  // The preview runs the SAME schedule the server builds at disbursement, so
+  // the instalment shown is the instalment charged.
+  const preview = useMemo(() => {
+    if (!parsedAmount || !parsedTerm) return null;
     try {
       return generateSchedule({
-        principal: parsed.value,
+        principal: parsedAmount,
         annualRate: product.interestRate,
         method: product.interestMethod,
-        termMonths: term,
-        frequency: effectiveFrequency,
+        termMonths: parsedTerm,
+        frequency,
         processingFeeType: product.processingFeeType,
         processingFeeValue: product.processingFeeValue,
         insuranceFeeType: product.insuranceFeeType,
@@ -126,34 +225,35 @@ export function LoanApplicationForm({
     } catch {
       return null;
     }
-  }, [amount, effectiveTerm, effectiveFrequency, product]);
+  }, [parsedAmount, parsedTerm, product, frequency]);
 
-  const amountIssue = useMemo(() => {
-    const parsed = parseMoneyInput(amount, { allowZero: false });
-    if (!parsed.ok) return null;
-    if (lt(parsed.value, product.minAmount)) {
-      return fill(copy.amountTooSmall, {
-        product: product.name,
-        amount: formatMoney(product.minAmount),
-      });
-    }
-    if (gt(parsed.value, product.maxEligible)) {
-      return fill(copy.amountTooLarge, {
-        savings: formatMoney(savingsBalance),
-        amount: formatMoney(product.maxEligible),
-      });
-    }
-    return null;
-  }, [amount, product, savingsBalance, copy]);
+  /**
+   * The half of the interest that comes back.
+   *
+   * Derived from the policy's two point values here rather than imported,
+   * because `memberInterestShare` lives in the server-only rulebook module and
+   * cannot cross into the browser. Taken off the schedule's own interest total
+   * so this line and the line above it are halves of one number.
+   */
+  const interestBack = useMemo(() => {
+    if (!preview) return null;
+    const total = add(policy.interestMemberPoints, policy.interestAssociationPoints);
+    if (!total.greaterThan(0)) return toMoneyString(0);
+    return toMoneyString(
+      multiply(preview.totalInterest, divide(policy.interestMemberPoints, total))
+    );
+  }, [preview, policy]);
 
-  const termIssue =
-    Number(effectiveTerm) < product.minTermMonths ||
-    Number(effectiveTerm) > product.maxTermMonths
-      ? fill(copy.termIssue, {
-          min: product.minTermMonths,
-          max: product.maxTermMonths,
+  const amountTooSmall =
+    parsedAmount && lt(parsedAmount, product.minAmount) && gt(product.minAmount, 0)
+      ? fill(copy.amountTooSmall, {
+          product: product.name,
+          amount: formatMoney(product.minAmount),
         })
       : null;
+
+  const needsCollateral =
+    policy.collateralRequiredAboveShare && gt(assessment.aboveOwnShare, 0);
 
   const guarantorIssue =
     product.requiresGuarantors &&
@@ -162,10 +262,9 @@ export function LoanApplicationForm({
       : null;
 
   const canSubmit =
-    product.eligible &&
+    assessment.requestAllowed &&
     preview !== null &&
-    !amountIssue &&
-    !termIssue &&
+    !amountTooSmall &&
     !guarantorIssue &&
     purpose.trim().length >= 10 &&
     !submitting;
@@ -182,13 +281,19 @@ export function LoanApplicationForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           loanProductId: productId,
-          amount: preview ? preview.principal : amount,
+          amount: parsedAmount ?? amount,
           purpose: purpose.trim(),
           termMonths: Number(effectiveTerm),
-          frequency: effectiveFrequency,
+          frequency,
           guarantors: guarantors
             .filter((g) => g.fullName.trim())
             .map((g) => ({ fullName: g.fullName.trim(), phone: g.phone.trim() || undefined })),
+          ...(needsCollateral && collateralDescription.trim()
+            ? {
+                collateralDescription: collateralDescription.trim(),
+                collateralValue: collateralValue.trim() || undefined,
+              }
+            : {}),
         }),
       });
 
@@ -209,8 +314,6 @@ export function LoanApplicationForm({
     }
   }
 
-  // The reference is bold mid-sentence, and Kinyarwanda does not place it
-  // where English does, so the sentence is split around the placeholder.
   const [successBefore, successAfter] = split(copy.successBody, "reference");
 
   if (success) {
@@ -232,10 +335,26 @@ export function LoanApplicationForm({
         {error && <Alert variant="error">{error}</Alert>}
 
         {fieldErrors._ && (
-          <Alert variant="error" title={copy.ineligibleTitle}>
+          <Alert variant="error" title={ruleCopy.member.cannotBorrowYet}>
             <ul className="mt-1 list-inside list-disc space-y-0.5">
               {fieldErrors._.map((message) => (
                 <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </Alert>
+        )}
+
+        {/* Why this member cannot borrow at all today. Nothing below can
+            change these, so they are stated once, at the top, in the same
+            words the member's rulebook page uses. */}
+        {standingBlockers.length > 0 && (
+          <Alert variant="warning" title={ruleCopy.member.cannotBorrowYet}>
+            <p className="mb-1.5 font-medium">{ruleCopy.member.whatIsStopping}</p>
+            <ul className="list-inside list-disc space-y-1">
+              {standingBlockers.map((blocker) => (
+                <li key={blocker.rule}>
+                  {fill(ruleCopy.blockers[blocker.rule], blocker.params)}
+                </li>
               ))}
             </ul>
           </Alert>
@@ -253,7 +372,11 @@ export function LoanApplicationForm({
                     <SelectItem key={p.id} value={p.id}>
                       {fill(copy.productOption, {
                         name: p.name,
-                        rate: p.interestRate,
+                        // The rulebook's monthly rate, which is what the member
+                        // was told. The product's annual figure restates it.
+                        rate: toMoney(policy.loanMonthlyInterest)
+                          .toDecimalPlaces(2)
+                          .toString(),
                       })}
                     </SelectItem>
                   ))}
@@ -268,32 +391,13 @@ export function LoanApplicationForm({
             </p>
           )}
 
-          {!product.eligible && (
-            <Alert variant="warning" className="mt-4">
-              {product.minimumMembershipMonths > 0
-                ? fill(copy.notEligibleSavingsTenure, {
-                    savings: formatMoney(product.minimumSavings),
-                    required: pluralize(
-                      copy.monthsCount,
-                      product.minimumMembershipMonths
-                    ),
-                    balance: formatMoney(savingsBalance),
-                    actual: pluralize(copy.monthsCount, membershipMonths),
-                  })
-                : fill(copy.notEligibleSavings, {
-                    savings: formatMoney(product.minimumSavings),
-                    balance: formatMoney(savingsBalance),
-                  })}
-            </Alert>
-          )}
-
           <div className="mt-5 grid gap-5 sm:grid-cols-2">
             <Field
               id="loan-amount"
               label={copy.amountLabel}
-              error={amountIssue ?? fieldErrors.amount}
+              error={amountTooSmall ?? blockerText("AMOUNT") ?? fieldErrors.amount}
               hint={fill(copy.amountHint, {
-                amount: formatMoney(product.maxEligible),
+                amount: formatMoney(assessment.ownShareLimit),
               })}
               required
             >
@@ -303,7 +407,7 @@ export function LoanApplicationForm({
                   inputMode="decimal"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  placeholder="500000"
+                  placeholder={assessment.ownShareLimit}
                 />
               )}
             </Field>
@@ -311,11 +415,8 @@ export function LoanApplicationForm({
             <Field
               id="loan-term"
               label={copy.termLabel}
-              error={termIssue}
-              hint={fill(copy.termHint, {
-                min: product.minTermMonths,
-                max: product.maxTermMonths,
-              })}
+              error={blockerText("TERM_TOO_LONG")}
+              hint={fill(copy.termHint, { max: maxTerm })}
               required
             >
               {(props) => (
@@ -324,33 +425,22 @@ export function LoanApplicationForm({
                   inputMode="numeric"
                   value={termMonths}
                   onChange={(e) => setTermMonths(e.target.value)}
-                  placeholder={String(product.minTermMonths)}
+                  placeholder={String(Math.min(product.minTermMonths, maxTerm))}
                 />
               )}
             </Field>
           </div>
 
+          {/* Monthly, by rule. Shown rather than chosen. */}
           <div className="mt-5">
-            <Field id="loan-frequency" label={copy.frequencyLabel} required>
+            <Field id="loan-frequency" label={copy.frequencyLabel}>
               {() => (
-                <Select
-                  value={effectiveFrequency}
-                  onValueChange={setFrequency}
+                <p
+                  id="loan-frequency"
+                  className="rounded-xl border border-border bg-canvas px-3 py-2.5 text-sm font-medium text-ink"
                 >
-                  <SelectTrigger id="loan-frequency">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {(product.allowedFrequencies.length
-                      ? product.allowedFrequencies
-                      : [product.defaultFrequency]
-                    ).map((f) => (
-                      <SelectItem key={f} value={f}>
-                        {frequencyLabel(f, copy)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  {frequencyLabel(frequency, copy)}
+                </p>
               )}
             </Field>
           </div>
@@ -376,6 +466,68 @@ export function LoanApplicationForm({
           </div>
         </div>
 
+        {/* COLLATERAL_REQUIRED_ABOVE_SHARE.
+            Without these fields the rule was unsatisfiable: the server asked
+            for collateral and the form had no way to offer any, so every
+            request above the own-share limit was permanently refused. */}
+        {needsCollateral && (
+          <div className="rounded-2xl border border-border bg-surface p-5 shadow-card">
+            <h3 className="font-heading text-base font-semibold text-ink">
+              {copy.collateralTitle}
+            </h3>
+
+            <p className="mt-1.5 text-sm text-ink-muted">
+              {blockerText("COLLATERAL") ??
+                fill(ruleCopy.blockers.COLLATERAL_TO_RECORD, {
+                  above: formatMoney(assessment.aboveOwnShare),
+                  required: formatMoney(assessment.collateralRequired),
+                })}
+            </p>
+
+            <div className="mt-4 grid gap-5 sm:grid-cols-2">
+              <Field
+                id="collateral-description"
+                label={copy.collateralDescriptionLabel}
+                hint={copy.collateralDescriptionHint}
+                error={fieldErrors.collateralDescription}
+                required
+              >
+                {(props) => (
+                  <Input
+                    {...props}
+                    value={collateralDescription}
+                    onChange={(e) => setCollateralDescription(e.target.value)}
+                  />
+                )}
+              </Field>
+
+              <Field
+                id="collateral-value"
+                label={copy.collateralValueLabel}
+                hint={copy.collateralValueHint}
+                error={fieldErrors.collateralValue}
+                required
+              >
+                {(props) => (
+                  <Input
+                    {...props}
+                    inputMode="decimal"
+                    value={collateralValue}
+                    onChange={(e) => setCollateralValue(e.target.value)}
+                    placeholder={assessment.collateralRequired}
+                  />
+                )}
+              </Field>
+            </div>
+
+            {assessment.collateralSatisfied && gt(assessment.collateralRequired, 0) && (
+              <p className="mt-3 text-sm font-medium text-emerald-700">
+                {copy.collateralSatisfied}
+              </p>
+            )}
+          </div>
+        )}
+
         {product.requiresGuarantors && (
           <div className="rounded-2xl border border-border bg-surface p-5 shadow-card">
             <h3 className="font-heading text-base font-semibold text-ink">
@@ -396,12 +548,8 @@ export function LoanApplicationForm({
                         next[index] = { ...next[index], fullName: e.target.value, phone: next[index]?.phone ?? "" };
                         setGuarantors(next);
                       }}
-                      placeholder={fill(copy.guarantorName, {
-                        number: index + 1,
-                      })}
-                      aria-label={fill(copy.guarantorName, {
-                        number: index + 1,
-                      })}
+                      placeholder={fill(copy.guarantorName, { number: index + 1 })}
+                      aria-label={fill(copy.guarantorName, { number: index + 1 })}
                     />
                     <Input
                       value={guarantors[index]?.phone ?? ""}
@@ -411,9 +559,7 @@ export function LoanApplicationForm({
                         setGuarantors(next);
                       }}
                       placeholder={d.common.phone}
-                      aria-label={fill(copy.guarantorPhone, {
-                        number: index + 1,
-                      })}
+                      aria-label={fill(copy.guarantorPhone, { number: index + 1 })}
                     />
                   </div>
                 )
@@ -449,9 +595,7 @@ export function LoanApplicationForm({
           </h3>
 
           {!preview ? (
-            <p className="mt-3 text-sm text-primary-hover/80">
-              {copy.previewEmpty}
-            </p>
+            <p className="mt-3 text-sm text-primary-hover/80">{copy.previewEmpty}</p>
           ) : (
             <>
               <dl className="mt-4 space-y-2.5 text-sm">
@@ -459,14 +603,9 @@ export function LoanApplicationForm({
                   label={copy.lineLoanAmount}
                   value={formatMoney(preview.principal)}
                 />
-                <Line
-                  label={copy.lineProcessingFee}
-                  value={formatMoney(preview.processingFee)}
-                />
-                <Line
-                  label={copy.lineInsuranceFee}
-                  value={formatMoney(preview.insuranceFee)}
-                />
+                {/* No processing or insurance line: LOAN_NO_EXTRA_CHARGES says
+                    there are none, so what the member receives is the whole
+                    of what they borrowed. */}
                 <Line
                   label={copy.lineYouReceive}
                   value={formatMoney(preview.netDisbursement)}
@@ -475,14 +614,26 @@ export function LoanApplicationForm({
                 <div className="border-t border-primary/20 pt-2.5">
                   <Line
                     label={fill(copy.lineInterest, {
-                      rate: product.interestRate,
-                      method:
-                        product.interestMethod === "FLAT"
-                          ? copy.methodFlat
-                          : copy.methodReducing,
+                      rate: toMoney(policy.loanMonthlyInterest)
+                        .toDecimalPlaces(2)
+                        .toString(),
                     })}
                     value={formatMoney(preview.totalInterest)}
                   />
+                  {interestBack && (
+                    <Line
+                      label={copy.lineInterestBack}
+                      value={`− ${formatMoney(interestBack)}`}
+                    />
+                  )}
+                  {interestBack && (
+                    <Line
+                      label={copy.lineNetCost}
+                      value={formatMoney(
+                        toMoneyString(subtract(preview.totalInterest, interestBack))
+                      )}
+                    />
+                  )}
                   <Line
                     label={copy.lineTotalRepay}
                     value={formatMoney(preview.totalPayable)}
@@ -494,11 +645,11 @@ export function LoanApplicationForm({
               <div className="mt-4 rounded-xl bg-white/70 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary-hover">
                   {fill(copy.paymentLabel, {
-                    frequency: frequencyLabel(effectiveFrequency, copy),
+                    frequency: frequencyLabel(frequency, copy),
                   })}
                 </p>
                 <p className="mt-1 font-heading text-xl font-bold text-primary-hover">
-                  {formatMoney(preview.instalments[1]?.totalDue ?? preview.instalments[0].totalDue)}
+                  {formatMoney(preview.instalments[0].totalDue)}
                 </p>
                 <p className="mt-1 text-xs text-primary-hover/75">
                   {fill(copy.paymentsCount, {

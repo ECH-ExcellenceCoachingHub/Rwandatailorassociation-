@@ -23,7 +23,20 @@ const schema = z.object({
     .min(10, "Describe what the loan is for, in at least 10 characters")
     .max(500),
   termMonths: z.coerce.number().int().min(1).max(120),
-  frequency: z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY", "QUARTERLY"]),
+  // LOAN_REPAYMENT_FREQUENCY: "Repayment is monthly, on the same date each
+  // month." The other four values remain in the database enum because older
+  // loans carry them, but nothing new may be created outside the rule.
+  frequency: z.literal("MONTHLY"),
+  // What the member has pledged, when they are asking for more than the share
+  // they may take against their own savings. Without these the COLLATERAL
+  // blocker in assessBorrowing could never be satisfied, which made every
+  // request above the own-share limit permanently unapprovable.
+  collateralDescription: z.string().trim().min(3).max(500).optional(),
+  collateralValue: z
+    .string()
+    .trim()
+    .regex(/^\d+(\.\d{1,2})?$/, "Enter a valid value")
+    .optional(),
   guarantors: z
     .array(
       z.object({
@@ -77,6 +90,8 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     termMonths: parsed.data.termMonths,
     frequency: parsed.data.frequency,
     guarantors: parsed.data.guarantors,
+    collateralDescription: parsed.data.collateralDescription,
+    collateralValue: parsed.data.collateralValue,
   });
 
   if (!result.ok) {

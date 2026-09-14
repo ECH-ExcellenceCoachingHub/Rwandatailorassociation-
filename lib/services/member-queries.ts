@@ -1,6 +1,9 @@
 import "server-only";
 import { prisma, Prisma } from "@/lib/db/prisma";
 import { add, subtract, toMoneyString } from "@/lib/money";
+import { assessBorrowing, wholeMonthsBetween } from "@/lib/rules/borrowing";
+import { getMemberStanding } from "@/lib/services/contributions";
+import { getPolicy } from "@/lib/services/rulebook";
 import type { TransactionType } from "@/lib/generated/prisma/enums";
 
 /**
@@ -472,12 +475,19 @@ export async function getMemberNotifications(userId: string, page = 1, pageSize 
   };
 }
 
-/** Active loan products a member may apply for, with their personal ceiling. */
+/**
+ * What a member may apply for, decided by the rulebook.
+ *
+ * Returns the association's live policy and the borrowing assessment rather
+ * than a product-derived ceiling, because the form has to show the member the
+ * same answer the server will give them on submit. See the header of
+ * components/dashboard/LoanApplicationForm.tsx for why that matters.
+ */
 export async function getAvailableLoanProducts(
   memberId: string,
   associationId: string
 ) {
-  const [products, account, activeLoans, member] = await Promise.all([
+  const [products, account, activeLoans, member, policy, standing] = await Promise.all([
     prisma.loanProduct.findMany({
       where: { associationId, isActive: true },
       orderBy: { name: "asc" },
@@ -494,56 +504,99 @@ export async function getAvailableLoanProducts(
     }),
     prisma.member.findUnique({
       where: { id: memberId },
-      select: { joinedAt: true, createdAt: true },
+      select: {
+        joinedAt: true,
+        createdAt: true,
+        // Approval is when the obligation actually began, and it is what the
+        // member's rulebook page counts tenure from.
+        approvedAt: true,
+        // LENDING_UNLOCK_MONTHS is measured from the association's own age.
+        association: { select: { createdAt: true } },
+      },
     }),
+    getPolicy(associationId),
+    // Arrears and unpaid fines both block borrowing under
+    // ARREARS_BLOCK_BORROWING, so the assessment needs the member's standing.
+    getMemberStanding(memberId),
   ]);
 
   const balance = account?.balance ?? new Prisma.Decimal(0);
-  const since = member?.joinedAt ?? member?.createdAt ?? new Date();
-  const membershipMonths = Math.floor(
-    (Date.now() - since.getTime()) / (30.44 * 86_400_000)
+  const now = new Date();
+
+  // Anchored on approval, then joining, then creation — the same order the
+  // member's rules page uses. Two screens counting a member's tenure from
+  // different dates is how a countdown disagrees with the gate it counts down to.
+  const since = member?.approvedAt ?? member?.joinedAt ?? member?.createdAt ?? now;
+
+  // WHOLE CALENDAR MONTHS, not elapsed days over an average month length.
+  // The 30.44-day division this replaced drifts past the anniversary and
+  // produces the case wholeMonthsBetween was written to prevent: a member
+  // being told they have five months on the day they know is six.
+  const membershipMonths = wholeMonthsBetween(since, now);
+  const associationMonths = wholeMonthsBetween(
+    member?.association.createdAt ?? now,
+    now
   );
+
+  // THE RULEBOOK DECIDES, HERE AND ON SUBMIT, FROM THE SAME FUNCTION.
+  //
+  // `assessBorrowing` is deliberately pure and not server-only so that the
+  // figure a member is shown before they apply is the figure they are judged
+  // against when they do. Previously this returned a ceiling of savings ×
+  // the product's multiplier, which the server then refused — a form that
+  // invites a request the rulebook forbids.
+  const assessment = assessBorrowing({
+    policy,
+    savingsBalance: balance.toFixed(2),
+    membershipMonths,
+    associationMonths,
+    missedDays: standing?.missedDays ?? 0,
+    outstandingFines: standing?.outstandingFineAmount ?? "0.00",
+    hasActiveLoan: activeLoans > 0,
+  });
 
   return {
     savingsBalance: balance.toFixed(2),
     membershipMonths,
+    associationMonths,
     hasActiveLoan: activeLoans > 0,
-    products: products.map((p) => {
-      const ceiling = [
-        balance.times(p.savingsMultiplier),
-        p.maxAmount,
-        ...(p.absoluteMaxAmount ? [p.absoluteMaxAmount] : []),
-      ].reduce((lowest, v) => (v.lessThan(lowest) ? v : lowest));
 
-      return {
-        id: p.id,
-        name: p.name,
-        description: p.description,
-        interestRate: p.interestRate.toFixed(2),
-        interestMethod: p.interestMethod,
-        minAmount: p.minAmount.toFixed(2),
-        maxAmount: p.maxAmount.toFixed(2),
-        minimumSavings: p.minimumSavings.toFixed(2),
-        savingsMultiplier: p.savingsMultiplier.toFixed(2),
-        minTermMonths: p.minTermMonths,
-        maxTermMonths: p.maxTermMonths,
-        allowedFrequencies: p.allowedFrequencies,
-        defaultFrequency: p.defaultFrequency,
-        processingFeeType: p.processingFeeType,
-        processingFeeValue: p.processingFeeValue.toFixed(2),
-        insuranceFeeType: p.insuranceFeeType,
-        insuranceFeeValue: p.insuranceFeeValue.toFixed(2),
-        requiresGuarantors: p.requiresGuarantors,
-        minimumGuarantors: p.minimumGuarantors,
-        minimumMembershipMonths: p.minimumMembershipMonths,
-        singleActiveLoan: p.singleActiveLoan,
-        // Advisory only. The authoritative check runs server-side on submit.
-        maxEligible: ceiling.lessThan(0) ? "0.00" : ceiling.toFixed(2),
-        eligible:
-          balance.greaterThanOrEqualTo(p.minimumSavings) &&
-          membershipMonths >= p.minimumMembershipMonths &&
-          (!p.singleActiveLoan || activeLoans === 0),
-      };
-    }),
+    /// The arrears half of the picture. Carried out so the form can re-run
+    /// `assessBorrowing` in the browser as the member types an amount, rather
+    /// than asking the server what it already worked out once.
+    missedDays: standing?.missedDays ?? 0,
+    outstandingFines: standing?.outstandingFineAmount ?? "0.00",
+
+    /// The live rulebook, passed to the browser so the form can re-assess as
+    /// the member types without a round trip. Every field is a string, number
+    /// or boolean, so it crosses the server/client boundary unchanged.
+    policy,
+    /// What the member may take today, why not, and what would change it.
+    assessment,
+
+    products: products.map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      // Carried only so the preview can run the SAME schedule the server
+      // builds at disbursement. Nothing here gates the application any more:
+      // the product's own savings multiple, minimum balance and tenure gate
+      // are no longer read, because the rulebook covers all three.
+      interestRate: p.interestRate.toFixed(2),
+      interestMethod: p.interestMethod,
+      minAmount: p.minAmount.toFixed(2),
+      maxAmount: p.maxAmount.toFixed(2),
+      minTermMonths: p.minTermMonths,
+      maxTermMonths: p.maxTermMonths,
+      allowedFrequencies: p.allowedFrequencies,
+      defaultFrequency: p.defaultFrequency,
+      processingFeeType: p.processingFeeType,
+      processingFeeValue: p.processingFeeValue.toFixed(2),
+      insuranceFeeType: p.insuranceFeeType,
+      insuranceFeeValue: p.insuranceFeeValue.toFixed(2),
+      requiresGuarantors: p.requiresGuarantors,
+      minimumGuarantors: p.minimumGuarantors,
+      singleActiveLoan: p.singleActiveLoan,
+    })),
   };
 }

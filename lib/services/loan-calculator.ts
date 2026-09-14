@@ -2,7 +2,6 @@ import {
   Decimal,
   add,
   allocate,
-  divide,
   gt,
   lt,
   multiply,
@@ -227,9 +226,20 @@ function buildFlatSchedule(
   termMonths: number,
   periods: number
 ): ScheduleRow[] {
-  const years = divide(termMonths, 12);
+  // ONE EXPRESSION, QUANTIZED ONCE AT THE END.
+  //
+  // This used to compute `years = divide(termMonths, 12)` first, but `divide`
+  // quantizes to two decimal places — so a one-month loan was priced on
+  // 0.08 of a year instead of 0.0833…, undercharging the interest by 4% on
+  // EVERY flat loan of a single month. On 400,000 at 24% that is 7,680
+  // instead of 8,000. Rounding a ratio before multiplying money by it is
+  // never safe; the rounding belongs at the end, where the franc is decided.
   const totalInterest = quantize(
-    principal.times(toMoney(annualRate)).dividedBy(100).times(years)
+    principal
+      .times(toMoney(annualRate))
+      .dividedBy(100)
+      .times(termMonths)
+      .dividedBy(12)
   );
 
   const principalParts = allocate(principal, periods);

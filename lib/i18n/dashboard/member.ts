@@ -35,11 +35,6 @@ export interface MemberCopy {
     makeDeposit: string;
     requestWithdrawal: string;
     applyLoan: string;
-    borrowQuestion: string;
-    borrowUpTo: string;
-    borrowUnder: string;
-    borrowNeedMinimum: string;
-    borrowCurrentBalance: string;
     savingsGrowth: string;
     savingsGrowthHint: string;
     savingsGrowthEmpty: string;
@@ -161,8 +156,6 @@ export interface MemberCopy {
     productLabel: string;
     productOption: string;
     monthsCount: string;
-    notEligibleSavings: string;
-    notEligibleSavingsTenure: string;
     amountLabel: string;
     amountHint: string;
     amountTooSmall: string;
@@ -170,6 +163,12 @@ export interface MemberCopy {
     termLabel: string;
     termHint: string;
     termIssue: string;
+    collateralTitle: string;
+    collateralDescriptionLabel: string;
+    collateralDescriptionHint: string;
+    collateralValueLabel: string;
+    collateralValueHint: string;
+    collateralSatisfied: string;
     frequencyLabel: string;
     purposeLabel: string;
     purposeHint: string;
@@ -189,12 +188,10 @@ export interface MemberCopy {
     previewTitle: string;
     previewEmpty: string;
     lineLoanAmount: string;
-    lineProcessingFee: string;
-    lineInsuranceFee: string;
     lineYouReceive: string;
     lineInterest: string;
-    methodFlat: string;
-    methodReducing: string;
+    lineInterestBack: string;
+    lineNetCost: string;
     lineTotalRepay: string;
     paymentLabel: string;
     paymentsCount: string;
@@ -574,13 +571,6 @@ export const member: Record<Locale, MemberCopy> = {
       makeDeposit: "Make a deposit",
       requestWithdrawal: "Request withdrawal",
       applyLoan: "Apply for a loan",
-      borrowQuestion: "How much can I borrow?",
-      borrowUpTo: "Up to",
-      borrowUnder:
-        "under {product}. Final approval depends on your contribution history and the association's review.",
-      borrowNeedMinimum: "You need at least",
-      borrowCurrentBalance:
-        "in savings to qualify{product}. You currently have {balance}.",
       savingsGrowth: "Savings growth",
       savingsGrowthHint: "Closing balance at the end of each month",
       savingsGrowthEmpty:
@@ -714,21 +704,25 @@ export const member: Record<Locale, MemberCopy> = {
       freqQUARTERLY: "Quarterly",
 
       productLabel: "Loan product",
-      productOption: "{name} — {rate}% p.a.",
+      productOption: "{name} — {rate}% a month",
       monthsCount: "{count} month|{count} months",
-      notEligibleSavings:
-        "You do not currently meet the requirements for this product. It needs at least {savings} in savings. You have {balance}.",
-      notEligibleSavingsTenure:
-        "You do not currently meet the requirements for this product. It needs at least {savings} in savings and {required} of membership. You have {balance} and {actual}.",
       amountLabel: "Amount you need",
-      amountHint: "Up to {amount} based on your savings",
+      amountHint:
+        "Up to {amount} against your own savings, with nothing pledged. You may ask for more if you pledge collateral.",
       amountTooSmall: "The smallest loan under {product} is {amount}",
       amountTooLarge:
         "Based on your savings of {savings}, you can borrow up to {amount}",
       termLabel: "Repayment period (months)",
-      termHint: "Between {min} and {max} months",
+      termHint: "Up to {max} months. There is no extension.",
       termIssue:
-        "The repayment period must be between {min} and {max} months",
+        "Loans are repaid within {max} months, so choose {max} months or fewer",
+      collateralTitle: "Collateral",
+      collateralDescriptionLabel: "What are you pledging?",
+      collateralDescriptionHint:
+        "Machines, materials, equipment or any property the committee accepts",
+      collateralValueLabel: "What is it worth?",
+      collateralValueHint: "The committee will verify this before approval",
+      collateralSatisfied: "The collateral you have pledged covers this.",
       frequencyLabel: "Repayment frequency",
       purposeLabel: "What is the loan for?",
       purposeHint: "Be specific — it helps the review committee decide",
@@ -753,17 +747,15 @@ export const member: Record<Locale, MemberCopy> = {
       previewEmpty:
         "Enter an amount and a repayment period to see your schedule.",
       lineLoanAmount: "Loan amount",
-      lineProcessingFee: "Processing fee",
-      lineInsuranceFee: "Insurance fee",
       lineYouReceive: "You receive",
-      lineInterest: "Interest ({rate}% {method})",
-      methodFlat: "flat",
-      methodReducing: "reducing",
+      lineInterest: "Interest ({rate}% a month)",
+      lineInterestBack: "Of which comes back to you",
+      lineNetCost: "What the loan actually costs you",
       lineTotalRepay: "Total to repay",
       paymentLabel: "{frequency} payment",
       paymentsCount: "{count} payments · first due {date}",
       previewNote:
-        "The first payment includes the fees, so it is larger than the rest. Final terms are confirmed on approval.",
+        "There is no processing or insurance fee, so you receive the full amount. Half the interest is credited back into your savings as you repay. Final terms are confirmed on approval.",
     },
     repayments: {
       title: "Repayments",
@@ -1160,13 +1152,6 @@ export const member: Record<Locale, MemberCopy> = {
       makeDeposit: "Bitsa amafaranga",
       requestWithdrawal: "Saba kubikuza",
       applyLoan: "Saba inguzanyo",
-      borrowQuestion: "Nshobora kuguza angahe?",
-      borrowUpTo: "Kugera kuri",
-      borrowUnder:
-        "kuri {product}. Kwemeza burundu bishingira ku mateka y'imisanzu yawe no ku isuzuma ry'ihuriro.",
-      borrowNeedMinimum: "Ukeneye byibuze",
-      borrowCurrentBalance:
-        "mu buzigame kugira ngo wemererwe{product}. Ubu ufite {balance}.",
       savingsGrowth: "Ukwiyongera k'ubuzigame",
       savingsGrowthHint: "Amafaranga asigaye ku mpera za buri kwezi",
       savingsGrowthEmpty:
@@ -1303,20 +1288,25 @@ export const member: Record<Locale, MemberCopy> = {
       freqQUARTERLY: "Buri mezi atatu",
 
       productLabel: "Ubwoko bw'inguzanyo",
-      productOption: "{name} — {rate}% ku mwaka",
+      productOption: "{name} — {rate}% ku kwezi",
       monthsCount: "ukwezi {count}|amezi {count}",
-      notEligibleSavings:
-        "Kugeza ubu ntabwo wujuje ibisabwa kuri ubu bwoko bw'inguzanyo. Busaba nibura {savings} mu buzigame. Ufite {balance}.",
-      notEligibleSavingsTenure:
-        "Kugeza ubu ntabwo wujuje ibisabwa kuri ubu bwoko bw'inguzanyo. Busaba nibura {savings} mu buzigame na {required} y'ubunyamuryango. Ufite {balance} na {actual}.",
       amountLabel: "Amafaranga ukeneye",
-      amountHint: "Kugeza kuri {amount} ukurikije ubuzigame bwawe",
+      amountHint:
+        "Kugeza kuri {amount} ukurikije ubuzigame bwawe, nta kintu ushyizeho ingwate. Ushobora gusaba menshi nushyiraho ingwate.",
       amountTooSmall: "Inguzanyo ntoya ishoboka muri {product} ni {amount}",
       amountTooLarge:
         "Ukurikije ubuzigame bwawe bwa {savings}, ushobora kuguza kugeza kuri {amount}",
       termLabel: "Igihe cyo kwishyura (amezi)",
-      termHint: "Hagati y'amezi {min} na {max}",
-      termIssue: "Igihe cyo kwishyura kigomba kuba hagati y'amezi {min} na {max}",
+      termHint: "Kugeza ku mezi {max}. Nta kongererwa igihe.",
+      termIssue:
+        "Inguzanyo yishyurwa mu mezi {max}, bityo hitamo amezi {max} cyangwa macye",
+      collateralTitle: "Ingwate",
+      collateralDescriptionLabel: "Ni iki ushyiraho ingwate?",
+      collateralDescriptionHint:
+        "Imashini, ibikoresho, cyangwa undi mutungo komite yemera",
+      collateralValueLabel: "Bifite agaciro kangahe?",
+      collateralValueHint: "Komite izabigenzura mbere yo kwemeza",
+      collateralSatisfied: "Ingwate washyizeho irahagije.",
       frequencyLabel: "Uko kwishyura bisubirwamo",
       purposeLabel: "Iyi nguzanyo igenewe iki?",
       purposeHint: "Sobanura neza — bifasha komite isuzuma gufata icyemezo",
@@ -1341,17 +1331,15 @@ export const member: Record<Locale, MemberCopy> = {
       previewEmpty:
         "Andika amafaranga n'igihe cyo kwishyura kugira ngo urebe gahunda yawe.",
       lineLoanAmount: "Amafaranga y'inguzanyo",
-      lineProcessingFee: "Ikiguzi cyo gutunganya",
-      lineInsuranceFee: "Ikiguzi cy'ubwishingizi",
       lineYouReceive: "Uzahabwa",
-      lineInterest: "Inyungu ({rate}% {method})",
-      methodFlat: "ihoraho",
-      methodReducing: "igabanuka",
+      lineInterest: "Inyungu ({rate}% ku kwezi)",
+      lineInterestBack: "Muri yo, igarukira wowe",
+      lineNetCost: "Icyo inguzanyo ikugusaba by'ukuri",
       lineTotalRepay: "Igiteranyo cyo kwishyura",
       paymentLabel: "Ubwishyu {frequency}",
       paymentsCount: "ubwishyu {count} · ubwa mbere ku wa {date}",
       previewNote:
-        "Ubwishyu bwa mbere burimo n'ibiguzi, ni yo mpamvu buruta ubundi. Amasezerano ya nyuma yemezwa igihe inguzanyo yemewe.",
+        "Nta kiguzi cyo gutunganya cyangwa cy'ubwishingizi, bityo uhabwa amafaranga yose. Kimwe cya kabiri cy'inyungu kigarurwa mu buzigame bwawe uko wishyura. Amasezerano ya nyuma yemezwa igihe inguzanyo yemewe.",
     },
     repayments: {
       title: "Kwishyura",
