@@ -21,7 +21,8 @@
     "db:seed:transactions": "tsx --tsconfig tsconfig.scripts.json scripts/seed-transactions.ts",
     "db:check": "tsx --tsconfig tsconfig.scripts.json scripts/db-check.ts",
     "db:verify": "tsx --tsconfig tsconfig.scripts.json scripts/verify-ledger.ts",
-    "db:accounts": "tsx --tsconfig tsconfig.scripts.json scripts/test-accounts.ts"
+    "db:accounts": "tsx --tsconfig tsconfig.scripts.json scripts/test-accounts.ts",
+    "rules:resync": "tsx --tsconfig tsconfig.scripts.json scripts/resync-rulebook.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",

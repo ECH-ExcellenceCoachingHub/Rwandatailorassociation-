@@ -486,6 +486,14 @@ export async function disburseLoan(params: {
 
     const disbursementDate = params.disbursementDate ?? new Date();
 
+    // LOAN_NO_EXTRA_CHARGES: "No processing fee, no insurance fee, no file
+    // charge." Read from the rulebook rather than trusting the product to have
+    // been configured for it. The product restates the rule today, but a fee
+    // added back onto it would otherwise reintroduce a charge the rules forbid
+    // and nothing would catch it.
+    const feePolicy = await getPolicyWithin(tx, loan.associationId);
+    const feesAllowed = !feePolicy.loanNoExtraCharges;
+
     const schedule = generateSchedule({
       principal: loan.principal,
       annualRate: loan.interestRate,
@@ -495,9 +503,9 @@ export async function disburseLoan(params: {
       gracePeriodDays: loan.gracePeriodDays,
       disbursementDate,
       processingFeeType: loan.loanProduct.processingFeeType,
-      processingFeeValue: loan.loanProduct.processingFeeValue,
+      processingFeeValue: feesAllowed ? loan.loanProduct.processingFeeValue : 0,
       insuranceFeeType: loan.loanProduct.insuranceFeeType,
-      insuranceFeeValue: loan.loanProduct.insuranceFeeValue,
+      insuranceFeeValue: feesAllowed ? loan.loanProduct.insuranceFeeValue : 0,
     });
 
     await tx.loanInstallment.createMany({

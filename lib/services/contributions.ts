@@ -225,7 +225,7 @@ export function computeStanding(input: StandingInputs): ContributionStanding {
     coveredDays,
     missedDays,
     dueDays,
-    arrearsSavings: arrearsSavings.toFixed(2),
+    dailySavings: dailySavings.toFixed(2),
   });
 
   const clearingAmount = add(arrearsTotal, input.outstandingFineAmount);
@@ -291,7 +291,10 @@ function resolveFineDue(input: {
   coveredDays: number;
   missedDays: number;
   dueDays: number;
-  arrearsSavings: string;
+  /// One day's saving for this member, shares included. The fine is billed on
+  /// the days THIS fine covers, so the daily figure is what is needed here
+  /// rather than the running arrears total.
+  dailySavings: string;
 }): ContributionStanding["fineDue"] {
   const { policy, missedDays, dueDays } = input;
 
@@ -313,7 +316,23 @@ function resolveFineDue(input: {
 
   if (missedDays < threshold) return null;
 
-  const amount = percentageOf(input.arrearsSavings, policy.penaltyRate);
+  // ONLY THE DAYS NO EARLIER FINE HAS ALREADY PUNISHED.
+  //
+  // PENALTY_REPEAT_DAYS: "The same arrears are never fined twice: each fine
+  // covers days the earlier ones did not." This used to bill the WHOLE running
+  // arrears every time, so a member fined 490 at seven days was fined 980 at
+  // fourteen - 490 of it for days already punished - and 1,470 at twenty-one,
+  // ending up owing 2,940 where the rule says 1,470. Each stretch of missed
+  // days is now charged once, at the rate applied to what those days alone
+  // left unpaid.
+  //
+  // The missedDays RECORDED on the fine stays cumulative: the threshold above
+  // is derived from it, and storing the stretch instead would peg the
+  // threshold at one repeat period forever and fine every night after it.
+  const chargeableDays = missedDays - highestPrior;
+  const arrears = multiply(input.dailySavings, chargeableDays);
+
+  const amount = percentageOf(arrears, policy.penaltyRate);
 
   // A rate of zero, or arrears rounding to nothing, would otherwise mint a
   // zero-value fine every night — a notification and an audit entry for
@@ -323,7 +342,7 @@ function resolveFineDue(input: {
   return {
     missedDays,
     dueDayIndex: dueDays,
-    arrearsAmount: toMoneyString(input.arrearsSavings),
+    arrearsAmount: toMoneyString(arrears),
     rate: policy.penaltyRate,
     amount: toMoneyString(amount),
   };

@@ -55,7 +55,6 @@ export interface AssociationPolicy {
   platformFeePerDay: string;
   /// The two added: what one day of membership actually costs to pay.
   dailyTotal: string;
-  catchUpAllowed: boolean;
 
   // Falling behind.
   graceDays: number;
@@ -172,7 +171,6 @@ function buildPolicy(values: Map<string, string | null>): AssociationPolicy {
     dailySavings,
     platformFeePerDay,
     dailyTotal: toMoneyString(add(dailySavings, platformFeePerDay)),
-    catchUpAllowed: boolean(RULE_KEYS.CATCH_UP_ALLOWED),
 
     // A grace of zero would fine a member the first day they were late, and a
     // repeat of zero would fine them again every night forever. Both are

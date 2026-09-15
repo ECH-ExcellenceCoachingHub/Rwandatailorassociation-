@@ -128,9 +128,12 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
   {
     key: RULE_KEYS.CATCH_UP_ALLOWED,
     category: "CONTRIBUTIONS",
-    valueType: "BOOLEAN",
+    // Not a switch. Covered days are always counted as total paid divided by
+    // the daily total, so there is no "off" for this to mean; a boolean here
+    // implied a setting the code never read.
+    valueType: "TEXT",
     enforcement: "AUTOMATIC",
-    defaultValue: "true",
+    defaultValue: null,
     displayOrder: 20,
     title: {
       en: "You may pay for several days at once",
@@ -209,8 +212,8 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
       rw: "Ihazabu",
     },
     body: {
-      en: "The fine is this percentage of the savings you have not paid — not of everything you have saved. Missing seven days of 1,000 leaves 7,000 unpaid, and the fine on that is 490. The fine is owed to the association, not to the platform.",
-      rw: "Ihazabu ni iyi ijanisha ry'ubuzigame utarishyuye — si iry'ibyo wazigamye byose. Gusiba iminsi irindwi ya 1,000 bisiga 7,000 atarishyuwe, ihazabu kuri ayo ni 490. Ihazabu igenerwa ihuriro, si urubuga.",
+      en: "The fine is this percentage of the savings you have not paid — not of everything you have saved. Missing seven days of 1,000 leaves 7,000 unpaid, and the fine on that is 490. Each further fine covers only the days the ones before it did not, so a second seven days adds another 490 rather than charging the first week again. The fine is owed to the association, not to the platform.",
+      rw: "Ihazabu ni iyi ijanisha ry'ubuzigame utarishyuye — si iry'ibyo wazigamye byose. Gusiba iminsi irindwi ya 1,000 bisiga 7,000 atarishyuwe, ihazabu kuri ayo ni 490. Buri hazabu ikurikira ireba gusa iminsi izayibanjirije zitarebye, bityo indi minsi irindwi yongeraho indi 490 aho kongera guhana icyumweru cya mbere. Ihazabu igenerwa ihuriro, si urubuga.",
     },
   },
   {
@@ -225,8 +228,8 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
       rw: "Ihazabu ntabwo ikoraho ibyo wamaze kuzigama",
     },
     body: {
-      en: "The fine is worked out from what you still owe, so a member who has saved for years is not fined more than a member who joined last month for the same missed week. The fine is recorded as owed and shown to you before anything is taken from your account, and an officer may waive it with a written reason.",
-      rw: "Ihazabu ibarwa hashingiwe ku byo ukiriho, bityo umunyamuryango umaze imyaka azigama ntahabwa ihazabu iruta iy'uwinjiye ukwezi gushize ku cyumweru kimwe basibye. Ihazabu yandikwa nk'umwenda kandi ukayibona mbere y'uko hagira igikurwa muri konti yawe, kandi umuyobozi ashobora kuyireka atanze impamvu yanditse.",
+      en: "The fine is worked out from the days you have missed, never from the savings you have built up, so a member who has saved for years is not fined more than a member who joined last month for the same missed week. The fine is recorded as owed and shown to you before anything is taken from your account, and an officer may waive it with a written reason.",
+      rw: "Ihazabu ibarwa hashingiwe ku minsi wasibye, ntabwo ibarwa ku buzigame wubatse, bityo umunyamuryango umaze imyaka azigama ntahabwa ihazabu iruta iy'uwinjiye ukwezi gushize ku cyumweru kimwe basibye. Ihazabu yandikwa nk'umwenda kandi ukayibona mbere y'uko hagira igikurwa muri konti yawe, kandi umuyobozi ashobora kuyireka atanze impamvu yanditse.",
     },
   },
   {
@@ -569,8 +572,8 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
       rw: "Buri munyamuryango ashobora gusoma buri tegeko",
     },
     body: {
-      en: "These rules are on every member's dashboard, in their own language, with the exact figures the system applies. There is no second set of rules held anywhere else.",
-      rw: "Aya mategeko ari ku ipaji ya buri munyamuryango, mu rurimi rwe, hamwe n'imibare nyayo sisitemu ikoresha. Nta yandi mategeko abitse ahandi.",
+      en: "These rules are on every member's dashboard, in their own language, with the exact figures the system applies. Where a rule here sets a figure, that figure is the one enforced, and nothing held elsewhere overrides it.",
+      rw: "Aya mategeko ari ku ipaji ya buri munyamuryango, mu rurimi rwe, hamwe n'imibare nyayo sisitemu ikoresha. Iyo itegeko rya hano rishyizeho umubare, uwo mubare ni wo ukurikizwa, kandi nta kindi kibitse ahandi kiwusimbura.",
     },
   },
   {

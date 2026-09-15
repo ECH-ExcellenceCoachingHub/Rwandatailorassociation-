@@ -270,6 +270,42 @@ describe("assessing the fine", () => {
 
       expect(result.missedDays).toBe(21);
       expect(result.fineDue?.missedDays).toBe(21);
+
+      // Seven NEW missed days since the fine at day 14 — not all twenty-one.
+      // Billing the running total would charge 1,470 here and punish the first
+      // fourteen days a second time.
+      expect(result.fineDue?.arrearsAmount).toBe("7000.00");
+      expect(result.fineDue?.amount).toBe("490.00");
+    });
+
+    it("adds a further 490 per stretch rather than re-fining the old days", () => {
+      // A member who never pays is fined every seven days, each fine covering
+      // the seven days that one is for. Three stretches is 490 three times —
+      // 1,470 in total — not 490 + 980 + 1,470.
+      const day7 = standing({ obligationStart: start, asOf: at("2026-01-07") });
+      expect(day7.missedDays).toBe(7);
+      expect(day7.fineDue?.amount).toBe("490.00");
+
+      const day14 = standing({
+        obligationStart: start,
+        asOf: at("2026-01-14"),
+        priorFines: [{ missedDays: 7, dueDayIndex: 7 }],
+      });
+      expect(day14.missedDays).toBe(14);
+      expect(day14.fineDue?.arrearsAmount).toBe("7000.00");
+      expect(day14.fineDue?.amount).toBe("490.00");
+
+      const day21 = standing({
+        obligationStart: start,
+        asOf: at("2026-01-21"),
+        priorFines: [
+          { missedDays: 7, dueDayIndex: 7 },
+          { missedDays: 14, dueDayIndex: 14 },
+        ],
+      });
+      expect(day21.missedDays).toBe(21);
+      expect(day21.fineDue?.arrearsAmount).toBe("7000.00");
+      expect(day21.fineDue?.amount).toBe("490.00");
     });
 
     it("starts afresh once the member has caught up past the old fine", () => {

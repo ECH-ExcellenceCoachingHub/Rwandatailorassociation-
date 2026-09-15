@@ -218,14 +218,16 @@ export function LoanApplicationForm({
         termMonths: parsedTerm,
         frequency,
         processingFeeType: product.processingFeeType,
-        processingFeeValue: product.processingFeeValue,
+        // LOAN_NO_EXTRA_CHARGES, applied here as well as at disbursement so
+        // the preview can never quote a fee the rules forbid.
+        processingFeeValue: policy.loanNoExtraCharges ? "0" : product.processingFeeValue,
         insuranceFeeType: product.insuranceFeeType,
-        insuranceFeeValue: product.insuranceFeeValue,
+        insuranceFeeValue: policy.loanNoExtraCharges ? "0" : product.insuranceFeeValue,
       });
     } catch {
       return null;
     }
-  }, [parsedAmount, parsedTerm, product, frequency]);
+  }, [parsedAmount, parsedTerm, product, frequency, policy]);
 
   /**
    * The half of the interest that comes back.
