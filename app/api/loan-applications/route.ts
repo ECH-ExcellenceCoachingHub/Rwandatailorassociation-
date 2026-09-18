@@ -2,6 +2,7 @@ import { type NextRequest } from "next/server";
 import { z } from "zod";
 import { requireApiMember } from "@/lib/auth/guards";
 import { submitLoanApplication } from "@/lib/services/loans";
+import { MAX_GUARANTORS } from "@/lib/rules/borrowing";
 import { notify, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import {
   apiBadRequest,
@@ -37,16 +38,21 @@ const schema = z.object({
     .trim()
     .regex(/^\d+(\.\d{1,2})?$/, "Enter a valid value")
     .optional(),
+  // Members who each cover part of the loan above the borrower's own share,
+  // from their own savings. By member id, found through
+  // /api/members/lookup: a guarantor must be a registered member, so free-text
+  // names are no longer accepted.
   guarantors: z
     .array(
       z.object({
-        fullName: z.string().trim().min(2),
-        phone: z.string().trim().optional(),
-        nationalId: z.string().trim().optional(),
-        memberId: z.string().optional(),
+        memberId: z.string().min(1),
+        amount: z
+          .string()
+          .trim()
+          .regex(/^\d+(\.\d{1,2})?$/, "Enter a valid amount"),
       })
     )
-    .max(5)
+    .max(MAX_GUARANTORS)
     .optional(),
 });
 

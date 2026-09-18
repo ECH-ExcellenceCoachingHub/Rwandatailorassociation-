@@ -19,6 +19,10 @@ export const PERMISSIONS = {
   MEMBERS_SUSPEND: "members.suspend",
   MEMBERS_VERIFY_KYC: "members.verify_kyc",
   MEMBERS_EXPORT: "members.export",
+  /// Taking somebody off the register: closing a membership, or erasing a
+  /// record that never held money. Kept apart from MEMBERS_SUSPEND because
+  /// suspension is a pause and this is an ending.
+  MEMBERS_DELETE: "members.delete",
 
   // Savings ----------------------------------------------------------------
   SAVINGS_VIEW_OWN: "savings.view_own",
@@ -160,6 +164,7 @@ export const PERMISSION_METADATA: Record<
   [PERMISSIONS.MEMBERS_SUSPEND]: { name: "Suspend members", category: "Members", description: "Suspend or reactivate a member account" },
   [PERMISSIONS.MEMBERS_VERIFY_KYC]: { name: "Verify identity", category: "Members", description: "Mark a member's identity documents as verified" },
   [PERMISSIONS.MEMBERS_EXPORT]: { name: "Export members", category: "Members", description: "Download the member register" },
+  [PERMISSIONS.MEMBERS_DELETE]: { name: "Remove members", category: "Members", description: "Close a membership, or permanently delete a member record that has never held money — always with a written reason" },
 
   [PERMISSIONS.SAVINGS_VIEW_OWN]: { name: "View own savings", category: "Savings", description: "See your own balance and transactions" },
   [PERMISSIONS.SAVINGS_VIEW_ALL]: { name: "View all savings", category: "Savings", description: "See every member's savings in the association" },
@@ -278,6 +283,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionCode[]> = {
     PERMISSIONS.MEMBERS_SUSPEND,
     PERMISSIONS.MEMBERS_VERIFY_KYC,
     PERMISSIONS.MEMBERS_EXPORT,
+    PERMISSIONS.MEMBERS_DELETE,
 
     PERMISSIONS.SAVINGS_VIEW_ALL,
     PERMISSIONS.SAVINGS_POST_MANUAL,

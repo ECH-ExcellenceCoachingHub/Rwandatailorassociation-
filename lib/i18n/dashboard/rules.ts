@@ -54,6 +54,7 @@ export interface RulesCopy {
     TERM_TOO_LONG: string;
     NO_SAVINGS: string;
     COLLATERAL_TO_RECORD: string;
+    GUARANTORS_TO_ACCEPT: string;
   };
 
   standing: {
@@ -417,13 +418,15 @@ export const rules: Record<Locale, RulesCopy> = {
         "You already have a loan running. It must be finished before you take another.",
       AMOUNT: "Enter the amount you want to borrow.",
       COLLATERAL:
-        "Borrowing {requested} takes {above} from the association's pooled money. That needs collateral worth {required}; you have offered {offered}, so {shortfall} more is needed.",
+        "Borrowing {requested} goes {above} beyond your own share, and that part must be backed by guarantors. Guarantors cover {guaranteed}, which leaves {uncovered}: add guarantors for it, or pledge items worth {required} (you have offered {offered}).",
       TERM_TOO_LONG:
         "Loans are repaid within {max} months. There is no extension, so choose {max} months or fewer.",
       NO_SAVINGS:
         "You have no savings yet, so any loan would rest entirely on collateral.",
       COLLATERAL_TO_RECORD:
-        "{above} of this is above your own savings share, so the committee must record collateral worth at least {required}.",
+        "{above} of this is above your own savings share and not covered by guarantors, so the committee must record collateral worth at least {required}.",
+      GUARANTORS_TO_ACCEPT:
+        "{guaranteed} is backed by your guarantors. Each of them must accept from their own account before the committee can approve it.",
     },
 
     standing: {
@@ -812,13 +815,15 @@ export const rules: Record<Locale, RulesCopy> = {
         "Usanzwe ufite inguzanyo igenda. Igomba kurangira mbere yo gufata indi.",
       AMOUNT: "Andika amafaranga ushaka kuguza.",
       COLLATERAL:
-        "Kuguza {requested} bikura {above} mu kigega rusange cy'ihuriro. Ibyo bisaba ingwate ifite agaciro ka {required}; watanze {offered}, bityo hakenewe andi {shortfall}.",
+        "Kuguza {requested} birenza igice cyawe {above}, kandi icyo gice kigomba kwishingirwa n'abishingizi. Abishingizi bishingira {guaranteed}, hasigaye {uncovered}: ongeraho abishingizi, cyangwa utange ingwate y'ibintu bifite agaciro ka {required} (watanze {offered}).",
       TERM_TOO_LONG:
         "Inguzanyo zishyurwa mu mezi {max}. Nta kongererwa igihe, bityo hitamo amezi {max} cyangwa macye.",
       NO_SAVINGS:
         "Nta buzigame ufite, bityo inguzanyo iyo ari yo yose yashingira ku ngwate gusa.",
       COLLATERAL_TO_RECORD:
-        "{above} muri aya arenze igice cy'ubuzigame bwawe, bityo komite igomba kwandika ingwate ifite nibura agaciro ka {required}.",
+        "{above} muri aya arenze igice cy'ubuzigame bwawe kandi ntikishingiwe n'abishingizi, bityo komite igomba kwandika ingwate ifite nibura agaciro ka {required}.",
+      GUARANTORS_TO_ACCEPT:
+        "{guaranteed} yishingiwe n'abishingizi bawe. Buri wese agomba kubyemera kuri konti ye mbere y'uko komite iyemeza.",
     },
 
     standing: {

@@ -1,4 +1,5 @@
 import type { Locale } from "@/types";
+import type { RemovalBlocker } from "@/lib/member-removal";
 
 /**
  * The association administrator's screens: the register, payments, loans,
@@ -167,6 +168,113 @@ export interface AdminCopy {
     notes: string;
     noNotes: string;
     internal: string;
+  };
+  /// The actions on a member's file: status, identity, notes and removal.
+  manage: {
+    jump: string;
+    title: string;
+    description: string;
+    actionFailed: string;
+
+    statusLabel: string;
+    statusPending: string;
+    statusActive: string;
+    statusSuspended: string;
+    statusInactive: string;
+    statusExited: string;
+    statusRejected: string;
+    closedOn: string;
+
+    suspend: string;
+    suspendTitle: string;
+    suspendBody: string;
+    suspendConfirm: string;
+    suspendReasonLabel: string;
+    suspendReasonPlaceholder: string;
+    reactivate: string;
+    reactivateTitle: string;
+    reactivateBody: string;
+    reopen: string;
+    reopenTitle: string;
+    reopenBody: string;
+
+    kycLabel: string;
+    kycUnverified: string;
+    kycPending: string;
+    kycVerified: string;
+    kycRejected: string;
+    kycNoId: string;
+    verifyKyc: string;
+    verifyTitle: string;
+    verifyBody: string;
+    failKyc: string;
+    failTitle: string;
+    failBody: string;
+    failReasonLabel: string;
+    failReasonPlaceholder: string;
+
+    removeTitle: string;
+    selfBlocked: string;
+    closeTitle: string;
+    closeBody: string;
+    closeConfirmTitle: string;
+    closeConfirmBody: string;
+    closeMoney: string;
+    closeReasonLabel: string;
+    closeReasonPlaceholder: string;
+    deleteTitle: string;
+    deleteBody: string;
+    deleteButton: string;
+    deleteBlocked: string;
+    deleteConfirmTitle: string;
+    deleteConfirmBody: string;
+    deleteConfirm: string;
+    deleteReasonLabel: string;
+    deleteReasonPlaceholder: string;
+    staffLoginKept: string;
+    /// Each takes {count} except savingsBalance, which is a sum of money.
+    blockers: Record<RemovalBlocker, string>;
+
+    noteLabel: string;
+    notePlaceholder: string;
+    noteSave: string;
+    noteHint: string;
+  };
+  /// The register's row menus and the actions on several ticked members.
+  memberBulk: {
+    selectAll: string;
+    selectMember: string;
+    selected: string;
+    clear: string;
+    rowActions: string;
+    openFile: string;
+    editDetails: string;
+    withCount: string;
+
+    approveTitle: string;
+    approveBody: string;
+    declineTitle: string;
+    declineBody: string;
+    suspendTitle: string;
+    suspendBody: string;
+    reactivateTitle: string;
+    reactivateBody: string;
+    reopenTitle: string;
+    reopenBody: string;
+    verifyTitle: string;
+    verifyBody: string;
+    failTitle: string;
+    failBody: string;
+    closeTitle: string;
+    closeBody: string;
+    deleteTitle: string;
+    deleteBody: string;
+    sameReason: string;
+    staffKept: string;
+
+    done: string;
+    skipped: string;
+    unnamed: string;
   };
   savings: {
     title: string;
@@ -414,6 +522,13 @@ export interface AdminCopy {
     overCeiling: string;
     overdueWarning: string;
     guarantors: string;
+    guarantorsWaiting: string;
+    securedOwnShare: string;
+    securedGuarantors: string;
+    securedItems: string;
+    securedUpTo: string;
+    overSecured: string;
+    approvedAmountSecured: string;
     requestInfo: string;
     decline: string;
     disburse: string;
@@ -463,7 +578,7 @@ export interface AdminCopy {
     latePenalty: string;
     graceDays: string;
     guarantors: string;
-    guarantorsRequired: string;
+    guarantorsAboveShare: string;
     notRequired: string;
     collateral: string;
     required: string;
@@ -1099,6 +1214,144 @@ export const admin: Record<Locale, AdminCopy> = {
       noNotes: "No notes have been recorded on this member.",
       internal: "internal",
     },
+    manage: {
+      jump: "Manage",
+      title: "Manage membership",
+      description:
+        "Change this member's status, record an identity check, or take them off the register. Each action here is written to the audit log under your name.",
+      actionFailed: "The action could not be completed",
+
+      statusLabel: "Membership",
+      statusPending: "Applied and waiting for a decision.",
+      statusActive: "Active. They can sign in, save and borrow.",
+      statusSuspended: "Suspended. They cannot sign in; their savings are untouched.",
+      statusInactive: "Inactive.",
+      statusExited: "Closed on {date}. Every record they made is kept.",
+      statusRejected: "Their application was declined.",
+      closedOn: "Membership closed",
+
+      suspend: "Suspend",
+      suspendTitle: "Suspend {name}?",
+      suspendBody:
+        "They will be signed out everywhere and cannot sign in until reactivated. Their savings are not touched.",
+      suspendConfirm: "Suspend member",
+      suspendReasonLabel: "Why is this member being suspended?",
+      suspendReasonPlaceholder: "e.g. Three months behind on contributions",
+      reactivate: "Reactivate",
+      reactivateTitle: "Reactivate {name}?",
+      reactivateBody: "Their login is restored and they return to the active register.",
+      reopen: "Reopen membership",
+      reopenTitle: "Reopen {name}'s membership?",
+      reopenBody: "They return to the active register and can sign in again.",
+
+      kycLabel: "Identity",
+      kycUnverified: "Not checked yet.",
+      kycPending: "National ID {id} is waiting to be checked.",
+      kycVerified: "Checked against national ID {id}.",
+      kycRejected: "The identity check failed.",
+      kycNoId: "No national ID on file. Add one with Edit details before verifying.",
+      verifyKyc: "Mark verified",
+      verifyTitle: "Confirm {name}'s identity?",
+      verifyBody:
+        "Only confirm once you have checked national ID {id} against the person or their ID card.",
+      failKyc: "Mark failed",
+      failTitle: "Fail {name}'s identity check?",
+      failBody: "Use this when the ID does not match the person, or cannot be confirmed.",
+      failReasonLabel: "What did not match?",
+      failReasonPlaceholder: "e.g. The name on the ID card differs from the application",
+
+      removeTitle: "Take off the register",
+      selfBlocked:
+        "This is your own membership. Another administrator must close or delete it.",
+      closeTitle: "Close membership",
+      closeBody:
+        "For a member who is leaving. Every transaction, loan and fine stays on record. They can no longer sign in, and daily contributions, fines and service fees stop. It can be reopened later.",
+      closeConfirmTitle: "Close {name}'s membership?",
+      closeConfirmBody:
+        "They leave the active register and can no longer sign in. Nothing on their file is erased.",
+      closeMoney:
+        "They still hold {balance} in savings and owe {owing} on loans. Closing the membership does not pay out the one or write off the other.",
+      closeReasonLabel: "Why is the membership ending?",
+      closeReasonPlaceholder: "e.g. Left the association at the general assembly of 12 March",
+      deleteTitle: "Delete permanently",
+      deleteBody:
+        "For an application made in error or a record entered twice. Erases the member, their login and their empty savings account. This cannot be undone.",
+      deleteButton: "Delete member",
+      deleteBlocked:
+        "Cannot be deleted: money has moved through this membership ({items}). Those records are part of the association's accounts and must be kept. Close the membership instead.",
+      deleteConfirmTitle: "Delete {name} permanently?",
+      deleteConfirmBody:
+        "Member {number}, their login and their savings account will be erased. Only the audit log will record that they existed. This cannot be undone.",
+      deleteConfirm: "Delete permanently",
+      deleteReasonLabel: "Why is this record being deleted?",
+      deleteReasonPlaceholder:
+        "e.g. Duplicate of member RTA-M000123, entered twice at enrolment",
+      staffLoginKept:
+        "{name} is also a member of staff. Only their membership is affected; their administrator sign-in is kept.",
+      blockers: {
+        savingsTransactions: "{count} savings transaction|{count} savings transactions",
+        savingsBalance: "money in their savings account",
+        withdrawals: "{count} withdrawal|{count} withdrawals",
+        loanApplications: "{count} loan application|{count} loan applications",
+        loans: "{count} loan|{count} loans",
+        payments: "{count} matched payment|{count} matched payments",
+        fines: "{count} fine|{count} fines",
+        serviceFees: "{count} service fee charge|{count} service fee charges",
+        interestShares: "{count} interest share|{count} interest shares",
+        warehouse: "{count} warehouse record|{count} warehouse records",
+        guarantees: "{count} open guarantee|{count} open guarantees",
+      },
+
+      noteLabel: "Add a note",
+      notePlaceholder: "Something other administrators should know about this member…",
+      noteSave: "Save note",
+      noteHint:
+        "Notes are seen by administrators only, and cannot be edited once saved.",
+    },
+    memberBulk: {
+      selectAll: "Select every member on this page",
+      selectMember: "Select {name}",
+      selected: "{count} member selected|{count} members selected",
+      clear: "Clear selection",
+      rowActions: "Actions for {name}",
+      openFile: "Open file",
+      editDetails: "Edit details",
+      withCount: "{label} ({count})",
+
+      approveTitle: "Approve {count} membership?|Approve {count} memberships?",
+      approveBody:
+        "Each will be able to sign in, their savings account will be opened, and they will be sent their payment reference.",
+      declineTitle: "Decline {count} application?|Decline {count} applications?",
+      declineBody:
+        "Each applicant is told their application was not approved, with the reason you give, and will not be able to sign in.",
+      suspendTitle: "Suspend {count} member?|Suspend {count} members?",
+      suspendBody:
+        "They will be signed out everywhere and cannot sign in until reactivated. Their savings are not touched.",
+      reactivateTitle: "Reactivate {count} member?|Reactivate {count} members?",
+      reactivateBody: "Their logins are restored and they return to the active register.",
+      reopenTitle: "Reopen {count} membership?|Reopen {count} memberships?",
+      reopenBody: "They return to the active register and can sign in again.",
+      verifyTitle:
+        "Mark {count} identity as verified?|Mark {count} identities as verified?",
+      verifyBody:
+        "Only confirm once you have checked their national ID against the person or their ID card.|Only confirm once you have checked each member's national ID against the person or their ID card.",
+      failTitle: "Fail {count} identity check?|Fail {count} identity checks?",
+      failBody: "Use this when the IDs do not match the people, or cannot be confirmed.",
+      closeTitle: "Close {count} membership?|Close {count} memberships?",
+      closeBody:
+        "They leave the active register and can no longer sign in. Every transaction, loan and fine stays on record, and savings they still hold are not paid out.",
+      deleteTitle:
+        "Delete {count} member permanently?|Delete {count} members permanently?",
+      deleteBody:
+        "Only records that money never touched are erased, with their logins and empty savings accounts. Anyone with a financial history is skipped and listed afterwards — close their membership instead. This cannot be undone.",
+      sameReason: "The same reason is recorded against each member.",
+      staffKept:
+        "{count} of them is also a member of staff and keeps their administrator sign-in.|{count} of them are also staff and keep their administrator sign-in.",
+
+      done: "{count} member updated.|{count} members updated.",
+      skipped: "{count} could not be:|{count} could not be:",
+      unnamed: "Unknown member",
+    },
     savings: {
       title: "Savings accounts",
       description: "Every member savings account and the balance it holds.",
@@ -1393,6 +1646,15 @@ export const admin: Record<Locale, AdminCopy> = {
         "The request of {amount} exceeds the member's current ceiling of {ceiling}. Approve a lower amount, or decline.",
       overdueWarning: "This member has been overdue on a previous loan.",
       guarantors: "Guarantors",
+      guarantorsWaiting:
+        "{count} guarantor has not answered yet.|{count} guarantors have not answered yet.",
+      securedOwnShare: "Own share",
+      securedGuarantors: "Accepted by guarantors",
+      securedItems: "Items pledged",
+      securedUpTo: "Secured up to",
+      overSecured:
+        "{amount} is requested but only {secured} is secured. Approve {secured} or less, or wait for the guarantors to answer.",
+      approvedAmountSecured: " Secured up to {amount}.",
       requestInfo: "Request info",
       decline: "Decline",
       disburse: "Disburse",
@@ -1450,7 +1712,7 @@ export const admin: Record<Locale, AdminCopy> = {
       latePenalty: "Late penalty",
       graceDays: " after {count} grace day| after {count} grace days",
       guarantors: "Guarantors",
-      guarantorsRequired: "{count} required",
+      guarantorsAboveShare: "Only above the member's own share, by the rulebook",
       notRequired: "Not required",
       collateral: "Collateral",
       required: "Required",
@@ -2133,6 +2395,167 @@ export const admin: Record<Locale, AdminCopy> = {
       noNotes: "Nta cyitonderwa cyanditswe kuri uyu munyamuryango.",
       internal: "by'imbere",
     },
+    manage: {
+      jump: "Gucunga",
+      title: "Gucunga ubunyamuryango",
+      description:
+        "Hindura imimerere y'uyu munyamuryango, wandike igenzura ry'umwirondoro we, cyangwa umukure ku rutonde. Buri gikorwa gikorewe hano cyandikwa mu byakozwe byose ku izina ryawe.",
+      actionFailed: "Igikorwa ntikashoboye kurangira",
+
+      statusLabel: "Ubunyamuryango",
+      statusPending: "Yasabye, ategereje icyemezo.",
+      statusActive: "Arakora. Ashobora kwinjira, kuzigama no kuguza.",
+      statusSuspended: "Yahagaritswe. Ntashobora kwinjira; ubuzigame bwe ntibukorwaho.",
+      statusInactive: "Ntakora.",
+      statusExited: "Ubunyamuryango bwasojwe ku wa {date}. Ibyo yakoze byose birabitswe.",
+      statusRejected: "Ubusabe bwe bwanzwe.",
+      closedOn: "Ubunyamuryango bwasojwe",
+
+      suspend: "Hagarika",
+      suspendTitle: "Guhagarika {name}?",
+      suspendBody:
+        "Azasohorwa aho yinjiriye hose kandi ntazashobora kwinjira kugeza ihagarikwa rikuweho. Ubuzigame bwe ntibukorwaho.",
+      suspendConfirm: "Hagarika umunyamuryango",
+      suspendReasonLabel: "Kuki uyu munyamuryango ahagaritswe?",
+      suspendReasonPlaceholder: "urugero: Amezi atatu adatanga imisanzu",
+      reactivate: "Kuraho ihagarikwa",
+      reactivateTitle: "Gukuraho ihagarikwa rya {name}?",
+      reactivateBody:
+        "Azongera ashobore kwinjira kandi agaruke ku rutonde rw'abanyamuryango bakora.",
+      reopen: "Ongera ufungure ubunyamuryango",
+      reopenTitle: "Kongera gufungura ubunyamuryango bwa {name}?",
+      reopenBody:
+        "Azagaruka ku rutonde rw'abanyamuryango bakora kandi ashobore kongera kwinjira.",
+
+      kycLabel: "Umwirondoro",
+      kycUnverified: "Ntiburagenzurwa.",
+      kycPending: "Indangamuntu {id} itegereje kugenzurwa.",
+      kycVerified: "Wagenzuwe hakoreshejwe indangamuntu {id}.",
+      kycRejected: "Igenzura ry'umwirondoro ntiryagenze neza.",
+      kycNoId:
+        "Nta ndangamuntu iri muri dosiye. Yongeremo ukoresheje «Hindura amakuru» mbere yo kugenzura.",
+      verifyKyc: "Emeza ko wagenzuwe",
+      verifyTitle: "Kwemeza umwirondoro wa {name}?",
+      verifyBody:
+        "Emeza gusa umaze kugereranya indangamuntu {id} n'umuntu ubwe cyangwa n'ikarita ye.",
+      failKyc: "Andika ko bitahuye",
+      failTitle: "Kwandika ko umwirondoro wa {name} utahuye?",
+      failBody:
+        "Koresha ibi iyo indangamuntu idahuye n'umuntu, cyangwa idashobora kwemezwa.",
+      failReasonLabel: "Ni iki kitahuye?",
+      failReasonPlaceholder:
+        "urugero: Izina riri ku ndangamuntu ritandukanye n'iryo mu busabe",
+
+      removeTitle: "Gukura ku rutonde",
+      selfBlocked:
+        "Ubu ni ubunyamuryango bwawe. Undi muyobozi ni we ugomba kubusoza cyangwa kubusiba.",
+      closeTitle: "Soza ubunyamuryango",
+      closeBody:
+        "Ku munyamuryango uvuye mu ihuriro. Ibikorwa byose, inguzanyo n'amahazabu biguma byanditswe. Ntazongera kwinjira, kandi imisanzu ya buri munsi, amahazabu n'amafaranga ya serivisi birahagarara. Bishobora kongera gufungurwa nyuma.",
+      closeConfirmTitle: "Gusoza ubunyamuryango bwa {name}?",
+      closeConfirmBody:
+        "Azava ku rutonde rw'abanyamuryango bakora kandi ntazongera kwinjira. Nta kintu na kimwe gisibwa muri dosiye ye.",
+      closeMoney:
+        "Aracyafite {balance} mu buzigame kandi afitiye inguzanyo umwenda wa {owing}. Gusoza ubunyamuryango ntibimwishyura ayo afite, kandi ntibisiba umwenda we.",
+      closeReasonLabel: "Kuki ubunyamuryango burangiye?",
+      closeReasonPlaceholder:
+        "urugero: Yavuye mu ihuriro mu nteko rusange yo ku wa 12 Werurwe",
+      deleteTitle: "Siba burundu",
+      deleteBody:
+        "Ku busabe bwakozwe mu makosa cyangwa umunyamuryango wanditswe kabiri. Bisiba umunyamuryango, konti ye yo kwinjira n'iy'ubuzigame itarimo amafaranga. Ntibishobora gusubizwa inyuma.",
+      deleteButton: "Siba umunyamuryango",
+      deleteBlocked:
+        "Ntashobora gusibwa: amafaranga yanyuze muri ubu bunyamuryango ({items}). Izo nyandiko ni iz'imari y'ihuriro kandi zigomba kubikwa. Soza ubunyamuryango aho kubusiba.",
+      deleteConfirmTitle: "Gusiba {name} burundu?",
+      deleteConfirmBody:
+        "Umunyamuryango {number}, konti ye yo kwinjira n'iy'ubuzigame bizasibwa. Ibyakozwe byose ni byo byonyine bizagaragaza ko yabayeho. Ntibishobora gusubizwa inyuma.",
+      deleteConfirm: "Siba burundu",
+      deleteReasonLabel: "Kuki iyi nyandiko isibwa?",
+      deleteReasonPlaceholder:
+        "urugero: Yanditswe kabiri — ni umwe na RTA-M000123",
+      staffLoginKept:
+        "{name} ni n'umukozi w'ihuriro. Ubunyamuryango bwe ni bwo bwonyine bukorwaho; konti ye y'umuyobozi iguma uko iri.",
+      blockers: {
+        savingsTransactions:
+          "igikorwa {count} cy'ubuzigame|ibikorwa {count} by'ubuzigame",
+        savingsBalance: "amafaranga ari kuri konti ye y'ubuzigame",
+        withdrawals: "ubusabe {count} bwo kubikuza|ubusabe {count} bwo kubikuza",
+        loanApplications:
+          "ubusabe {count} bw'inguzanyo|ubusabe {count} bw'inguzanyo",
+        loans: "inguzanyo {count}|inguzanyo {count}",
+        payments: "ubwishyu {count} bwahujwe|ubwishyu {count} bwahujwe",
+        fines: "ihazabu {count}|amahazabu {count}",
+        serviceFees:
+          "amafaranga ya serivisi yakaswe inshuro {count}|amafaranga ya serivisi yakaswe inshuro {count}",
+        interestShares:
+          "umugabane {count} ku nyungu|imigabane {count} ku nyungu",
+        warehouse: "inyandiko {count} y'ububiko|inyandiko {count} z'ububiko",
+        guarantees:
+          "ubwishingizi {count} butararangira|ubwishingizi {count} butararangira",
+      },
+
+      noteLabel: "Ongeraho icyitonderwa",
+      notePlaceholder:
+        "Icyo abandi bayobozi bakwiye kumenya kuri uyu munyamuryango…",
+      noteSave: "Bika icyitonderwa",
+      noteHint:
+        "Ibyitonderwa bibonwa n'abayobozi gusa, kandi ntibishobora guhindurwa bimaze kubikwa.",
+    },
+    memberBulk: {
+      selectAll: "Hitamo abanyamuryango bose bari kuri iyi paji",
+      selectMember: "Hitamo {name}",
+      selected:
+        "Umunyamuryango {count} yatoranyijwe|Abanyamuryango {count} batoranyijwe",
+      clear: "Kuraho ibyatoranyijwe",
+      rowActions: "Ibikorwa kuri {name}",
+      openFile: "Fungura dosiye",
+      editDetails: "Hindura amakuru",
+      withCount: "{label} ({count})",
+
+      approveTitle:
+        "Kwemeza ubunyamuryango {count}?|Kwemeza ubunyamuryango {count}?",
+      approveBody:
+        "Buri wese azashobora kwinjira, konti ye y'ubuzigame ifungurwe, kandi yoherezwe nimero ye y'ubwishyu.",
+      declineTitle: "Kwanga ubusabe {count}?|Kwanga ubusabe {count}?",
+      declineBody:
+        "Buri wasabye azabwirwa ko ubusabe bwe butemewe, ahabwe impamvu utanze, kandi ntazashobora kwinjira.",
+      suspendTitle:
+        "Guhagarika umunyamuryango {count}?|Guhagarika abanyamuryango {count}?",
+      suspendBody:
+        "Bazasohorwa aho binjiriye hose kandi ntibazashobora kwinjira kugeza ihagarikwa rikuweho. Ubuzigame bwabo ntibukorwaho.",
+      reactivateTitle:
+        "Gukuraho ihagarikwa ry'umunyamuryango {count}?|Gukuraho ihagarikwa ry'abanyamuryango {count}?",
+      reactivateBody:
+        "Bazongera bashobore kwinjira kandi bagaruke ku rutonde rw'abanyamuryango bakora.",
+      reopenTitle:
+        "Kongera gufungura ubunyamuryango {count}?|Kongera gufungura ubunyamuryango {count}?",
+      reopenBody:
+        "Bazagaruka ku rutonde rw'abanyamuryango bakora kandi bashobore kongera kwinjira.",
+      verifyTitle:
+        "Kwemeza umwirondoro {count}?|Kwemeza imyirondoro {count}?",
+      verifyBody:
+        "Emeza gusa umaze kugereranya indangamuntu ye n'umuntu ubwe cyangwa n'ikarita ye.|Emeza gusa umaze kugereranya indangamuntu ya buri munyamuryango n'umuntu ubwe cyangwa n'ikarita ye.",
+      failTitle:
+        "Kwandika ko umwirondoro {count} utahuye?|Kwandika ko imyirondoro {count} itahuye?",
+      failBody:
+        "Koresha ibi iyo indangamuntu zidahuye n'abantu, cyangwa zidashobora kwemezwa.",
+      closeTitle:
+        "Gusoza ubunyamuryango {count}?|Gusoza ubunyamuryango {count}?",
+      closeBody:
+        "Bazava ku rutonde rw'abanyamuryango bakora kandi ntibazongera kwinjira. Ibikorwa byose, inguzanyo n'amahazabu biguma byanditswe, kandi ubuzigame bagifite ntibubishyurwa.",
+      deleteTitle:
+        "Gusiba burundu umunyamuryango {count}?|Gusiba burundu abanyamuryango {count}?",
+      deleteBody:
+        "Hasibwa gusa abo amafaranga atigeze anyura mu bunyamuryango bwabo, hamwe na konti zabo zo kwinjira n'iz'ubuzigame zitarimo amafaranga. Ufite amateka y'imari arasimbukwa kandi akagaragazwa nyuma — soza ubunyamuryango bwe aho kubusiba. Ntibishobora gusubizwa inyuma.",
+      sameReason: "Impamvu imwe yandikwa kuri buri munyamuryango.",
+      staffKept:
+        "{count} muri bo ni n'umukozi w'ihuriro, kandi konti ye y'umuyobozi iguma uko iri.|{count} muri bo ni n'abakozi b'ihuriro, kandi konti zabo z'abayobozi ziguma uko ziri.",
+
+      done:
+        "Umunyamuryango {count} yakorewe igikorwa.|Abanyamuryango {count} bakorewe igikorwa.",
+      skipped: "{count} ntibyashobotse:|{count} ntibyashobotse:",
+      unnamed: "Umunyamuryango utazwi",
+    },
     savings: {
       title: "Konti z'ubuzigame",
       description:
@@ -2440,6 +2863,15 @@ export const admin: Record<Locale, AdminCopy> = {
       overdueWarning:
         "Uyu munyamuryango yarigeze kurenza igihe ku nguzanyo yabanje.",
       guarantors: "Abishingizi",
+      guarantorsWaiting:
+        "Umwishingizi {count} ntarasubiza.|Abishingizi {count} ntibarasubiza.",
+      securedOwnShare: "Igice cye bwite",
+      securedGuarantors: "Byemewe n'abishingizi",
+      securedItems: "Ingwate y'ibintu",
+      securedUpTo: "Byishingiwe kugeza kuri",
+      overSecured:
+        "Hasabwe {amount} ariko hishingiwe {secured} gusa. Emeza {secured} cyangwa make, cyangwa utegereze ko abishingizi basubiza.",
+      approvedAmountSecured: " Byishingiwe kugeza kuri {amount}.",
       requestInfo: "Saba andi makuru",
       decline: "Anga",
       disburse: "Tanga inguzanyo",
@@ -2498,7 +2930,7 @@ export const admin: Record<Locale, AdminCopy> = {
       graceDays:
         " nyuma y'umunsi {count} w'imbabazi| nyuma y'iminsi {count} y'imbabazi",
       guarantors: "Abishingizi",
-      guarantorsRequired: "{count} basabwa",
+      guarantorsAboveShare: "Hejuru y'igice cy'umunyamuryango gusa, nk'uko amategeko abiteganya",
       notRequired: "Ntibisabwa",
       collateral: "Ingwate",
       required: "Birasabwa",

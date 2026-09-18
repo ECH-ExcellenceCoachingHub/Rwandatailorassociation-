@@ -1,17 +1,37 @@
 import "server-only";
-import { Prisma, prisma, withFinancialTransaction } from "@/lib/db/prisma";
+import { Prisma, prisma, withFinancialTransaction, type TxClient } from "@/lib/db/prisma";
 import { loanLogger } from "@/lib/logger";
 import { recordAudit, AUDIT_ACTIONS } from "@/lib/audit";
-import { add, gt, isPositive, lte, min, subtract, toMoney, toMoneyString } from "@/lib/money";
 import {
+  add,
+  gt,
+  isPositive,
+  lte,
+  min,
+  percentageOf,
+  subtract,
+  toMoney,
+  toMoneyString,
+} from "@/lib/money";
+import {
+  availableBalance,
   buildTransactionReference,
   postSavingsTransaction,
 } from "@/lib/services/ledger";
 import { checkEligibility, generateSchedule } from "@/lib/services/loan-calculator";
 import { distributeInterest } from "@/lib/services/interest-sharing";
-import { assessBorrowing, wholeMonthsBetween } from "@/lib/rules/borrowing";
+import { assessBorrowing, securedCeiling, wholeMonthsBetween } from "@/lib/rules/borrowing";
+import {
+  guaranteeCoverage,
+  notifyGuarantorsRequested,
+  notifyReleasedGuarantors,
+  releaseGuarantees,
+  resolveGuarantors,
+  type NamedGuarantor,
+  type ReleasedGuarantee,
+} from "@/lib/services/guarantors";
 import { getMemberStanding } from "@/lib/services/contributions";
-import { getPolicy, getPolicyWithin } from "@/lib/services/rulebook";
+import { getPolicy, getPolicyWithin, type AssociationPolicy } from "@/lib/services/rulebook";
 import { notify, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import type { LoanApplicationStatus, RepaymentFrequency } from "@/lib/generated/prisma/enums";
 
@@ -73,7 +93,9 @@ export interface SubmitApplicationInput {
   purpose: string;
   termMonths: number;
   frequency: RepaymentFrequency;
-  guarantors?: { fullName: string; phone?: string; nationalId?: string; memberId?: string }[];
+  /// Members who each cover part of the loan above the borrower's own share,
+  /// from their own savings. Only allowed, and only needed, above that share.
+  guarantors?: NamedGuarantor[];
   /// What the member has pledged, when the amount exceeds the share they may
   /// take against their own savings. Free text plus a value the committee will
   /// verify — the rule says "materials or anything", so the field cannot be a
@@ -94,12 +116,17 @@ export async function submitLoanApplication(
       joinedAt: true,
       createdAt: true,
       approvedAt: true,
-      savingsAccounts: { where: { isActive: true }, take: 1, select: { balance: true } },
+      savingsAccounts: {
+        where: { isActive: true },
+        take: 1,
+        select: { balance: true, lockedBalance: true },
+      },
       loans: {
         where: { status: { in: ["PENDING_DISBURSEMENT", "DISBURSED", "ACTIVE", "OVERDUE"] } },
         select: { id: true },
       },
       association: { select: { createdAt: true } },
+      user: { select: { firstName: true, lastName: true } },
     },
   });
 
@@ -116,7 +143,12 @@ export async function submitLoanApplication(
     where: { id: input.loanProductId, associationId: member.associationId, isActive: true },
   });
 
-  const savingsBalance = member.savingsAccounts[0]?.balance ?? toMoney(0);
+  const account = member.savingsAccounts[0];
+  const savingsBalance = account?.balance ?? toMoney(0);
+  // The own share is taken on the AVAILABLE balance. Savings held for somebody
+  // else's loan, or for a withdrawal in progress, cannot secure this one too —
+  // and the account status page quotes the limit on the same figure.
+  const available = account ? availableBalance(account.balance, account.lockedBalance) : "0.00";
   const since = member.joinedAt ?? member.createdAt;
   const membershipMonths = Math.floor(
     (Date.now() - since.getTime()) / (30.44 * 86_400_000)
@@ -157,9 +189,24 @@ export async function submitLoanApplication(
   const policy = await getPolicy(member.associationId);
   const standing = await getMemberStanding(member.id);
 
+  // Who stands behind the part above the own share. Checked for membership
+  // here; whether each has saved enough is checked when they accept.
+  const named = input.guarantors ?? [];
+  const resolved = named.length
+    ? await resolveGuarantors({
+        associationId: member.associationId,
+        borrowerMemberId: member.id,
+        guarantors: named,
+      })
+    : { ok: true as const, guarantors: [], total: "0.00" };
+
+  if (!resolved.ok) {
+    return { ok: false, failures: resolved.failures };
+  }
+
   const ruleCheck = assessBorrowing({
     policy,
-    savingsBalance: toMoneyString(savingsBalance),
+    savingsBalance: available,
     membershipMonths: wholeMonthsBetween(since, new Date()),
     associationMonths: wholeMonthsBetween(member.association.createdAt, new Date()),
     missedDays: standing?.missedDays ?? 0,
@@ -167,11 +214,29 @@ export async function submitLoanApplication(
     hasActiveLoan: member.loans.length > 0,
     requestedAmount: input.requestedAmount,
     collateralValue: input.collateralValue ?? null,
+    guaranteedAmount: resolved.total,
     termMonths: input.termMonths,
   });
 
   if (ruleCheck.blockers.length > 0) {
     return { ok: false, failures: ruleCheck.blockers };
+  }
+
+  // Nobody's savings are held for more than the loan needs. Within the own
+  // share no guarantor is needed at all; above it, together they cover the
+  // excess and no more.
+  if (gt(resolved.total, ruleCheck.aboveOwnShare)) {
+    return {
+      ok: false,
+      failures: [
+        {
+          rule: "GUARANTORS",
+          message: gt(ruleCheck.aboveOwnShare, 0)
+            ? `Your guarantors pledge ${resolved.total}, but only ${ruleCheck.aboveOwnShare} above your own share needs covering. Lower their amounts so nobody's savings are held for more than is needed.`
+            : "This amount is within your own share, so no guarantor is needed. Remove them and apply again.",
+        },
+      ],
+    };
   }
 
   const reference = buildTransactionReference("APP");
@@ -211,18 +276,23 @@ export async function submitLoanApplication(
       statusHistory: {
         create: { toStatus: "SUBMITTED", note: "Submitted by member" },
       },
-      guarantors: input.guarantors?.length
+      guarantors: resolved.guarantors.length
         ? {
-            create: input.guarantors.map((g) => ({
+            create: resolved.guarantors.map((g) => ({
               fullName: g.fullName,
-              phone: g.phone ?? null,
-              nationalId: g.nationalId ?? null,
-              guarantorMemberId: g.memberId ?? null,
+              phone: g.phone,
+              guarantorMemberId: g.guarantorMemberId,
+              guaranteedAmount: g.guaranteedAmount,
+              status: "PENDING" as const,
             })),
           }
         : undefined,
     },
-    select: { id: true, reference: true },
+    select: {
+      id: true,
+      reference: true,
+      guarantors: { select: { id: true, guarantorMemberId: true, guaranteedAmount: true } },
+    },
   });
 
   await recordAudit(
@@ -235,10 +305,29 @@ export async function submitLoanApplication(
         reference: application.reference,
         requestedAmount: toMoneyString(input.requestedAmount),
         termMonths: input.termMonths,
+        guaranteed: resolved.total,
       },
     },
     null
   );
+
+  // Each guarantor is asked on their own account page, and told so.
+  if (application.guarantors.length > 0) {
+    const userByMember = new Map(
+      resolved.guarantors.map((g) => [g.guarantorMemberId, g.userId])
+    );
+
+    await notifyGuarantorsRequested({
+      applicationId: application.id,
+      reference: application.reference,
+      borrowerName: `${member.user.firstName} ${member.user.lastName}`.trim(),
+      guarantors: application.guarantors.map((g) => ({
+        id: g.id,
+        userId: userByMember.get(g.guarantorMemberId!)!,
+        amount: toMoneyString(g.guaranteedAmount ?? 0),
+      })),
+    });
+  }
 
   return { ok: true, applicationId: application.id, reference: application.reference };
 }
@@ -261,7 +350,9 @@ export async function transitionApplication(params: {
     throw new LoanError("A rejection requires a written reason", "REASON_REQUIRED");
   }
 
-  await prisma.$transaction(async (tx) => {
+  const closing = params.toStatus === "REJECTED" || params.toStatus === "CANCELLED";
+
+  const released = await prisma.$transaction(async (tx) => {
     await tx.loanApplication.update({
       where: { id: application.id },
       data: {
@@ -287,7 +378,20 @@ export async function transitionApplication(params: {
         note: params.note ?? params.rejectionReason ?? params.infoRequested ?? null,
       },
     });
+
+    // An application that will never become a loan must not keep anybody's
+    // savings held. Released in this transaction, so the refusal and the
+    // release are one event.
+    return closing
+      ? releaseGuarantees(tx, {
+          applicationId: application.id,
+          actorId: params.actorId,
+          reason: `Application ${application.reference} ${params.toStatus.toLowerCase()}`,
+        })
+      : [];
   });
+
+  await notifyReleasedGuarantors(released);
 
   await recordAudit(
     {
@@ -368,6 +472,25 @@ export async function approveLoanApplication(params: {
   const reference = buildTransactionReference("LN");
 
   const result = await prisma.$transaction(async (tx) => {
+    // THE PART ABOVE THE OWN SHARE MUST BE SECURED BY NOW, not merely asked
+    // for. Read inside the transaction so a guarantor answering at the same
+    // moment is either counted or not, never half.
+    const ceiling = await approvalCeiling(tx, application);
+
+    if (ceiling && gt(approvedAmount, ceiling.amount)) {
+      throw new LoanError(
+        `Only ${ceiling.amount} of this loan is secured: ${ceiling.ownShare} on the member's own savings` +
+          (gt(ceiling.accepted, 0) ? `, ${ceiling.accepted} accepted by guarantors` : "") +
+          (gt(ceiling.collateral, 0) ? `, and items valued at ${ceiling.collateral}` : "") +
+          "." +
+          (ceiling.pendingCount > 0
+            ? ` ${ceiling.pendingCount} guarantor(s) have not answered yet.`
+            : "") +
+          ` Approve ${ceiling.amount} or less${ceiling.pendingCount > 0 ? ", or wait for them to answer" : ""}.`,
+        "INVALID_STATE"
+      );
+    }
+
     const loan = await tx.loan.create({
       data: {
         associationId: application.associationId,
@@ -412,6 +535,18 @@ export async function approveLoanApplication(params: {
       },
     });
 
+    // The accepted guarantees now stand behind this loan, and stay held until
+    // it is repaid. Requests nobody answered are closed: the loan was approved
+    // without them, and nothing was ever held for them.
+    await tx.guarantor.updateMany({
+      where: { applicationId: application.id, status: "ACCEPTED" },
+      data: { loanId: loan.id },
+    });
+    await tx.guarantor.updateMany({
+      where: { applicationId: application.id, status: "PENDING" },
+      data: { status: "RELEASED" },
+    });
+
     await recordAudit(
       {
         action: AUDIT_ACTIONS.ADMIN_APPROVED_LOAN,
@@ -440,6 +575,96 @@ export async function approveLoanApplication(params: {
   );
 
   return { loanId: result.id, reference: result.reference };
+}
+
+/**
+ * What the committee may approve on this application, given what is secured.
+ *
+ * The own share is the one worked out when the member applied, from the
+ * snapshot, because that is the balance the application was judged on; the
+ * policy is the snapshot's too, for the same reason. Guarantees count only once
+ * ACCEPTED. Null when the rules asked for no security above the own share.
+ */
+export async function approvalCeiling(
+  tx: TxClient,
+  application: {
+    id: string;
+    associationId: string;
+    eligibilityReport: Prisma.JsonValue;
+    savingsAtApplication: Prisma.Decimal | null;
+  }
+): Promise<{
+  amount: string;
+  ownShare: string;
+  accepted: string;
+  collateral: string;
+  pendingCount: number;
+} | null> {
+  const report = readSnapshot(application.eligibilityReport);
+  const policy = report.policy ?? (await getPolicyWithin(tx, application.associationId));
+
+  // An application from before the own share was snapshotted: worked out
+  // again from the balance it recorded, under the policy in force.
+  const ownShare =
+    report.ownShareLimit ??
+    toMoneyString(
+      percentageOf(application.savingsAtApplication ?? 0, policy.ownSavingsPercent)
+    );
+
+  const coverage = await guaranteeCoverage(tx, application.id);
+  const collateral = report.collateralValue ?? "0.00";
+
+  const amount = securedCeiling({
+    ownShareLimit: ownShare,
+    acceptedGuarantees: coverage.accepted,
+    collateralValue: collateral,
+    collateralRequiredAboveShare: policy.collateralRequiredAboveShare,
+    collateralCoveragePercent: policy.collateralCoveragePercent,
+  });
+
+  if (amount === null) return null;
+
+  return {
+    amount,
+    ownShare: toMoneyString(ownShare),
+    accepted: coverage.accepted,
+    collateral: toMoneyString(collateral),
+    pendingCount: coverage.pendingCount,
+  };
+}
+
+/**
+ * The parts of an application's eligibility snapshot the approval relies on.
+ *
+ * Read defensively: the column is JSON written by earlier versions of this
+ * code too, and an older application simply has fewer of these fields.
+ * Anything missing is worked out again by the caller.
+ */
+function readSnapshot(report: Prisma.JsonValue): {
+  ownShareLimit: string | null;
+  collateralValue: string | null;
+  policy: AssociationPolicy | null;
+} {
+  const root = isRecord(report) ? report : {};
+  const ruleCheck = isRecord(root.ruleCheck) ? root.ruleCheck : {};
+  const collateral = isRecord(root.collateral) ? root.collateral : {};
+  const policy = isRecord(root.policyAtApplication) ? root.policyAtApplication : null;
+
+  return {
+    ownShareLimit: typeof ruleCheck.ownShareLimit === "string" ? ruleCheck.ownShareLimit : null,
+    collateralValue: typeof collateral.value === "string" ? collateral.value : null,
+    policy:
+      policy &&
+      typeof policy.collateralRequiredAboveShare === "boolean" &&
+      typeof policy.collateralCoveragePercent === "string" &&
+      typeof policy.ownSavingsPercent === "string"
+        ? (policy as unknown as AssociationPolicy)
+        : null,
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 // ---------------------------------------------------------------------------
@@ -880,6 +1105,17 @@ export async function recordLoanRepayment(params: {
     // share returning, in that order. Reversing it would briefly credit
     // interest against a debt not yet paid, which reads as an error to anyone
     // reconciling the account by eye.
+    // Repaid in full: the guarantors' savings are theirs again, in the same
+    // transaction that closes the loan.
+    const released: ReleasedGuarantee[] = completed
+      ? await releaseGuarantees(tx, {
+          loanId: loan.id,
+          applicationId: loan.applicationId,
+          actorId: params.actorId ?? null,
+          reason: `Loan ${loan.reference} repaid in full`,
+        })
+      : [];
+
     const interestShared = isPositive(interestPaid)
       ? await distributeInterest(tx, {
           policy: await getPolicyWithin(tx, loan.associationId),
@@ -929,8 +1165,11 @@ export async function recordLoanRepayment(params: {
       instalmentsSettled,
       interestShared,
       borrowerUserId: loan.member.userId,
+      released,
     };
   });
+
+  await notifyReleasedGuarantors(result.released);
 
   // Told after the money has moved, never before. `notify` swallows its own
   // failures, so a messaging outage cannot roll back a posted repayment.
@@ -951,8 +1190,9 @@ export async function recordLoanRepayment(params: {
   // The borrower's user id is carried out of the transaction only so the
   // notification above can be sent after it commits. It is not part of the
   // repayment result every caller sees.
-  const { borrowerUserId, ...repayment } = result;
+  const { borrowerUserId, released, ...repayment } = result;
   void borrowerUserId;
+  void released;
   return repayment;
 }
 

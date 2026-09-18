@@ -8,6 +8,7 @@ import { getDashboardCopy } from "@/lib/i18n/server";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoanApplicationReview } from "@/components/dashboard/LoanApplicationReview";
+import { approvalCeiling } from "@/lib/services/loans";
 
 /**
  * The browser tab follows the reader's language like the rest of the page.
@@ -50,8 +51,10 @@ export default async function LoanApplicationsPage() {
         purpose: true,
         termMonths: true,
         frequency: true,
+        associationId: true,
         savingsAtApplication: true,
         maxEligibleAmount: true,
+        eligibilityReport: true,
         submittedAt: true,
         loanProduct: {
           select: { name: true, interestRate: true, interestMethod: true },
@@ -81,7 +84,14 @@ export default async function LoanApplicationsPage() {
           },
         },
         guarantors: {
-          select: { fullName: true, phone: true, status: true },
+          orderBy: { createdAt: "asc" },
+          select: {
+            fullName: true,
+            phone: true,
+            status: true,
+            guaranteedAmount: true,
+            guarantorMember: { select: { memberNumber: true } },
+          },
         },
       },
     }),
@@ -109,6 +119,13 @@ export default async function LoanApplicationsPage() {
     }),
   ]);
 
+  // What each application is secured up to, by the same function the server
+  // enforces on approve, so the figure the reviewer sees is the figure that
+  // binds. Few applications await review at once, so one call each is fine.
+  const ceilings = await Promise.all(
+    applications.map((a) => approvalCeiling(prisma, a))
+  );
+
   const canApprove = context.permissions.has(PERMISSIONS.LOANS_APPROVE);
   const canReject = context.permissions.has(PERMISSIONS.LOANS_REJECT);
   const canDisburse = context.permissions.has(PERMISSIONS.LOANS_DISBURSE);
@@ -131,8 +148,9 @@ export default async function LoanApplicationsPage() {
       <PageHeader title={copy.title} description={copy.description} />
 
       <LoanApplicationReview
-        applications={applications.map((a) => {
+        applications={applications.map((a, index) => {
           const account = a.member.savingsAccounts[0];
+          const ceiling = ceilings[index];
           const activeLoans = a.member.loans.filter((l) => l.status !== "COMPLETED");
 
           return {
@@ -178,7 +196,18 @@ export default async function LoanApplicationsPage() {
               fullName: g.fullName,
               phone: g.phone,
               status: g.status,
+              memberNumber: g.guarantorMember?.memberNumber ?? null,
+              amount: g.guaranteedAmount?.toFixed(2) ?? null,
             })),
+            secured: ceiling
+              ? {
+                  upTo: ceiling.amount,
+                  ownShare: ceiling.ownShare,
+                  accepted: ceiling.accepted,
+                  collateral: ceiling.collateral,
+                  pendingCount: ceiling.pendingCount,
+                }
+              : null,
           };
         })}
         pendingDisbursement={pendingDisbursement.map((l) => ({

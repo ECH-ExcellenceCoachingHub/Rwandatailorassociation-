@@ -4,30 +4,46 @@ import { prisma } from "@/lib/db/prisma";
 import { requireApiPermission, assertSameAssociation } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import {
-  approveMember,
-  rejectMember,
-  setMemberSuspension,
+  applyMemberAction,
+  deleteMember,
   updateMember,
 } from "@/lib/services/members";
-import { updateMemberSchema } from "@/lib/validation/members";
+import {
+  MEMBER_ACTION_PERMISSION,
+  MEMBER_ACTION_REASON_MIN,
+  updateMemberSchema,
+  type MemberAction,
+} from "@/lib/validation/members";
 import {
   apiBadRequest,
   apiNotFound,
   apiSuccess,
+  apiTooManyRequests,
   withErrorHandling,
 } from "@/lib/api/response";
+import { RATE_LIMITS, checkRateLimit, getClientIp } from "@/lib/api/rate-limit";
 
+function reasonFor(action: MemberAction) {
+  const min = MEMBER_ACTION_REASON_MIN[action] ?? 1;
+  return z
+    .string()
+    .trim()
+    .min(min, `Give a reason of at least ${min} characters — it is recorded in the audit log`);
+}
+
+/**
+ * Every decision except deletion, which is DELETE below. The permission each
+ * needs and the length of reason it takes are shared with the register's bulk
+ * actions in lib/validation/members.ts.
+ */
 const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("approve"), note: z.string().trim().max(500).optional() }),
-  z.object({
-    action: z.literal("reject"),
-    reason: z.string().trim().min(5, "Give a reason of at least 5 characters"),
-  }),
-  z.object({
-    action: z.literal("suspend"),
-    reason: z.string().trim().min(5, "Give a reason of at least 5 characters"),
-  }),
+  z.object({ action: z.literal("reject"), reason: reasonFor("reject") }),
+  z.object({ action: z.literal("suspend"), reason: reasonFor("suspend") }),
   z.object({ action: z.literal("reactivate"), reason: z.string().trim().optional() }),
+  z.object({ action: z.literal("close"), reason: reasonFor("close") }),
+  z.object({ action: z.literal("verify_kyc") }),
+  z.object({ action: z.literal("reject_kyc"), reason: reasonFor("reject_kyc") }),
 ]);
 
 /**
@@ -35,7 +51,8 @@ const schema = z.discriminatedUnion("action", [
  *
  * Membership decisions. Each action maps to its own permission, so an
  * administrator who may approve applications does not automatically gain the
- * ability to suspend an existing member.
+ * ability to suspend an existing member, and one who may suspend cannot
+ * thereby close a membership for good.
  */
 export const PATCH = withErrorHandling(
   async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
@@ -52,14 +69,7 @@ export const PATCH = withErrorHandling(
       return apiBadRequest("Please correct the highlighted fields", details);
     }
 
-    const needsSuspendPermission =
-      parsed.data.action === "suspend" || parsed.data.action === "reactivate";
-
-    const context = await requireApiPermission(
-      needsSuspendPermission
-        ? PERMISSIONS.MEMBERS_SUSPEND
-        : PERMISSIONS.MEMBERS_APPROVE
-    );
+    const context = await requireApiPermission(MEMBER_ACTION_PERMISSION[parsed.data.action]);
 
     const member = await prisma.member.findUnique({
       where: { id },
@@ -71,32 +81,79 @@ export const PATCH = withErrorHandling(
     // Cross-tenant guard: an admin must not act on another association's member.
     assertSameAssociation(context, member, "Member");
 
-    const result =
-      parsed.data.action === "approve"
-        ? await approveMember({
-            memberId: id,
-            actorId: context.user.id,
-            note: parsed.data.note,
-          })
-        : parsed.data.action === "reject"
-          ? await rejectMember({
-              memberId: id,
-              actorId: context.user.id,
-              reason: parsed.data.reason,
-            })
-          : await setMemberSuspension({
-              memberId: id,
-              suspend: parsed.data.action === "suspend",
-              actorId: context.user.id,
-              reason:
-                parsed.data.action === "suspend"
-                  ? parsed.data.reason
-                  : (parsed.data.reason ?? "Reactivated by administrator"),
-            });
+    const data = parsed.data;
+    const result = await applyMemberAction({
+      action: data.action,
+      memberId: id,
+      actorId: context.user.id,
+      reason: "reason" in data ? data.reason : undefined,
+      note: "note" in data ? data.note : undefined,
+    });
 
     if (!result.ok) return apiBadRequest(result.message);
 
     return apiSuccess({ message: "Done" });
+  }
+);
+
+const deleteSchema = z.object({ reason: reasonFor("delete") });
+
+/**
+ * DELETE /api/admin/members/[id]
+ *
+ * Permanently erases a member record that has never held money — an
+ * application made in error, a duplicate. Requires `members.delete` and a
+ * written reason.
+ *
+ * The service refuses anyone with a financial history; they are closed with
+ * PATCH { action: "close" } instead, which keeps the ledger intact. The whole
+ * file is copied into the audit log before anything is removed.
+ */
+export const DELETE = withErrorHandling(
+  async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+    const context = await requireApiPermission(PERMISSIONS.MEMBERS_DELETE);
+    const { id } = await params;
+
+    const ip = await getClientIp();
+    const limit = checkRateLimit(
+      `member-delete:${context.user.id}:${ip}`,
+      RATE_LIMITS.FINANCIAL_WRITE
+    );
+    if (!limit.allowed) {
+      return apiTooManyRequests("Too many requests. Please slow down.", limit.retryAfter);
+    }
+
+    const body = await request.json().catch(() => null);
+    const parsed = deleteSchema.safeParse(body);
+
+    if (!parsed.success) {
+      // One field, so its own message rather than "correct the highlighted
+      // fields", which would leave the administrator guessing.
+      return apiBadRequest(
+        parsed.error.issues[0]?.message ?? "The request was not valid",
+        { reason: parsed.error.issues.map((issue) => issue.message) }
+      );
+    }
+
+    const member = await prisma.member.findUnique({
+      where: { id },
+      select: { id: true, associationId: true },
+    });
+
+    if (!member) return apiNotFound("Member not found");
+
+    // Cross-tenant guard: an admin must not erase another association's member.
+    assertSameAssociation(context, member, "Member");
+
+    const result = await deleteMember({
+      memberId: id,
+      actorId: context.user.id,
+      reason: parsed.data.reason,
+    });
+
+    if (!result.ok) return apiBadRequest(result.message);
+
+    return apiSuccess({ deleted: true });
   }
 );
 

@@ -46,7 +46,24 @@ interface Application {
   existingOutstanding: string;
   hasOverdueHistory: boolean;
   completedLoans: number;
-  guarantors: { fullName: string; phone: string | null; status: string }[];
+  guarantors: {
+    fullName: string;
+    phone: string | null;
+    status: string;
+    memberNumber: string | null;
+    /// What this guarantor covers. Null on guarantors recorded before amounts
+    /// were asked for.
+    amount: string | null;
+  }[];
+  /// What the loan is secured up to: own share, accepted guarantees and items.
+  /// Null when the rules ask for no security above the own share.
+  secured: {
+    upTo: string;
+    ownShare: string;
+    accepted: string;
+    collateral: string;
+    pendingCount: number;
+  } | null;
 }
 
 interface PendingLoan {
@@ -153,6 +170,12 @@ export function LoanApplicationReview({
               const overCeiling =
                 application.maxEligibleAmount !== null &&
                 gt(application.requestedAmount, application.maxEligibleAmount);
+
+              // Above what is secured: the server will refuse to approve the
+              // full amount until more guarantors accept.
+              const overSecured =
+                application.secured !== null &&
+                gt(application.requestedAmount, application.secured.upTo);
 
               return (
                 <article
@@ -270,16 +293,65 @@ export function LoanApplicationReview({
                         {application.guarantors.map((g, i) => (
                           <li
                             key={i}
-                            className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs"
+                            className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border border-border bg-background px-3 py-1.5 text-xs"
                           >
                             <span className="font-medium text-ink">{g.fullName}</span>
-                            {g.phone && (
-                              <span className="ml-1.5 text-ink-muted">{g.phone}</span>
+                            {g.memberNumber && (
+                              <span className="font-mono text-ink-muted">{g.memberNumber}</span>
                             )}
+                            {g.amount && (
+                              <span className="font-semibold tabular-nums text-ink">
+                                {formatMoney(g.amount)}
+                              </span>
+                            )}
+                            <StatusBadge status={g.status} size="sm" />
                           </li>
                         ))}
                       </ul>
                     </div>
+                  )}
+
+                  {/* What the loan rests on. Own share + accepted guarantees
+                      (+ items) is the most the server will let anyone approve. */}
+                  {application.secured && (
+                    <dl className="mt-4 grid gap-4 rounded-xl bg-background p-3 sm:grid-cols-2 lg:grid-cols-4">
+                      <Metric
+                        label={copy.securedOwnShare}
+                        value={formatMoney(application.secured.ownShare)}
+                      />
+                      <Metric
+                        label={copy.securedGuarantors}
+                        value={formatMoney(application.secured.accepted)}
+                        note={
+                          application.secured.pendingCount > 0
+                            ? pluralize(
+                                copy.guarantorsWaiting,
+                                application.secured.pendingCount
+                              )
+                            : undefined
+                        }
+                      />
+                      {gt(application.secured.collateral, 0) && (
+                        <Metric
+                          label={copy.securedItems}
+                          value={formatMoney(application.secured.collateral)}
+                        />
+                      )}
+                      <Metric
+                        label={copy.securedUpTo}
+                        value={formatMoney(application.secured.upTo)}
+                        tone={overSecured ? "bad" : "good"}
+                      />
+                    </dl>
+                  )}
+
+                  {overSecured && (
+                    <Alert variant="warning" className="mt-3">
+                      {fill(copy.overSecured, {
+                        amount: formatMoney(application.requestedAmount),
+                        secured: formatMoney(application.secured!.upTo),
+                      })}
+                    </Alert>
                   )}
 
                   <div className="mt-5 flex flex-wrap gap-2">
@@ -288,7 +360,11 @@ export function LoanApplicationReview({
                         size="sm"
                         onClick={() => {
                           setError(null);
-                          setApprovedAmount(application.requestedAmount);
+                          // Offer what can actually be approved today, not
+                          // an amount the server will refuse.
+                          setApprovedAmount(
+                            overSecured ? application.secured!.upTo : application.requestedAmount
+                          );
                           setApproving(application);
                         }}
                       >
@@ -415,6 +491,10 @@ export function LoanApplicationReview({
             {approving?.maxEligibleAmount &&
               fill(copy.approvedAmountCeiling, {
                 amount: formatMoney(approving.maxEligibleAmount),
+              })}
+            {approving?.secured &&
+              fill(copy.approvedAmountSecured, {
+                amount: formatMoney(approving.secured.upTo),
               })}
           </p>
         </div>

@@ -164,6 +164,7 @@ export interface MemberCopy {
     termHint: string;
     termIssue: string;
     collateralTitle: string;
+    collateralIntro: string;
     collateralDescriptionLabel: string;
     collateralDescriptionHint: string;
     collateralValueLabel: string;
@@ -174,10 +175,23 @@ export interface MemberCopy {
     purposeHint: string;
     purposePlaceholder: string;
     guarantorsTitle: string;
-    guarantorsRequired: string;
-    guarantorsMissing: string;
-    guarantorName: string;
-    guarantorPhone: string;
+    guarantorsIntro: string;
+    guarantorNumber: string;
+    guarantorRemove: string;
+    guarantorChange: string;
+    guarantorLookupLabel: string;
+    guarantorLookupPlaceholder: string;
+    guarantorFind: string;
+    guarantorNotFound: string;
+    guarantorDuplicate: string;
+    guarantorAmountLabel: string;
+    guarantorAdd: string;
+    guarantorsCovered: string;
+    guarantorsRemaining: string;
+    guarantorsComplete: string;
+    guarantorsOver: string;
+    guarantorIncomplete: string;
+    guarantorsHowItWorks: string;
     submitApplication: string;
     submitFailed: string;
     ineligibleTitle: string;
@@ -708,7 +722,7 @@ export const member: Record<Locale, MemberCopy> = {
       monthsCount: "{count} month|{count} months",
       amountLabel: "Amount you need",
       amountHint:
-        "Up to {amount} against your own savings, with nothing pledged. You may ask for more if you pledge collateral.",
+        "Up to {amount} on your own savings, with nobody else involved. You may ask for more if other members guarantee the rest.",
       amountTooSmall: "The smallest loan under {product} is {amount}",
       amountTooLarge:
         "Based on your savings of {savings}, you can borrow up to {amount}",
@@ -716,7 +730,9 @@ export const member: Record<Locale, MemberCopy> = {
       termHint: "Up to {max} months. There is no extension.",
       termIssue:
         "Loans are repaid within {max} months, so choose {max} months or fewer",
-      collateralTitle: "Collateral",
+      collateralTitle: "Or pledge items for the rest",
+      collateralIntro:
+        "If your guarantors cannot cover the remaining {uncovered}, you may pledge items worth {required} for it instead. The committee checks them before approval.",
       collateralDescriptionLabel: "What are you pledging?",
       collateralDescriptionHint:
         "Machines, materials, equipment or any property the committee accepts",
@@ -729,12 +745,28 @@ export const member: Record<Locale, MemberCopy> = {
       purposePlaceholder:
         "e.g. Buy two industrial sewing machines to take on school uniform contracts",
       guarantorsTitle: "Guarantors",
-      guarantorsRequired:
-        "This product requires {count} guarantor.|This product requires {count} guarantors.",
-      guarantorsMissing:
-        "This product requires {count} guarantor|This product requires {count} guarantors",
-      guarantorName: "Guarantor {number} full name",
-      guarantorPhone: "Guarantor {number} phone",
+      guarantorsIntro:
+        "You can borrow {own} on your own savings. The other {above} comes from other members' savings, so members must guarantee it. Name one or more members and how much each covers. Together they must cover {above}.",
+      guarantorNumber: "Guarantor {number}",
+      guarantorRemove: "Remove",
+      guarantorChange: "Change",
+      guarantorLookupLabel: "Their member number or phone",
+      guarantorLookupPlaceholder: "e.g. 0788 123 456",
+      guarantorFind: "Find",
+      guarantorNotFound:
+        "No active member has that member number or phone number.",
+      guarantorDuplicate: "This member is already one of your guarantors.",
+      guarantorAmountLabel: "Amount they cover",
+      guarantorAdd: "Add a guarantor",
+      guarantorsCovered: "Guarantors cover {covered} of {above}",
+      guarantorsRemaining: "{remaining} still to cover",
+      guarantorsComplete: "Fully covered",
+      guarantorsOver:
+        "Your guarantors cover {over} more than is needed. Lower their amounts so nobody's savings are held for more than the loan needs.",
+      guarantorIncomplete:
+        "Find each guarantor and enter the amount they cover, or remove the row.",
+      guarantorsHowItWorks:
+        "Each guarantor must be a member who has saved the amount. They accept on their own account page, and from then on that amount is held from their savings. You repay the loan. When it is fully repaid, their money is released back to them.",
       submitApplication: "Submit application",
       submitFailed: "Could not submit your application",
       ineligibleTitle: "You are not eligible for this loan",
@@ -1292,7 +1324,7 @@ export const member: Record<Locale, MemberCopy> = {
       monthsCount: "ukwezi {count}|amezi {count}",
       amountLabel: "Amafaranga ukeneye",
       amountHint:
-        "Kugeza kuri {amount} ukurikije ubuzigame bwawe, nta kintu ushyizeho ingwate. Ushobora gusaba menshi nushyiraho ingwate.",
+        "Kugeza kuri {amount} ku buzigame bwawe, nta wundi muntu ubigizemo uruhare. Ushobora gusaba menshi niba abandi banyamuryango bishingiye asigaye.",
       amountTooSmall: "Inguzanyo ntoya ishoboka muri {product} ni {amount}",
       amountTooLarge:
         "Ukurikije ubuzigame bwawe bwa {savings}, ushobora kuguza kugeza kuri {amount}",
@@ -1300,7 +1332,9 @@ export const member: Record<Locale, MemberCopy> = {
       termHint: "Kugeza ku mezi {max}. Nta kongererwa igihe.",
       termIssue:
         "Inguzanyo yishyurwa mu mezi {max}, bityo hitamo amezi {max} cyangwa macye",
-      collateralTitle: "Ingwate",
+      collateralTitle: "Cyangwa utange ingwate y'ibintu ku gisigaye",
+      collateralIntro:
+        "Niba abishingizi bawe badashoboye kwishingira {uncovered} isigaye, ushobora gutanga ingwate y'ibintu bifite agaciro ka {required} mu mwanya wabo. Komite ibigenzura mbere yo kwemeza.",
       collateralDescriptionLabel: "Ni iki ushyiraho ingwate?",
       collateralDescriptionHint:
         "Imashini, ibikoresho, cyangwa undi mutungo komite yemera",
@@ -1313,12 +1347,28 @@ export const member: Record<Locale, MemberCopy> = {
       purposePlaceholder:
         "urugero: Kugura imashini ebyiri z'uruganda zidoda kugira ngo mfate amasoko y'imyenda y'ishuri",
       guarantorsTitle: "Abishingizi",
-      guarantorsRequired:
-        "Ubu bwoko busaba umwishingizi {count}.|Ubu bwoko busaba abishingizi {count}.",
-      guarantorsMissing:
-        "Ubu bwoko busaba umwishingizi {count}|Ubu bwoko busaba abishingizi {count}",
-      guarantorName: "Amazina yose y'umwishingizi wa {number}",
-      guarantorPhone: "Telefone y'umwishingizi wa {number}",
+      guarantorsIntro:
+        "Ushobora kuguza {own} ku buzigame bwawe. Andi {above} ava mu buzigame bw'abandi banyamuryango, bityo abanyamuryango bagomba kuyishingira. Vuga umunyamuryango umwe cyangwa benshi n'amafaranga buri wese yishingira. Bose hamwe bagomba kwishingira {above}.",
+      guarantorNumber: "Umwishingizi wa {number}",
+      guarantorRemove: "Kuramo",
+      guarantorChange: "Hindura",
+      guarantorLookupLabel: "Nimero ye y'umunyamuryango cyangwa telefone",
+      guarantorLookupPlaceholder: "urugero: 0788 123 456",
+      guarantorFind: "Shakisha",
+      guarantorNotFound:
+        "Nta munyamuryango ukora ufite iyo nimero y'umunyamuryango cyangwa iyo telefone.",
+      guarantorDuplicate: "Uyu munyamuryango asanzwe ari umwe mu bishingizi bawe.",
+      guarantorAmountLabel: "Amafaranga yishingira",
+      guarantorAdd: "Ongeraho umwishingizi",
+      guarantorsCovered: "Abishingizi bishingira {covered} kuri {above}",
+      guarantorsRemaining: "Hasigaye {remaining}",
+      guarantorsComplete: "Byishingiwe byose",
+      guarantorsOver:
+        "Abishingizi bawe barengeje ibikenewe ho {over}. Gabanya amafaranga yabo kugira ngo nta buzigame bw'umuntu bufatirwa kurenza ibyo inguzanyo ikeneye.",
+      guarantorIncomplete:
+        "Shakisha buri mwishingizi kandi wandike amafaranga yishingira, cyangwa ukureho uwo murongo.",
+      guarantorsHowItWorks:
+        "Buri mwishingizi agomba kuba umunyamuryango wazigamye ayo mafaranga. Abyemera kuri paji ya konti ye, kandi kuva ubwo ayo mafaranga afatirwa ku buzigame bwe. Ni wowe wishyura inguzanyo. Iyo imaze kwishyurwa yose, amafaranga ye aramusubizwa.",
       submitApplication: "Ohereza ubusabe",
       submitFailed: "Ntibyashobotse kohereza ubusabe bwawe",
       ineligibleTitle: "Ntabwo wujuje ibisabwa kuri iyi nguzanyo",

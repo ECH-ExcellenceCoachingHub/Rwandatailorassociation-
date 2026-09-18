@@ -14,6 +14,7 @@ import {
   type MemberWarehouseSummary,
 } from "@/lib/services/warehouse";
 import { listMemberFines, type MemberFines } from "@/lib/services/fines";
+import { getMemberGuarantees, type MemberGuarantees } from "@/lib/services/guarantors";
 import type {
   MemberStatus,
   KycStatus,
@@ -217,6 +218,12 @@ export interface AccountStatusSummary {
   /// while the discipline half of the answer lives on another screen.
   fines: MemberFines;
 
+  /// Guarantees in both directions: requests waiting for this member's answer,
+  /// savings of theirs held for other members' loans, and the members standing
+  /// behind their own loan. A request to guarantee is the one thing on this
+  /// page that asks the reader to decide something, and it is answered here.
+  guarantees: MemberGuarantees;
+
   /// Every movement on the member's ledger, newest first, capped. The page
   /// links onward to the full statement rather than paginating here.
   transactions: AccountTransactionRow[];
@@ -282,6 +289,7 @@ export async function getAccountStatusSummary(
     fines,
     policy,
     openLoanCount,
+    guarantees,
   ] = await Promise.all([
       prisma.loan.findFirst({
         where: { memberId, status: { in: ["DISBURSED", "ACTIVE", "OVERDUE"] } },
@@ -381,6 +389,8 @@ export async function getAccountStatusSummary(
           status: { in: ["PENDING_DISBURSEMENT", "DISBURSED", "ACTIVE", "OVERDUE"] },
         },
       }),
+
+      getMemberGuarantees(memberId),
     ]);
 
   const account = member.savingsAccounts[0] ?? null;
@@ -453,6 +463,7 @@ export async function getAccountStatusSummary(
 
     warehouse,
     fines,
+    guarantees,
 
     transactions: transactions.map((transaction) => ({
       id: transaction.id,

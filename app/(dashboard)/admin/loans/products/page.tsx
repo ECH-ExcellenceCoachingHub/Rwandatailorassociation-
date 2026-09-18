@@ -172,16 +172,10 @@ export default async function AdminLoanProductsPage() {
                       : ""
                   }`}
                 />
-                <Row
-                  label={copy.guarantors}
-                  value={
-                    product.requiresGuarantors
-                      ? fill(copy.guarantorsRequired, {
-                          count: product.minimumGuarantors,
-                        })
-                      : copy.notRequired
-                  }
-                />
+                {/* Not the product's own setting: the rulebook decides. A
+                    member borrowing within their own share needs no
+                    guarantor; above it, guarantors cover the difference. */}
+                <Row label={copy.guarantors} value={copy.guarantorsAboveShare} />
                 <Row
                   label={copy.collateral}
                   value={

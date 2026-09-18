@@ -37,6 +37,9 @@ export interface TemplateContext {
   fineRate?: string;
   /// The rule that changed, or that a warning is issued under.
   ruleTitle?: string;
+  /// The other member in a guarantee: the borrower when telling a guarantor,
+  /// the guarantor when telling a borrower.
+  counterpartyName?: string;
 }
 
 export interface RenderedNotification {
@@ -325,6 +328,82 @@ export function renderNotification(
         emailText: `Dear ${firstName},\n\nLoan ${context.reference} has been repaid in full.\n\nThank you for keeping to your repayment schedule.\n\n${associationName}`,
         severity: "SUCCESS",
         actionUrl: "/dashboard/loans",
+      };
+
+    // The one guarantee message that asks for something. It names who is
+    // asking, how much, and what accepting does to the guarantor's own money,
+    // because a pledge agreed without knowing it locks savings is not consent.
+    case NOTIFICATION_EVENTS.GUARANTEE_REQUESTED:
+      return {
+        title: "You have been asked to guarantee a loan",
+        body: `${context.counterpartyName} has named you as a guarantor for ${formatMoney(context.amount)} on loan application ${context.reference}. If you accept, that amount is held from your savings until the loan is repaid. Accept or decline on your account page.`,
+        sms: `${associationName}: ${context.counterpartyName} asks you to guarantee ${smsMoney(context.amount)} (${context.reference}). Accept or decline on your account page.`,
+        emailSubject: `${context.counterpartyName} has asked you to guarantee a loan`,
+        emailText: `Dear ${firstName},
+
+${context.counterpartyName} has applied for a loan and named you as a guarantor.
+
+Amount you are asked to cover: ${formatMoney(context.amount)}
+Application reference: ${context.reference}
+
+If you accept, ${formatMoney(context.amount)} of your savings is held and cannot be withdrawn or borrowed against until the loan is fully repaid. It is then released back to you. If you decline, nothing is held.
+
+Sign in and open your account page to accept or decline.
+
+${associationName}`,
+        severity: "WARNING",
+        actionUrl: "/account/status",
+      };
+
+    case NOTIFICATION_EVENTS.GUARANTEE_ACCEPTED:
+      return {
+        title: "A guarantor accepted",
+        body: `${context.counterpartyName} has accepted to guarantee ${formatMoney(context.amount)} of your loan application ${context.reference}.`,
+        sms: `${associationName}: ${context.counterpartyName} accepted to guarantee ${smsMoney(context.amount)} of ${context.reference}.`,
+        emailSubject: "A guarantor accepted",
+        emailText: `Dear ${firstName},
+
+${context.counterpartyName} has accepted to guarantee ${formatMoney(context.amount)} of your loan application ${context.reference}.
+
+${associationName}`,
+        severity: "SUCCESS",
+        actionUrl: "/account/status",
+      };
+
+    case NOTIFICATION_EVENTS.GUARANTEE_DECLINED:
+      return {
+        title: "A guarantor declined",
+        body: `${context.counterpartyName} has declined to guarantee ${formatMoney(context.amount)} of your loan application ${context.reference}.${context.reason ? ` Reason: ${context.reason}` : ""}`,
+        sms: `${associationName}: ${context.counterpartyName} declined to guarantee ${smsMoney(context.amount)} of ${context.reference}.`,
+        emailSubject: "A guarantor declined",
+        emailText: `Dear ${firstName},
+
+${context.counterpartyName} has declined to guarantee ${formatMoney(context.amount)} of your loan application ${context.reference}.
+
+Reason: ${context.reason ?? "Not stated"}
+
+The committee can approve only the part of the loan that is covered. Speak to the association if you want to name someone else.
+
+${associationName}`,
+        severity: "WARNING",
+        actionUrl: "/account/status",
+      };
+
+    case NOTIFICATION_EVENTS.GUARANTEE_RELEASED:
+      return {
+        title: "Your guarantee has ended",
+        body: `The ${formatMoney(context.amount)} you pledged for ${context.counterpartyName} (${context.reference}) is no longer held. It is available to you again.`,
+        sms: `${associationName}: the ${smsMoney(context.amount)} you guaranteed for ${context.counterpartyName} is released and available again.`,
+        emailSubject: "Your guarantee has ended",
+        emailText: `Dear ${firstName},
+
+The ${formatMoney(context.amount)} you pledged as guarantor for ${context.counterpartyName} (${context.reference}) is no longer held.
+
+It is part of your available balance again.
+
+${associationName}`,
+        severity: "SUCCESS",
+        actionUrl: "/account/status",
       };
 
     case NOTIFICATION_EVENTS.PASSWORD_CHANGED:

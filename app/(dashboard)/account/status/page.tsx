@@ -30,6 +30,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { EnrolAsMemberButton } from "@/components/account/EnrolAsMemberButton";
+import { GuaranteeResponse } from "@/components/account/GuaranteeResponse";
 
 /**
  * Account status — the first screen after a QR sign-in, and a page in its own
@@ -45,8 +46,13 @@ import { EnrolAsMemberButton } from "@/components/account/EnrolAsMemberButton";
  * what it means. Tiles of numbers make the reader work out which one answers
  * their question; a list read top to bottom answers them in order. The order
  * is the order a member asks in: what do I have, what can I spend, what can I
- * borrow — then shares, fines, the loan, what I have paid in, the warehouse,
- * my details, and every movement on the account.
+ * borrow — then shares, fines, the loan and who guarantees it, the loans I
+ * guarantee, what I have paid in, the warehouse, my details, and every
+ * movement on the account.
+ *
+ * The one exception to that order is a request to guarantee somebody's loan.
+ * It is the only thing here that waits on the reader, so it sits first, right
+ * under their name, with its Accept and Decline on the row.
  *
  * The same two columns hold at 360px. Nothing scrolls sideways, because
  * sideways-scrolling money is how people misread a balance.
@@ -157,9 +163,19 @@ export default async function AccountStatusPage({
 
       {summary && (
         <>
+          {summary.guarantees.requests.length > 0 && (
+            <GuaranteeRequestsGroup
+              requests={summary.guarantees.requests}
+              available={summary.savings?.available ?? "0.00"}
+              copy={copy}
+              money={money}
+            />
+          )}
+
           <MoneyGroup
             savings={summary.savings}
             borrowing={summary.borrowing}
+            heldForOthers={summary.guarantees.heldForOthers}
             copy={copy}
             blockersCopy={d.rules.blockers}
             money={money}
@@ -180,6 +196,20 @@ export default async function AccountStatusPage({
           />
 
           <LoanGroup loan={summary.loan} copy={copy} money={money} locale={locale} />
+
+          {summary.guarantees.mine.length > 0 && (
+            <MyGuarantorsGroup guarantors={summary.guarantees.mine} copy={copy} money={money} />
+          )}
+
+          {summary.guarantees.given.length > 0 && (
+            <GuaranteesGivenGroup
+              given={summary.guarantees.given}
+              heldForOthers={summary.guarantees.heldForOthers}
+              copy={copy}
+              money={money}
+              locale={locale}
+            />
+          )}
 
           {summary.savings && (
             <PaidInGroup savings={summary.savings} copy={copy} money={money} />
@@ -318,12 +348,14 @@ const FINES_SHOWN = 5;
 function MoneyGroup({
   savings,
   borrowing,
+  heldForOthers,
   copy,
   blockersCopy,
   money,
 }: {
   savings: AccountStatusSummary["savings"];
   borrowing: AccountStatusSummary["borrowing"];
+  heldForOthers: string;
   copy: StatusCopy;
   blockersCopy: Copy["rules"]["blockers"];
   money: MoneyFormatter;
@@ -356,7 +388,17 @@ function MoneyGroup({
         size="lg"
       />
       {Number(savings.locked) > 0 && (
-        <Row label={copy.lockedFunds} value={money(savings.locked)} tone="muted" />
+        <Row
+          label={copy.lockedFunds}
+          hint={copy.lockedFundsHint}
+          value={money(savings.locked)}
+          tone="muted"
+          sub={
+            Number(heldForOthers) > 0
+              ? `${copy.guaranteeHeldTotal}: ${money(heldForOthers)}`
+              : undefined
+          }
+        />
       )}
       <Row
         highlight
@@ -647,6 +689,162 @@ function LoanGroup({
         value={money(loan.lifetimeRepaid)}
         tone="success"
       />
+    </Group>
+  );
+}
+
+/**
+ * REQUESTS TO GUARANTEE A LOAN, waiting on the reader.
+ *
+ * Each row says who is asking, for how much of what loan and what it is for,
+ * and the reader's own available balance beside it — the figure they need to
+ * decide, which they would otherwise have to scroll down to find. The answer
+ * is given on the row itself.
+ */
+function GuaranteeRequestsGroup({
+  requests,
+  available,
+  copy,
+  money,
+}: {
+  requests: AccountStatusSummary["guarantees"]["requests"];
+  available: string;
+  copy: StatusCopy;
+  money: MoneyFormatter;
+}) {
+  return (
+    <Group
+      title={copy.guaranteeRequestsTitle}
+      description={copy.guaranteeRequestsHint}
+    >
+      {requests.map((request) => (
+        <Row
+          key={request.id}
+          highlight
+          label={`${request.borrowerName} · ${request.borrowerMemberNumber}`}
+          hint={
+            <>
+              {fill(copy.guaranteeRequestLine, {
+                loan: money(request.loanAmount),
+                months: request.termMonths,
+                reference: request.reference,
+              })}
+              <span className="block">
+                {fill(copy.guaranteePurpose, { purpose: request.purpose })}
+              </span>
+              <span className="mt-1 block font-medium text-ink">
+                {fill(copy.guaranteeYourAvailable, { available: money(available) })}
+              </span>
+            </>
+          }
+          value={money(request.amount)}
+          tone="primary"
+          size="lg"
+          sub={
+            <GuaranteeResponse
+              guaranteeId={request.id}
+              borrowerName={request.borrowerName}
+              amount={money(request.amount)}
+            />
+          }
+        />
+      ))}
+    </Group>
+  );
+}
+
+/**
+ * The members standing behind the reader's own loan, and where each stands.
+ * Shown while the application is open and while the loan is being repaid —
+ * the reader should know whose money is held on their account.
+ */
+function MyGuarantorsGroup({
+  guarantors,
+  copy,
+  money,
+}: {
+  guarantors: AccountStatusSummary["guarantees"]["mine"];
+  copy: StatusCopy;
+  money: MoneyFormatter;
+}) {
+  return (
+    <Group title={copy.myGuarantorsTitle} description={copy.myGuarantorsHint}>
+      {guarantors.map((g) => (
+        <Row
+          key={g.id}
+          item
+          label={g.memberNumber ? `${g.guarantorName} · ${g.memberNumber}` : g.guarantorName}
+          hint={
+            g.status === "PENDING"
+              ? copy.myGuarantorWaiting
+              : g.status === "ACCEPTED"
+                ? copy.myGuarantorHolding
+                : g.status === "DECLINED"
+                  ? g.declineReason
+                    ? `${copy.myGuarantorDeclined}: ${g.declineReason}`
+                    : copy.myGuarantorDeclined
+                  : undefined
+          }
+          value={money(g.amount)}
+          tone={g.status === "DECLINED" ? "muted" : "default"}
+          sub={<StatusBadge status={g.status} size="sm" />}
+        />
+      ))}
+    </Group>
+  );
+}
+
+/**
+ * The reader's savings held for other members' loans. What is held now comes
+ * first, with what is still owed on each loan — how close the money is to
+ * coming back; finished guarantees follow, so a released one can be pointed at.
+ */
+function GuaranteesGivenGroup({
+  given,
+  heldForOthers,
+  copy,
+  money,
+  locale,
+}: {
+  given: AccountStatusSummary["guarantees"]["given"];
+  heldForOthers: string;
+  copy: StatusCopy;
+  money: MoneyFormatter;
+  locale: Locale;
+}) {
+  return (
+    <Group title={copy.guaranteesGivenTitle} description={copy.guaranteesGivenHint}>
+      <Row
+        label={copy.guaranteeHeldTotal}
+        hint={Number(heldForOthers) > 0 ? copy.guaranteeHeldTotalHint : undefined}
+        value={money(heldForOthers)}
+        size="lg"
+      />
+      {given.map((g) => (
+        <Row
+          key={g.id}
+          item
+          label={fill(copy.guaranteeForLoan, { name: g.borrowerName })}
+          hint={
+            g.status === "RELEASED"
+              ? fill(copy.guaranteeReleasedOn, {
+                  reference: g.reference,
+                  date: g.releasedAt ? formatDate(g.releasedAt, locale) : "",
+                })
+              : g.status === "DECLINED"
+                ? fill(copy.guaranteeYouDeclined, { reference: g.reference })
+                : g.loanOutstanding !== null
+                  ? fill(copy.guaranteeStillOwed, {
+                      reference: g.reference,
+                      outstanding: money(g.loanOutstanding),
+                    })
+                  : fill(copy.guaranteeAwaitingDecision, { reference: g.reference })
+          }
+          value={money(g.amount)}
+          tone={g.status === "ACCEPTED" ? "default" : "muted"}
+          sub={<StatusBadge status={g.status} size="sm" />}
+        />
+      ))}
     </Group>
   );
 }

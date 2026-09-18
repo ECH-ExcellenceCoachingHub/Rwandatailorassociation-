@@ -6,6 +6,7 @@ import {
   optionalProvince,
 } from "@/lib/validation/rwanda";
 import { MAX_INTERN_CAPACITY, MAX_RECORDED_SHARES } from "@/lib/application-limits";
+import { PERMISSIONS, type PermissionCode } from "@/lib/auth/permissions";
 import {
   MAX_PHOTO_DATA_URL_LENGTH,
   PHOTO_DATA_URL_PATTERN,
@@ -405,3 +406,73 @@ export const updateMemberSchema = memberFieldsSchema
   .transform(normaliseInternAnswers);
 
 export type UpdateMemberInput = z.infer<typeof updateMemberSchema>;
+
+/**
+ * Decisions an administrator can take about a membership — on one member's
+ * file, or on many at once from the register.
+ *
+ * One list, so the single and bulk endpoints cannot drift apart on what an
+ * action is called, which permission it needs, or how long its reason must be.
+ */
+export const MEMBER_ACTIONS = [
+  "approve",
+  "reject",
+  "suspend",
+  "reactivate",
+  "close",
+  "verify_kyc",
+  "reject_kyc",
+  "delete",
+] as const;
+
+export type MemberAction = (typeof MEMBER_ACTIONS)[number];
+
+/** Each decision is its own grant. */
+export const MEMBER_ACTION_PERMISSION: Record<MemberAction, PermissionCode> = {
+  approve: PERMISSIONS.MEMBERS_APPROVE,
+  reject: PERMISSIONS.MEMBERS_APPROVE,
+  suspend: PERMISSIONS.MEMBERS_SUSPEND,
+  reactivate: PERMISSIONS.MEMBERS_SUSPEND,
+  close: PERMISSIONS.MEMBERS_DELETE,
+  verify_kyc: PERMISSIONS.MEMBERS_VERIFY_KYC,
+  reject_kyc: PERMISSIONS.MEMBERS_VERIFY_KYC,
+  delete: PERMISSIONS.MEMBERS_DELETE,
+};
+
+/**
+ * The shortest written reason each action accepts. Absent means none is asked
+ * for. The confirmation dialogs read this too: a dialog that accepts a shorter
+ * reason than the API does lets someone write one and be refused for it.
+ */
+export const MEMBER_ACTION_REASON_MIN: Partial<Record<MemberAction, number>> = {
+  reject: 5,
+  suspend: 5,
+  close: 5,
+  reject_kyc: 5,
+  delete: 10,
+};
+
+/** The most members one bulk request may touch — a full page of the register. */
+export const MAX_BULK_MEMBERS = 100;
+
+export const bulkMemberActionSchema = z
+  .object({
+    action: z.enum(MEMBER_ACTIONS),
+    memberIds: z
+      .array(z.string().min(1))
+      .min(1, "Select at least one member")
+      .max(MAX_BULK_MEMBERS, `Select at most ${MAX_BULK_MEMBERS} members at a time`),
+    reason: z.string().trim().max(1000).optional(),
+  })
+  .superRefine((value, ctx) => {
+    const min = MEMBER_ACTION_REASON_MIN[value.action];
+    if (min && (value.reason?.length ?? 0) < min) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["reason"],
+        message: `Give a reason of at least ${min} characters — it is recorded in the audit log`,
+      });
+    }
+  });
+
+export type BulkMemberActionInput = z.infer<typeof bulkMemberActionSchema>;

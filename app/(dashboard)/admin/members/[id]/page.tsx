@@ -7,6 +7,7 @@ import {
   Pencil,
   PiggyBank,
   Receipt,
+  Settings2,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -16,7 +17,8 @@ import {
   resolveAssociationScope,
 } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { getMemberProfile } from "@/lib/services/members";
+import { allowedMemberActions } from "@/lib/member-actions";
+import { getMemberProfile, getMemberRemovalBlockers } from "@/lib/services/members";
 import { getMemberTransactions } from "@/lib/services/member-queries";
 import { add, formatMoney, subtract } from "@/lib/money";
 import { getDashboardCopy } from "@/lib/i18n/server";
@@ -26,6 +28,8 @@ import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
+import { MemberManagement } from "@/components/dashboard/MemberManagement";
+import { MemberNoteForm } from "@/components/dashboard/MemberNoteForm";
 import {
   TableWrapper,
   Table,
@@ -102,6 +106,14 @@ export default async function AdminMemberDetailPage({
   );
   const overdueLoans = member.loans.filter((loan) => loan.daysOverdue > 0);
 
+  const allowed = allowedMemberActions(context.permissions);
+  const canManage = allowed.length > 0;
+  // Only worth the counting queries for someone who could act on the answer.
+  const blockers = allowed.includes("delete")
+    ? ((await getMemberRemovalBlockers(member.id)) ?? [])
+    : [];
+  const fullName = `${member.user.firstName} ${member.user.lastName}`.trim();
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -118,6 +130,14 @@ export default async function AdminMemberDetailPage({
                   <Pencil className="size-3.5" aria-hidden="true" />
                   {copy.editDetails}
                 </Link>
+              </Button>
+            )}
+            {canManage && (
+              <Button asChild variant="outline" size="sm">
+                <a href="#manage">
+                  <Settings2 className="size-3.5" aria-hidden="true" />
+                  {d.admin.manage.jump}
+                </a>
               </Button>
             )}
             <Button asChild variant="outline" size="sm">
@@ -244,6 +264,9 @@ export default async function AdminMemberDetailPage({
           />
           <Row label={copy.joined} value={date(member.joinedAt ?? member.createdAt)} />
           <Row label={copy.approvedOn} value={date(member.approvedAt)} />
+          {member.exitedAt && (
+            <Row label={d.admin.manage.closedOn} value={date(member.exitedAt)} />
+          )}
         </Panel>
 
         <Panel icon={ShieldCheck} title={copy.contactAccess}>
@@ -413,6 +436,9 @@ export default async function AdminMemberDetailPage({
         <h2 className="mb-3 font-heading text-lg font-semibold text-ink">
           {copy.notes}
         </h2>
+        {context.permissions.has(PERMISSIONS.MEMBERS_UPDATE) && (
+          <MemberNoteForm memberId={member.id} />
+        )}
         {member.notes.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border bg-surface p-5 text-sm text-ink-muted">
             {copy.noNotes}
@@ -435,6 +461,27 @@ export default async function AdminMemberDetailPage({
           </ul>
         )}
       </section>
+
+      {canManage && (
+        <MemberManagement
+          member={{
+            id: member.id,
+            fullName,
+            memberNumber: member.memberNumber,
+            paymentReference: member.paymentReference,
+            status: member.status,
+            kycStatus: member.kycStatus,
+            nationalId: member.nationalId,
+            exitedAt: member.exitedAt?.toISOString() ?? null,
+            savingsBalance: formatMoney(account?.balance ?? 0),
+            loansOwing: formatMoney(outstanding),
+            isStaff: member.user.role !== "MEMBER",
+          }}
+          allowed={allowed}
+          blockers={blockers}
+          isSelf={member.userId === context.user.id}
+        />
+      )}
     </div>
   );
 }

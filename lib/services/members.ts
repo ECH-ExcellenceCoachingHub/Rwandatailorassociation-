@@ -4,9 +4,21 @@ import { prisma, Prisma } from "@/lib/db/prisma";
 import { recordAudit, diffFields, AUDIT_ACTIONS } from "@/lib/audit";
 import { notify, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { hashPassword } from "@/lib/auth/password";
-import { add, toMoneyString } from "@/lib/money";
+import { abs, add, subtract, toMoneyString } from "@/lib/money";
 import { acceptPhotoDataUrl, type AcceptedPhoto } from "@/lib/images/photo";
-import type { CreateMemberInput, UpdateMemberInput } from "@/lib/validation/members";
+import {
+  CLOSABLE_STATUSES,
+  removalBlockers,
+  type BlockerCount,
+  type MemberHistory,
+} from "@/lib/member-removal";
+import type { BulkMemberResult } from "@/lib/member-actions";
+import { logger, serialiseError } from "@/lib/logger";
+import type {
+  CreateMemberInput,
+  MemberAction,
+  UpdateMemberInput,
+} from "@/lib/validation/members";
 import type { MemberStatus, UserStatus } from "@/lib/generated/prisma/enums";
 
 /**
@@ -63,10 +75,12 @@ export async function listMembers(filters: MemberListFilters) {
       take: pageSize,
       select: {
         id: true,
+        userId: true,
         memberNumber: true,
         paymentReference: true,
         status: true,
         kycStatus: true,
+        nationalId: true,
         occupation: true,
         district: true,
         joinedAt: true,
@@ -78,6 +92,7 @@ export async function listMembers(filters: MemberListFilters) {
             email: true,
             phone: true,
             status: true,
+            role: true,
             lastLoginAt: true,
           },
         },
@@ -120,6 +135,7 @@ export async function listMembers(filters: MemberListFilters) {
 
       return {
         id: m.id,
+        userId: m.userId,
         memberNumber: m.memberNumber,
         paymentReference: m.paymentReference,
         fullName: `${m.user.firstName} ${m.user.lastName}`.trim(),
@@ -127,6 +143,10 @@ export async function listMembers(filters: MemberListFilters) {
         phone: m.user.phone,
         status: m.status,
         kycStatus: m.kycStatus,
+        // The register only needs to know whether there is one to verify
+        // against; the number itself stays on the member's file.
+        hasNationalId: Boolean(m.nationalId),
+        isStaff: m.user.role !== "MEMBER",
         userStatus: m.user.status,
         occupation: m.occupation,
         district: m.district,
@@ -603,6 +623,48 @@ const EDITABLE_FIELDS = [
 
 type EditableSnapshot = Record<(typeof EDITABLE_FIELDS)[number], unknown>;
 
+type SnapshotSource = Prisma.MemberGetPayload<{
+  include: {
+    user: {
+      select: { firstName: true; lastName: true; title: true; phone: true; email: true };
+    };
+  };
+}>;
+
+/** The editable fields as they stand on the file right now. */
+function snapshotOf(member: SnapshotSource): EditableSnapshot {
+  return {
+    firstName: member.user.firstName,
+    lastName: member.user.lastName,
+    title: member.user.title,
+    phone: member.user.phone,
+    email: member.user.email,
+    nationalId: member.nationalId,
+    dateOfBirth: member.dateOfBirth?.toISOString().slice(0, 10) ?? null,
+    gender: member.gender,
+    occupation: member.occupation,
+    businessName: member.businessName,
+    addressLine1: member.addressLine1,
+    city: member.city,
+    district: member.district,
+    province: member.province,
+    mobileMoneyNumber: member.mobileMoneyNumber,
+    bankAccountNumber: member.bankAccountNumber,
+    nextOfKinName: member.nextOfKinName,
+    nextOfKinPhone: member.nextOfKinPhone,
+    nextOfKinRelation: member.nextOfKinRelation,
+    successorName: member.successorName,
+    successorPhone: member.successorPhone,
+    successorRelation: member.successorRelation,
+    successorNationalId: member.successorNationalId,
+    sharesSubscribed: member.sharesSubscribed,
+    hasCompany: member.hasCompany,
+    hasProfessionalCertificate: member.hasProfessionalCertificate,
+    acceptsInterns: member.acceptsInterns,
+    internCapacity: member.internCapacity,
+  };
+}
+
 /**
  * Updates a member's file.
  *
@@ -698,36 +760,7 @@ export async function updateMember(params: {
     }
   }
 
-  const before: EditableSnapshot = {
-    firstName: existing.user.firstName,
-    lastName: existing.user.lastName,
-    title: existing.user.title,
-    phone: existing.user.phone,
-    email: existing.user.email,
-    nationalId: existing.nationalId,
-    dateOfBirth: existing.dateOfBirth?.toISOString().slice(0, 10) ?? null,
-    gender: existing.gender,
-    occupation: existing.occupation,
-    businessName: existing.businessName,
-    addressLine1: existing.addressLine1,
-    city: existing.city,
-    district: existing.district,
-    province: existing.province,
-    mobileMoneyNumber: existing.mobileMoneyNumber,
-    bankAccountNumber: existing.bankAccountNumber,
-    nextOfKinName: existing.nextOfKinName,
-    nextOfKinPhone: existing.nextOfKinPhone,
-    nextOfKinRelation: existing.nextOfKinRelation,
-    successorName: existing.successorName,
-    successorPhone: existing.successorPhone,
-    successorRelation: existing.successorRelation,
-    successorNationalId: existing.successorNationalId,
-    sharesSubscribed: existing.sharesSubscribed,
-    hasCompany: existing.hasCompany,
-    hasProfessionalCertificate: existing.hasProfessionalCertificate,
-    acceptsInterns: existing.acceptsInterns,
-    internCapacity: existing.internCapacity,
-  };
+  const before = snapshotOf(existing);
 
   const after: EditableSnapshot = {
     firstName: input.firstName,
@@ -1006,6 +1039,12 @@ export async function rejectMember(params: {
   return { ok: true };
 }
 
+const REACTIVATABLE_STATUSES: ReadonlySet<MemberStatus> = new Set<MemberStatus>([
+  "SUSPENDED",
+  "INACTIVE",
+  "EXITED",
+]);
+
 /**
  * Suspends or reactivates a member.
  *
@@ -1025,10 +1064,30 @@ export async function setMemberSuspension(params: {
 
   const member = await prisma.member.findUnique({
     where: { id: params.memberId },
-    select: { id: true, status: true, associationId: true, userId: true },
+    select: {
+      id: true,
+      status: true,
+      associationId: true,
+      userId: true,
+      user: { select: { role: true } },
+    },
   });
 
   if (!member) return { ok: false, message: "Member not found" };
+
+  // Suspending a closed membership would put a departed member back on the
+  // arrears list, which counts SUSPENDED members as owing; "reactivating" a
+  // pending applicant would admit them without approval and without the
+  // savings account approval opens. Both are refused rather than performed.
+  if (params.suspend && member.status !== "ACTIVE" && member.status !== "INACTIVE") {
+    return { ok: false, message: "Only an active member can be suspended" };
+  }
+  if (!params.suspend && !REACTIVATABLE_STATUSES.has(member.status)) {
+    return {
+      ok: false,
+      message: "Only a suspended, inactive or closed membership can be reactivated",
+    };
+  }
 
   await prisma.$transaction(async (tx) => {
     await tx.member.update({
@@ -1037,15 +1096,25 @@ export async function setMemberSuspension(params: {
         status: params.suspend ? "SUSPENDED" : "ACTIVE",
         suspendedAt: params.suspend ? new Date() : null,
         suspensionReason: params.suspend ? params.reason : null,
+        // Reopening a closed membership: it is no longer closed.
+        ...(params.suspend ? {} : { exitedAt: null }),
       },
     });
 
-    await tx.user.update({
-      where: { id: member.userId },
-      data: { status: params.suspend ? "SUSPENDED" : "ACTIVE" },
-    });
+    // Only a plain member's login follows their membership. A member of
+    // staff's sign-in is suspended and restored under `admins.suspend`;
+    // letting `members.suspend` do it too would bypass that grant in both
+    // directions.
+    const followsMembership = member.user.role === "MEMBER";
 
-    if (params.suspend) {
+    if (followsMembership) {
+      await tx.user.update({
+        where: { id: member.userId },
+        data: { status: params.suspend ? "SUSPENDED" : "ACTIVE" },
+      });
+    }
+
+    if (params.suspend && followsMembership) {
       await tx.session.updateMany({
         where: { userId: member.userId, revokedAt: null },
         data: { revokedAt: new Date(), revokedReason: "MEMBER_SUSPENDED" },
@@ -1082,6 +1151,542 @@ export async function setMemberSuspension(params: {
   return { ok: true };
 }
 
+/**
+ * Records the outcome of an identity check.
+ *
+ * Verifying needs a national ID on file: an identity is checked against a
+ * number, and "verified" with nothing to have verified it against is a claim
+ * nobody can later test. Failing a check needs a reason, because the member
+ * will ask what was wrong.
+ */
+export async function setMemberKyc(params: {
+  memberId: string;
+  actorId: string;
+  verified: boolean;
+  reason?: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const reason = params.reason?.trim() || null;
+
+  if (!params.verified && !reason) {
+    return { ok: false, message: "A reason is required to fail an identity check" };
+  }
+
+  const member = await prisma.member.findUnique({
+    where: { id: params.memberId },
+    select: { id: true, associationId: true, kycStatus: true, nationalId: true },
+  });
+
+  if (!member) return { ok: false, message: "Member not found" };
+
+  if (params.verified && !member.nationalId) {
+    return {
+      ok: false,
+      message: "Record the member's national ID before verifying their identity",
+    };
+  }
+
+  const next = params.verified ? ("VERIFIED" as const) : ("REJECTED" as const);
+  if (member.kycStatus === next) return { ok: true };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.member.update({
+      where: { id: member.id },
+      data: { kycStatus: next },
+    });
+
+    await recordAudit(
+      {
+        action: params.verified
+          ? AUDIT_ACTIONS.MEMBER_KYC_VERIFIED
+          : AUDIT_ACTIONS.MEMBER_KYC_REJECTED,
+        entityType: "Member",
+        entityId: member.id,
+        associationId: member.associationId,
+        oldValue: { kycStatus: member.kycStatus },
+        // The number that was checked, so "verified against what" has an
+        // answer after the ID on file is later edited.
+        newValue: { kycStatus: next, nationalId: member.nationalId },
+        reason,
+        severity: "NOTICE",
+      },
+      { id: params.actorId },
+      tx
+    );
+  });
+
+  return { ok: true };
+}
+
+/**
+ * Adds an administrator's note to a member's file.
+ *
+ * Always internal. The note carries its own author and time, and notes are
+ * never edited or removed, so it is its own record and is not duplicated into
+ * the audit log.
+ */
+export async function addMemberNote(params: {
+  memberId: string;
+  actorId: string;
+  body: string;
+}): Promise<void> {
+  await prisma.memberNote.create({
+    data: {
+      memberId: params.memberId,
+      authorId: params.actorId,
+      body: params.body.trim(),
+      isInternal: true,
+    },
+  });
+}
+
+/**
+ * Closes a membership: the way somebody with a financial history leaves the
+ * register.
+ *
+ * Nothing is erased. Their savings rows, loans and fines stay exactly where
+ * they are, because the association's own balance is built from them. What
+ * changes is that the member stops being one: they are no longer counted as
+ * owing the daily contribution — the arrears list, the fines and the service
+ * fee all skip a closed membership — and a plain member's login is disabled
+ * and signed out everywhere.
+ *
+ * A member of staff who also saves keeps their sign-in. Closing their savings
+ * file is not the same decision as removing them from the office.
+ *
+ * Money left on the file is not settled here. A balance still held, or a loan
+ * still owed, is recorded on the audit entry so that whoever closed the
+ * membership is on record as having seen it. Paying out or collecting is done
+ * through withdrawals and repayments, like any other money.
+ *
+ * Reversible: reactivating a closed membership reopens it.
+ */
+export async function closeMembership(params: {
+  memberId: string;
+  actorId: string;
+  reason: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const reason = params.reason?.trim();
+  if (!reason) {
+    return { ok: false, message: "A reason is required to close a membership" };
+  }
+
+  const member = await prisma.member.findUnique({
+    where: { id: params.memberId },
+    select: {
+      id: true,
+      status: true,
+      associationId: true,
+      userId: true,
+      user: { select: { role: true } },
+      savingsAccounts: { select: { balance: true } },
+      loans: {
+        where: { status: { in: ["ACTIVE", "DISBURSED", "OVERDUE"] } },
+        select: { totalPayable: true, totalPaid: true },
+      },
+    },
+  });
+
+  if (!member) return { ok: false, message: "Member not found" };
+
+  if (member.userId === params.actorId) {
+    return {
+      ok: false,
+      message: "You cannot close your own membership. Another administrator must do it.",
+    };
+  }
+
+  if (!CLOSABLE_STATUSES.has(member.status)) {
+    return {
+      ok: false,
+      message:
+        member.status === "PENDING_APPROVAL"
+          ? "A pending application is declined, not closed"
+          : `This membership is already ${member.status.toLowerCase().replace(/_/g, " ")}`,
+    };
+  }
+
+  const disableLogin = member.user.role === "MEMBER";
+  const savingsBalance = member.savingsAccounts.reduce(
+    (sum, account) => add(sum, account.balance),
+    add(0)
+  );
+  const loansOutstanding = member.loans.reduce(
+    (sum, loan) => add(sum, subtract(loan.totalPayable, loan.totalPaid)),
+    add(0)
+  );
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.member.update({
+      where: { id: member.id },
+      data: {
+        status: "EXITED",
+        exitedAt: now,
+        // A suspension that ends in a closure is over; the file must not go on
+        // saying "Suspended" underneath "Closed".
+        suspendedAt: null,
+        suspensionReason: null,
+      },
+    });
+
+    if (disableLogin) {
+      await tx.user.update({
+        where: { id: member.userId },
+        data: { status: "DISABLED" },
+      });
+
+      await tx.session.updateMany({
+        where: { userId: member.userId, revokedAt: null },
+        data: { revokedAt: now, revokedReason: "MEMBERSHIP_CLOSED" },
+      });
+    }
+
+    await recordAudit(
+      {
+        action: AUDIT_ACTIONS.MEMBER_EXITED,
+        entityType: "Member",
+        entityId: member.id,
+        associationId: member.associationId,
+        oldValue: { status: member.status },
+        newValue: { status: "EXITED" },
+        reason,
+        metadata: {
+          savingsBalance: toMoneyString(savingsBalance),
+          loansOutstanding: toMoneyString(loansOutstanding),
+          loginDisabled: disableLogin,
+        },
+        severity: "WARNING",
+      },
+      { id: params.actorId },
+      tx
+    );
+  });
+
+  return { ok: true };
+}
+
+/**
+ * Loads a member with the counts that decide whether they can be erased.
+ *
+ * Shared by the member file, which shows the answer, and by `deleteMember`,
+ * which acts on it, so the button on the screen and the refusal from the
+ * server are always drawing on the same facts.
+ */
+async function loadForRemoval(memberId: string) {
+  return prisma.member.findUnique({
+    where: { id: memberId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          role: true,
+          firstName: true,
+          lastName: true,
+          title: true,
+          phone: true,
+          email: true,
+          // MemberNote.author is Restrict: a login that wrote notes on other
+          // files cannot be removed without first removing what it wrote.
+          _count: { select: { memberNotes: true } },
+        },
+      },
+      savingsAccounts: {
+        select: { id: true, accountNumber: true, balance: true, lockedBalance: true },
+      },
+      _count: {
+        select: {
+          transactions: true,
+          withdrawals: true,
+          loanApplications: true,
+          loans: true,
+          payments: true,
+          bkTransactions: true,
+          bkPaymentClaims: true,
+          contributionFines: true,
+          warehouseCreditFines: true,
+          platformFeeCharges: true,
+          interestDistributions: true,
+          warehouseIssuances: true,
+          warehouseCredits: true,
+          guarantorFor: { where: { status: { in: ["PENDING", "ACCEPTED"] } } },
+        },
+      },
+    },
+  });
+}
+
+type RemovalRecord = NonNullable<Awaited<ReturnType<typeof loadForRemoval>>>;
+
+function historyOf(member: RemovalRecord): MemberHistory {
+  const counts = member._count;
+  return {
+    savingsTransactions: counts.transactions,
+    // Absolute values, so a negative cache on one account cannot cancel a
+    // positive one on another and read as zero.
+    savingsBalance: member.savingsAccounts.reduce(
+      (sum, account) => add(sum, abs(account.balance), abs(account.lockedBalance)),
+      add(0)
+    ),
+    withdrawals: counts.withdrawals,
+    loanApplications: counts.loanApplications,
+    loans: counts.loans,
+    payments: counts.payments + counts.bkTransactions + counts.bkPaymentClaims,
+    fines: counts.contributionFines + counts.warehouseCreditFines,
+    serviceFees: counts.platformFeeCharges,
+    interestShares: counts.interestDistributions,
+    warehouse: counts.warehouseIssuances + counts.warehouseCredits,
+    guarantees: counts.guarantorFor,
+  };
+}
+
+/**
+ * What stands between this member and deletion, for the member file to show.
+ * Null when there is no such member.
+ */
+export async function getMemberRemovalBlockers(
+  memberId: string
+): Promise<BlockerCount[] | null> {
+  const member = await loadForRemoval(memberId);
+  return member ? removalBlockers(historyOf(member)) : null;
+}
+
+/**
+ * Permanently erases a member who never held money.
+ *
+ * For an application made in error or a record typed in twice — nothing else.
+ * Anyone with a financial history is refused and must be closed instead; see
+ * lib/member-removal.ts for what counts, and why the schema would refuse it
+ * too.
+ *
+ * WHAT GOES: the member, their (empty) savings account, their notes and
+ * successor photograph, and — for a plain member — their login, along with its
+ * sessions, sign-in codes, photograph and notifications.
+ *
+ * WHAT STAYS: a member of staff's login. Somebody who runs the office and also
+ * saves loses the savings file, not their job. The audit log also stays, and
+ * gains a full copy of the file, because afterwards it is the only place the
+ * member exists.
+ */
+export async function deleteMember(params: {
+  memberId: string;
+  actorId: string;
+  reason: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const reason = params.reason?.trim();
+  if (!reason) {
+    return { ok: false, message: "A reason is required to delete a member" };
+  }
+
+  const member = await loadForRemoval(params.memberId);
+  if (!member) return { ok: false, message: "Member not found" };
+
+  if (member.userId === params.actorId) {
+    return {
+      ok: false,
+      message: "You cannot delete your own member record. Another administrator must do it.",
+    };
+  }
+
+  const blockers = removalBlockers(historyOf(member));
+  if (blockers.length > 0) {
+    return {
+      ok: false,
+      message:
+        `This member has financial history (${blockers.map((b) => b.key).join(", ")}) ` +
+        `and cannot be deleted. Close the membership instead: every record is kept ` +
+        `and their login is disabled.`,
+    };
+  }
+
+  const isPlainMember = member.user.role === "MEMBER";
+  // A plain member's login goes with the record — unless it authored notes,
+  // which pin it in place. Then it is disabled instead, which leaves it unable
+  // to sign in just the same.
+  const eraseLogin = isPlainMember && member.user._count.memberNotes === 0;
+
+  await prisma.$transaction(async (tx) => {
+    // Written first, inside the same transaction: if the delete fails the
+    // entry goes with it, and if the entry cannot be written nothing is erased.
+    await recordAudit(
+      {
+        action: AUDIT_ACTIONS.MEMBER_DELETED,
+        entityType: "Member",
+        entityId: member.id,
+        associationId: member.associationId,
+        oldValue: {
+          memberNumber: member.memberNumber,
+          paymentReference: member.paymentReference,
+          status: member.status,
+          kycStatus: member.kycStatus,
+          savingsAccounts: member.savingsAccounts.map((a) => a.accountNumber),
+          joinedAt: member.joinedAt?.toISOString() ?? null,
+          approvedAt: member.approvedAt?.toISOString() ?? null,
+          appliedAt: member.createdAt.toISOString(),
+          ...snapshotOf(member),
+        },
+        reason,
+        metadata: {
+          userId: member.userId,
+          role: member.user.role,
+          login: eraseLogin ? "erased" : isPlainMember ? "disabled" : "kept",
+        },
+        severity: "CRITICAL",
+      },
+      { id: params.actorId },
+      tx
+    );
+
+    // The account points at the member with Restrict, so it goes first. It
+    // is empty — nothing above lets a funded one get this far — and the
+    // Restrict on its own transactions is the backstop if that ever changes.
+    await tx.savingsAccount.deleteMany({ where: { memberId: member.id } });
+
+    // Notes, documents, the successor's photograph and the contribution
+    // standing cascade with the member.
+    await tx.member.delete({ where: { id: member.id } });
+
+    if (eraseLogin) {
+      await tx.user.delete({ where: { id: member.userId } });
+    } else if (isPlainMember) {
+      await tx.user.update({
+        where: { id: member.userId },
+        data: { status: "DISABLED" },
+      });
+      await tx.session.updateMany({
+        where: { userId: member.userId, revokedAt: null },
+        data: { revokedAt: new Date(), revokedReason: "MEMBER_DELETED" },
+      });
+    }
+  });
+
+  return { ok: true };
+}
+
+/**
+ * Applies one decision to one member.
+ *
+ * The single place an action's name is turned into the service that carries
+ * it out, so a member suspended from their file and one suspended in a batch
+ * from the register go through exactly the same checks and leave the same
+ * audit entry.
+ */
+export async function applyMemberAction(params: {
+  action: MemberAction;
+  memberId: string;
+  actorId: string;
+  reason?: string;
+  note?: string;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { action, memberId, actorId } = params;
+  const reason = params.reason?.trim() ?? "";
+
+  switch (action) {
+    case "approve":
+      return approveMember({ memberId, actorId, note: params.note });
+    case "reject":
+      return rejectMember({ memberId, actorId, reason });
+    case "suspend":
+      return setMemberSuspension({ memberId, suspend: true, actorId, reason });
+    case "reactivate":
+      return setMemberSuspension({
+        memberId,
+        suspend: false,
+        actorId,
+        reason: reason || "Reactivated by administrator",
+      });
+    case "close":
+      return closeMembership({ memberId, actorId, reason });
+    case "verify_kyc":
+      return setMemberKyc({ memberId, actorId, verified: true });
+    case "reject_kyc":
+      return setMemberKyc({ memberId, actorId, verified: false, reason });
+    case "delete":
+      return deleteMember({ memberId, actorId, reason });
+  }
+}
+
+/**
+ * Applies one decision to several members, from the register.
+ *
+ * Partial by design, like the bulk payment delete: each member is judged on
+ * their own, and one who cannot take the action — already suspended, a ledger
+ * behind them that rules out deletion — is reported back by name while the
+ * rest go ahead. Failing the whole batch for one member would leave the
+ * administrator doing them one at a time anyway.
+ *
+ * Each member gets their own transaction and their own audit entry through
+ * `applyMemberAction`, so a batch reads in the log exactly like the same
+ * decisions taken one by one, each carrying the reason given for the batch.
+ *
+ * Ids outside the caller's association are reported as not found, the same
+ * answer as an id that does not exist, so a batch cannot be used to probe
+ * another tenant's register.
+ */
+export async function applyMemberActionToMany(params: {
+  action: MemberAction;
+  memberIds: string[];
+  associationId: string | null;
+  actorId: string;
+  reason?: string;
+}): Promise<BulkMemberResult> {
+  const ids = [...new Set(params.memberIds)];
+
+  const members = await prisma.member.findMany({
+    where: {
+      id: { in: ids },
+      ...(params.associationId ? { associationId: params.associationId } : {}),
+    },
+    select: {
+      id: true,
+      memberNumber: true,
+      user: { select: { firstName: true, lastName: true } },
+    },
+  });
+  const byId = new Map(members.map((m) => [m.id, m]));
+
+  const result: BulkMemberResult = { done: 0, refused: [] };
+
+  // One after another, not in parallel: several of these claim rows other
+  // members' actions may also touch, and a batch of a hundred concurrent
+  // transactions is how a connection pool runs dry.
+  for (const id of ids) {
+    const member = byId.get(id);
+    if (!member) {
+      result.refused.push({ memberId: id, name: null, memberNumber: null, reason: "Member not found" });
+      continue;
+    }
+
+    const refuse = (reason: string) =>
+      result.refused.push({
+        memberId: id,
+        name: `${member.user.firstName} ${member.user.lastName}`.trim(),
+        memberNumber: member.memberNumber,
+        reason,
+      });
+
+    try {
+      const outcome = await applyMemberAction({
+        action: params.action,
+        memberId: id,
+        actorId: params.actorId,
+        reason: params.reason,
+      });
+      if (outcome.ok) result.done += 1;
+      else refuse(outcome.message);
+    } catch (error) {
+      // One member's failure must not abandon the rest of the batch. The
+      // detail goes to the log; the screen gets a sentence.
+      logger.error(
+        { memberId: id, action: params.action, ...serialiseError(error) },
+        "bulk member action failed for one member"
+      );
+      refuse("Could not be completed. Try this member on their own.");
+    }
+  }
+
+  return result;
+}
+
 /** Full financial picture for one member, for the admin member file. */
 export async function getMemberProfile(memberId: string) {
   const member = await prisma.member.findUnique({
@@ -1094,6 +1699,9 @@ export async function getMemberProfile(memberId: string) {
           // The office printed on the membership card; the edit form needs the
           // current value to show it.
           title: true,
+          // Staff who also save keep their login through anything done to
+          // the membership, and the management panel says so.
+          role: true,
           email: true,
           phone: true,
           status: true,

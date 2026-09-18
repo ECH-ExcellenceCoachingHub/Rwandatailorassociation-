@@ -104,6 +104,37 @@ export interface AccountCopy {
     feesCharged: string;
     accountNumber: string;
     lockedFunds: string;
+    lockedFundsHint: string;
+
+    // Guarantees -------------------------------------------------------------
+    guaranteeRequestsTitle: string;
+    guaranteeRequestsHint: string;
+    guaranteeRequestLine: string;
+    guaranteePurpose: string;
+    guaranteeYourAvailable: string;
+    guaranteeAccept: string;
+    guaranteeDecline: string;
+    guaranteeAcceptTitle: string;
+    guaranteeAcceptBody: string;
+    guaranteeAcceptConfirm: string;
+    guaranteeDeclineTitle: string;
+    guaranteeDeclineBody: string;
+    guaranteeDeclineReason: string;
+    guaranteeFailed: string;
+    guaranteesGivenTitle: string;
+    guaranteesGivenHint: string;
+    guaranteeHeldTotal: string;
+    guaranteeHeldTotalHint: string;
+    guaranteeForLoan: string;
+    guaranteeStillOwed: string;
+    guaranteeAwaitingDecision: string;
+    guaranteeReleasedOn: string;
+    guaranteeYouDeclined: string;
+    myGuarantorsTitle: string;
+    myGuarantorsHint: string;
+    myGuarantorWaiting: string;
+    myGuarantorHolding: string;
+    myGuarantorDeclined: string;
 
     // Borrowing --------------------------------------------------------------
     borrowingTitle: string;
@@ -334,7 +365,43 @@ export const account: Record<Locale, AccountCopy> = {
       interestEarned: "Interest earned",
       feesCharged: "Fees charged",
       accountNumber: "Account number",
-      lockedFunds: "Held against loans",
+      lockedFunds: "Held from your balance",
+      lockedFundsHint:
+        "Part of your balance you cannot use right now: money you pledged as a guarantor, and withdrawals being processed.",
+
+      guaranteeRequestsTitle: "Asked to guarantee a loan",
+      guaranteeRequestsHint:
+        "A member has named you as a guarantor. If you accept, the amount is held from your savings until they have repaid the whole loan, and then released back to you. They repay the loan, not you.",
+      guaranteeRequestLine: "Loan of {loan} over {months} months · {reference}",
+      guaranteePurpose: "For: {purpose}",
+      guaranteeYourAvailable: "Your available balance is {available}.",
+      guaranteeAccept: "Accept",
+      guaranteeDecline: "Decline",
+      guaranteeAcceptTitle: "Guarantee {name}'s loan?",
+      guaranteeAcceptBody:
+        "{amount} will be held from your savings. You cannot withdraw it or borrow against it until {name} has repaid the whole loan. Then it is released back to you.",
+      guaranteeAcceptConfirm: "Accept and hold {amount}",
+      guaranteeDeclineTitle: "Decline this request?",
+      guaranteeDeclineBody:
+        "Nothing is held from your savings. {name} will be told that you declined.",
+      guaranteeDeclineReason: "Reason (optional)",
+      guaranteeFailed: "Your answer could not be saved. Please try again.",
+      guaranteesGivenTitle: "Loans you guarantee",
+      guaranteesGivenHint:
+        "Money held from your savings for other members' loans. Each amount comes back to you when that loan is fully repaid.",
+      guaranteeHeldTotal: "Held for others",
+      guaranteeHeldTotalHint: "Part of the amount held from your balance above",
+      guaranteeForLoan: "For {name}",
+      guaranteeStillOwed: "{reference} · {outstanding} still to repay",
+      guaranteeAwaitingDecision: "{reference} · waiting for the committee",
+      guaranteeReleasedOn: "{reference} · released {date}",
+      guaranteeYouDeclined: "{reference} · you declined",
+      myGuarantorsTitle: "Your guarantors",
+      myGuarantorsHint:
+        "Members covering the part of your loan above your own share. Their money is held until you repay the whole loan.",
+      myGuarantorWaiting: "Has not answered yet",
+      myGuarantorHolding: "Holding this amount for you",
+      myGuarantorDeclined: "Declined",
 
       borrowingTitle: "Your borrowing",
       amountBorrowed: "Borrowed",
@@ -582,7 +649,43 @@ export const account: Record<Locale, AccountCopy> = {
       interestEarned: "Inyungu wabonye",
       feesCharged: "Amafaranga ya serivisi",
       accountNumber: "Nimero ya konti",
-      lockedFunds: "Afatiriwe ku nguzanyo",
+      lockedFunds: "Afatiriwe ku mafaranga yawe",
+      lockedFundsHint:
+        "Igice cy'amafaranga yawe udashobora gukoresha ubu: ayo wishingiye abandi, n'ayo gusaba kubikuza bitararangira.",
+
+      guaranteeRequestsTitle: "Usabwe kwishingira inguzanyo",
+      guaranteeRequestsHint:
+        "Umunyamuryango yakuvuze nk'umwishingizi. Nubyemera, ayo mafaranga azafatirwa ku buzigame bwawe kugeza yishyuye inguzanyo yose, hanyuma agusubizwe. Ni we wishyura inguzanyo, si wowe.",
+      guaranteeRequestLine: "Inguzanyo ya {loan} mu mezi {months} · {reference}",
+      guaranteePurpose: "Igenewe: {purpose}",
+      guaranteeYourAvailable: "Amafaranga ushobora gukoresha ni {available}.",
+      guaranteeAccept: "Emera",
+      guaranteeDecline: "Anga",
+      guaranteeAcceptTitle: "Wishingire inguzanyo ya {name}?",
+      guaranteeAcceptBody:
+        "{amount} izafatirwa ku buzigame bwawe. Ntushobora kuyabikuza cyangwa kuyagurizaho kugeza {name} yishyuye inguzanyo yose. Hanyuma arakugarukira.",
+      guaranteeAcceptConfirm: "Emera ufatire {amount}",
+      guaranteeDeclineTitle: "Wanga ubu busabe?",
+      guaranteeDeclineBody:
+        "Nta mafaranga afatirwa ku buzigame bwawe. {name} azamenyeshwa ko wanze.",
+      guaranteeDeclineReason: "Impamvu (si ngombwa)",
+      guaranteeFailed: "Igisubizo cyawe nticyabitswe. Ongera ugerageze.",
+      guaranteesGivenTitle: "Inguzanyo wishingiye",
+      guaranteesGivenHint:
+        "Amafaranga afatiriwe ku buzigame bwawe ku nguzanyo z'abandi banyamuryango. Buri yose igusubizwa iyo iyo nguzanyo imaze kwishyurwa yose.",
+      guaranteeHeldTotal: "Afatiriwe abandi",
+      guaranteeHeldTotalHint: "Igice cy'amafaranga afatiriwe ku mafaranga yawe haruguru",
+      guaranteeForLoan: "Kwa {name}",
+      guaranteeStillOwed: "{reference} · hasigaye kwishyurwa {outstanding}",
+      guaranteeAwaitingDecision: "{reference} · bitegereje komite",
+      guaranteeReleasedOn: "{reference} · yarekuwe {date}",
+      guaranteeYouDeclined: "{reference} · wanze",
+      myGuarantorsTitle: "Abishingizi bawe",
+      myGuarantorsHint:
+        "Abanyamuryango bishingira igice cy'inguzanyo yawe kirenze igice cyawe. Amafaranga yabo afatirwa kugeza wishyuye inguzanyo yose.",
+      myGuarantorWaiting: "Ntarasubiza",
+      myGuarantorHolding: "Yagufatiriye aya mafaranga",
+      myGuarantorDeclined: "Yanze",
 
       borrowingTitle: "Inguzanyo zawe",
       amountBorrowed: "Amafaranga y'inguzanyo wafashe",

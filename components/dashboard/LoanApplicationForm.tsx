@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Info, Loader2, Send } from "lucide-react";
+import { Check, Info, Loader2, Search, Send, UserCheck, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
@@ -27,7 +27,7 @@ import {
   toMoneyString,
 } from "@/lib/money";
 import { generateSchedule } from "@/lib/services/loan-calculator";
-import { assessBorrowing, type BlockerRule } from "@/lib/rules/borrowing";
+import { assessBorrowing, MAX_GUARANTORS, type BlockerRule } from "@/lib/rules/borrowing";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill, pluralize, split } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
@@ -78,9 +78,20 @@ interface Product {
   processingFeeValue: string;
   insuranceFeeType: ChargeType;
   insuranceFeeValue: string;
-  requiresGuarantors: boolean;
-  minimumGuarantors: number;
   singleActiveLoan: boolean;
+}
+
+/**
+ * One guarantor as the borrower is naming them: what they typed to find the
+ * member, who it found, and how much that member is asked to cover.
+ */
+interface GuarantorDraft {
+  key: number;
+  query: string;
+  member: { memberId: string; fullName: string; memberNumber: string } | null;
+  amount: string;
+  looking: boolean;
+  error: string | null;
 }
 
 /**
@@ -133,7 +144,8 @@ export function LoanApplicationForm({
   const [purpose, setPurpose] = useState("");
   const [collateralDescription, setCollateralDescription] = useState("");
   const [collateralValue, setCollateralValue] = useState("");
-  const [guarantors, setGuarantors] = useState<{ fullName: string; phone: string }[]>([]);
+  const [guarantors, setGuarantors] = useState<GuarantorDraft[]>([]);
+  const [nextGuarantorKey, setNextGuarantorKey] = useState(1);
 
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -161,12 +173,35 @@ export function LoanApplicationForm({
     return Number.isInteger(term) && term >= 1 ? term : null;
   }, [effectiveTerm]);
 
+  /** Each guarantor's amount, when it is a valid positive figure. */
+  const guarantorAmounts = useMemo(
+    () =>
+      guarantors.map((g) => {
+        const parsed = parseMoneyInput(g.amount, { allowZero: false });
+        return parsed.ok ? toMoneyString(parsed.value) : null;
+      }),
+    [guarantors]
+  );
+
+  /// What the found guarantors pledge together. Rows still being filled in
+  /// count for nothing until they name a member and a valid amount.
+  const pledgedTotal = useMemo(
+    () =>
+      toMoneyString(
+        add(
+          0,
+          ...guarantors.map((g, i) => (g.member && guarantorAmounts[i]) || "0")
+        )
+      ),
+    [guarantors, guarantorAmounts]
+  );
+
   /**
    * The rulebook's verdict, recomputed as the member types.
    *
-   * Given the whole request — amount, term and anything pledged — so the
-   * collateral arithmetic below is the association's own, not an approximation
-   * of it.
+   * Given the whole request — amount, term, what guarantors pledge and anything
+   * pledged as items — so the arithmetic below is the association's own, not
+   * an approximation of it.
    */
   const assessment = useMemo(
     () =>
@@ -180,6 +215,7 @@ export function LoanApplicationForm({
         hasActiveLoan,
         requestedAmount: parsedAmount,
         collateralValue: collateralValue.trim() || null,
+        guaranteedAmount: pledgedTotal,
         termMonths: parsedTerm,
       }),
     [
@@ -192,6 +228,7 @@ export function LoanApplicationForm({
       hasActiveLoan,
       parsedAmount,
       collateralValue,
+      pledgedTotal,
       parsedTerm,
     ]
   );
@@ -254,14 +291,32 @@ export function LoanApplicationForm({
         })
       : null;
 
-  const needsCollateral =
+  // GUARANTORS ONLY ABOVE THE OWN SHARE. Within it the member borrows on their
+  // own savings and nobody else is asked for anything, whatever the loan
+  // product says; above it, guarantors cover the difference.
+  const needsGuarantors =
     policy.collateralRequiredAboveShare && gt(assessment.aboveOwnShare, 0);
 
-  const guarantorIssue =
-    product.requiresGuarantors &&
-    guarantors.filter((g) => g.fullName.trim()).length < product.minimumGuarantors
-      ? pluralize(copy.guarantorsMissing, product.minimumGuarantors)
-      : null;
+  // Items can back whatever guarantors leave uncovered.
+  const needsCollateral = needsGuarantors && gt(assessment.uncoveredAboveShare, 0);
+
+  const pledgedOver = needsGuarantors
+    ? subtract(pledgedTotal, assessment.aboveOwnShare)
+    : toMoney(0);
+
+  // A row the member started but did not finish: no member found yet, or no
+  // valid amount. Either would be dropped silently on submit, so it blocks.
+  const guarantorIncomplete = guarantors.some(
+    (g, i) => (g.query.trim() || g.amount.trim()) && (!g.member || !guarantorAmounts[i])
+  );
+
+  const guarantorIssue = !needsGuarantors
+    ? null
+    : guarantorIncomplete
+      ? copy.guarantorIncomplete
+      : gt(pledgedOver, 0)
+        ? fill(copy.guarantorsOver, { over: formatMoney(toMoneyString(pledgedOver)) })
+        : null;
 
   const canSubmit =
     assessment.requestAllowed &&
@@ -270,6 +325,64 @@ export function LoanApplicationForm({
     !guarantorIssue &&
     purpose.trim().length >= 10 &&
     !submitting;
+
+  function updateGuarantor(key: number, change: Partial<GuarantorDraft>) {
+    setGuarantors((current) =>
+      current.map((g) => (g.key === key ? { ...g, ...change } : g))
+    );
+  }
+
+  /** Adds a row, offering whatever is still uncovered as its amount. */
+  function addGuarantor() {
+    const remaining = subtract(assessment.aboveOwnShare, pledgedTotal);
+    setGuarantors((current) => [
+      ...current,
+      {
+        key: nextGuarantorKey,
+        query: "",
+        member: null,
+        amount: gt(remaining, 0) ? toMoneyString(remaining) : "",
+        looking: false,
+        error: null,
+      },
+    ]);
+    setNextGuarantorKey((k) => k + 1);
+  }
+
+  /**
+   * Finds the member the borrower means. By member number or phone, exact
+   * match only; the server returns a name to confirm and nothing else.
+   */
+  async function findGuarantor(draft: GuarantorDraft) {
+    const query = draft.query.trim();
+    if (!query) return;
+
+    updateGuarantor(draft.key, { looking: true, error: null, member: null });
+
+    try {
+      const response = await fetch(`/api/members/lookup?q=${encodeURIComponent(query)}`);
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        updateGuarantor(draft.key, {
+          looking: false,
+          error: response.status === 404 ? copy.guarantorNotFound : (payload?.error?.message ?? copy.guarantorNotFound),
+        });
+        return;
+      }
+
+      const member = payload.member as GuarantorDraft["member"] & object;
+
+      if (guarantors.some((g) => g.key !== draft.key && g.member?.memberId === member.memberId)) {
+        updateGuarantor(draft.key, { looking: false, error: copy.guarantorDuplicate });
+        return;
+      }
+
+      updateGuarantor(draft.key, { looking: false, member, error: null });
+    } catch {
+      updateGuarantor(draft.key, { looking: false, error: d.common.serverUnreachable });
+    }
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -287,9 +400,15 @@ export function LoanApplicationForm({
           purpose: purpose.trim(),
           termMonths: Number(effectiveTerm),
           frequency,
-          guarantors: guarantors
-            .filter((g) => g.fullName.trim())
-            .map((g) => ({ fullName: g.fullName.trim(), phone: g.phone.trim() || undefined })),
+          // Sent only when the rules call for them; within the own share the
+          // server would refuse guarantors as unneeded.
+          guarantors: needsGuarantors
+            ? guarantors.flatMap((g, i) =>
+                g.member && guarantorAmounts[i]
+                  ? [{ memberId: g.member.memberId, amount: guarantorAmounts[i] }]
+                  : []
+              )
+            : [],
           ...(needsCollateral && collateralDescription.trim()
             ? {
                 collateralDescription: collateralDescription.trim(),
@@ -468,10 +587,175 @@ export function LoanApplicationForm({
           </div>
         </div>
 
-        {/* COLLATERAL_REQUIRED_ABOVE_SHARE.
-            Without these fields the rule was unsatisfiable: the server asked
-            for collateral and the form had no way to offer any, so every
-            request above the own-share limit was permanently refused. */}
+        {/* GUARANTORS, above the own share and only there. Each is a member
+            found by member number or phone, with the amount they cover; the
+            amounts together must reach the part above the own share. */}
+        {needsGuarantors && (
+          <div className="rounded-2xl border border-border bg-surface p-5 shadow-card">
+            <h3 className="font-heading text-base font-semibold text-ink">
+              {copy.guarantorsTitle}
+            </h3>
+            <p className="mt-1.5 text-sm text-ink-muted">
+              {fill(copy.guarantorsIntro, {
+                own: formatMoney(assessment.ownShareLimit),
+                above: formatMoney(assessment.aboveOwnShare),
+              })}
+            </p>
+
+            <div className="mt-4 space-y-3">
+              {guarantors.map((g, index) => (
+                <div
+                  key={g.key}
+                  className="rounded-xl border border-border bg-background p-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+                      {fill(copy.guarantorNumber, { number: index + 1 })}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setGuarantors((current) => current.filter((x) => x.key !== g.key))
+                      }
+                      className="inline-flex items-center gap-1 text-xs font-medium text-ink-muted hover:text-red-700"
+                    >
+                      <X className="size-3.5" aria-hidden="true" />
+                      {copy.guarantorRemove}
+                    </button>
+                  </div>
+
+                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                    {g.member ? (
+                      <div className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2">
+                        <span className="min-w-0 text-sm">
+                          <span className="flex items-center gap-1.5 font-semibold text-ink">
+                            <UserCheck className="size-4 shrink-0 text-emerald-700" aria-hidden="true" />
+                            <span className="truncate">{g.member.fullName}</span>
+                          </span>
+                          <span className="block font-mono text-xs text-ink-muted">
+                            {g.member.memberNumber}
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => updateGuarantor(g.key, { member: null })}
+                          className="shrink-0 text-xs font-semibold text-primary-hover underline-offset-4 hover:underline"
+                        >
+                          {copy.guarantorChange}
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <label
+                          htmlFor={`guarantor-${g.key}-query`}
+                          className="mb-1 block text-xs font-medium text-ink"
+                        >
+                          {copy.guarantorLookupLabel}
+                        </label>
+                        <div className="flex gap-2">
+                          <Input
+                            id={`guarantor-${g.key}-query`}
+                            value={g.query}
+                            onChange={(e) =>
+                              updateGuarantor(g.key, { query: e.target.value, error: null })
+                            }
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                void findGuarantor(g);
+                              }
+                            }}
+                            placeholder={copy.guarantorLookupPlaceholder}
+                            aria-invalid={g.error ? true : undefined}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => void findGuarantor(g)}
+                            disabled={g.looking || !g.query.trim()}
+                          >
+                            {g.looking ? (
+                              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                            ) : (
+                              <Search className="size-4" aria-hidden="true" />
+                            )}
+                            {copy.guarantorFind}
+                          </Button>
+                        </div>
+                        {g.error && (
+                          <p className="mt-1 text-xs font-medium text-red-600">{g.error}</p>
+                        )}
+                      </div>
+                    )}
+
+                    <div>
+                      <label
+                        htmlFor={`guarantor-${g.key}-amount`}
+                        className="mb-1 block text-xs font-medium text-ink"
+                      >
+                        {copy.guarantorAmountLabel}
+                      </label>
+                      <Input
+                        id={`guarantor-${g.key}-amount`}
+                        inputMode="decimal"
+                        value={g.amount}
+                        onChange={(e) => updateGuarantor(g.key, { amount: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={addGuarantor}
+              disabled={guarantors.length >= MAX_GUARANTORS}
+            >
+              <UserPlus className="size-4" aria-hidden="true" />
+              {copy.guarantorAdd}
+            </Button>
+
+            {/* The running total, against the one figure that matters. */}
+            <div className="mt-4 rounded-xl bg-background px-3 py-2.5 text-sm">
+              <p className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-ink-muted">
+                  {fill(copy.guarantorsCovered, {
+                    covered: formatMoney(assessment.guaranteed),
+                    above: formatMoney(assessment.aboveOwnShare),
+                  })}
+                </span>
+                {gt(assessment.uncoveredAboveShare, 0) ? (
+                  <span className="font-semibold text-amber-700">
+                    {fill(copy.guarantorsRemaining, {
+                      remaining: formatMoney(assessment.uncoveredAboveShare),
+                    })}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1 font-semibold text-emerald-700">
+                    <Check className="size-4" aria-hidden="true" />
+                    {copy.guarantorsComplete}
+                  </span>
+                )}
+              </p>
+            </div>
+
+            {guarantorIssue && (
+              <p className="mt-2 text-xs font-medium text-red-600">{guarantorIssue}</p>
+            )}
+
+            <p className="mt-3 flex items-start gap-1.5 text-xs leading-relaxed text-ink-muted">
+              <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+              {copy.guarantorsHowItWorks}
+            </p>
+          </div>
+        )}
+
+        {/* Whatever guarantors leave uncovered can be backed by pledged items
+            instead — machines, materials — at the collateral coverage rate. */}
         {needsCollateral && (
           <div className="rounded-2xl border border-border bg-surface p-5 shadow-card">
             <h3 className="font-heading text-base font-semibold text-ink">
@@ -479,11 +763,10 @@ export function LoanApplicationForm({
             </h3>
 
             <p className="mt-1.5 text-sm text-ink-muted">
-              {blockerText("COLLATERAL") ??
-                fill(ruleCopy.blockers.COLLATERAL_TO_RECORD, {
-                  above: formatMoney(assessment.aboveOwnShare),
-                  required: formatMoney(assessment.collateralRequired),
-                })}
+              {fill(copy.collateralIntro, {
+                uncovered: formatMoney(assessment.uncoveredAboveShare),
+                required: formatMoney(assessment.collateralRequired),
+              })}
             </p>
 
             <div className="mt-4 grid gap-5 sm:grid-cols-2">
@@ -526,50 +809,6 @@ export function LoanApplicationForm({
               <p className="mt-3 text-sm font-medium text-emerald-700">
                 {copy.collateralSatisfied}
               </p>
-            )}
-          </div>
-        )}
-
-        {product.requiresGuarantors && (
-          <div className="rounded-2xl border border-border bg-surface p-5 shadow-card">
-            <h3 className="font-heading text-base font-semibold text-ink">
-              {copy.guarantorsTitle}
-            </h3>
-            <p className="mt-1 text-sm text-ink-muted">
-              {pluralize(copy.guarantorsRequired, product.minimumGuarantors)}
-            </p>
-
-            <div className="mt-4 space-y-3">
-              {Array.from({ length: Math.max(product.minimumGuarantors, guarantors.length) }).map(
-                (_, index) => (
-                  <div key={index} className="grid gap-3 sm:grid-cols-2">
-                    <Input
-                      value={guarantors[index]?.fullName ?? ""}
-                      onChange={(e) => {
-                        const next = [...guarantors];
-                        next[index] = { ...next[index], fullName: e.target.value, phone: next[index]?.phone ?? "" };
-                        setGuarantors(next);
-                      }}
-                      placeholder={fill(copy.guarantorName, { number: index + 1 })}
-                      aria-label={fill(copy.guarantorName, { number: index + 1 })}
-                    />
-                    <Input
-                      value={guarantors[index]?.phone ?? ""}
-                      onChange={(e) => {
-                        const next = [...guarantors];
-                        next[index] = { ...next[index], phone: e.target.value, fullName: next[index]?.fullName ?? "" };
-                        setGuarantors(next);
-                      }}
-                      placeholder={d.common.phone}
-                      aria-label={fill(copy.guarantorPhone, { number: index + 1 })}
-                    />
-                  </div>
-                )
-              )}
-            </div>
-
-            {guarantorIssue && (
-              <p className="mt-2 text-xs font-medium text-red-600">{guarantorIssue}</p>
             )}
           </div>
         )}

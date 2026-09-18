@@ -72,6 +72,11 @@ export interface StatusCopy {
   SUBMITTED: string;
   MORE_INFORMATION_REQUIRED: string;
 
+  // Guarantees — a member standing behind part of another member's loan
+  ACCEPTED: string;
+  DECLINED: string;
+  RELEASED: string;
+
   // Loans
   PENDING_DISBURSEMENT: string;
   DISBURSED: string;
@@ -207,6 +212,10 @@ export const status: Record<Locale, StatusCopy> = {
     SUBMITTED: "Submitted",
     MORE_INFORMATION_REQUIRED: "More info needed",
 
+    ACCEPTED: "Accepted",
+    DECLINED: "Declined",
+    RELEASED: "Released",
+
     PENDING_DISBURSEMENT: "Awaiting disbursement",
     DISBURSED: "Disbursed",
     OVERDUE: "Overdue",
@@ -328,6 +337,10 @@ export const status: Record<Locale, StatusCopy> = {
     DRAFT: "Bigitegurwa",
     SUBMITTED: "Byoherejwe",
     MORE_INFORMATION_REQUIRED: "Hakenewe andi makuru",
+
+    ACCEPTED: "Byemewe",
+    DECLINED: "Byanzwe",
+    RELEASED: "Byarekuwe",
 
     PENDING_DISBURSEMENT: "Bitegereje gutangwa",
     DISBURSED: "Byatanzwe",

@@ -33,9 +33,20 @@ import type { AssociationPolicy } from "@/lib/services/rulebook";
  *
  * THE STRUCTURE OF THE ANSWER matters as much as the answer. A member turned
  * down is told which rule stopped them and what would change it — "you may
- * borrow 240,000 without collateral; above that you must pledge items worth
- * the difference" is actionable, and "not eligible" is not.
+ * borrow 240,000 on your own savings; above that, guarantors must cover the
+ * difference" is actionable, and "not eligible" is not.
+ *
+ * ABOVE THE OWN SHARE, GUARANTORS FIRST. The part of a loan above the member's
+ * own share is other members' money, so it is backed by other members: one or
+ * more guarantors, each a member who pledges part of their own savings. Their
+ * pledges are added up against that part. Whatever they do not cover can still
+ * be backed by pledged items at the collateral coverage rate, so an
+ * association that also takes machines or materials keeps doing so.
  */
+
+/// How many guarantors one application may name. Here rather than in the
+/// guarantor service because the form in the browser enforces it too.
+export const MAX_GUARANTORS = 10;
 
 export interface BorrowingAssessmentInput {
   policy: AssociationPolicy;
@@ -53,6 +64,10 @@ export interface BorrowingAssessmentInput {
   requestedAmount?: string | null;
   /// Value of the items pledged, when any have been offered.
   collateralValue?: string | null;
+  /// What guarantors pledge from their own savings, added together. On the
+  /// form and at submission this is what was ASKED of them; at approval it is
+  /// only what they have ACCEPTED.
+  guaranteedAmount?: string | null;
   termMonths?: number | null;
 }
 
@@ -85,7 +100,7 @@ export type BlockerRule =
 
 /** A condition the member can still satisfy, rather than a refusal. */
 export interface BorrowingRequirement {
-  rule: "NO_SAVINGS" | "COLLATERAL_TO_RECORD";
+  rule: "NO_SAVINGS" | "COLLATERAL_TO_RECORD" | "GUARANTORS_TO_ACCEPT";
   params: Record<string, string | number>;
   message: string;
 }
@@ -115,7 +130,12 @@ export interface BorrowingAssessment {
   /// Of the requested amount, how much would come from the association's
   /// pooled money — that is, other members' savings.
   aboveOwnShare: string;
-  /// Collateral value the rules require for that portion.
+  /// How much of `aboveOwnShare` guarantors' pledges cover. Never more than
+  /// `aboveOwnShare`: a pledge beyond what is needed secures nothing.
+  guaranteed: string;
+  /// `aboveOwnShare` less `guaranteed`: the part guarantors leave uncovered.
+  uncoveredAboveShare: string;
+  /// Collateral value the rules require for the uncovered part.
   collateralRequired: string;
   /// How much more collateral is needed than has been offered.
   collateralShortfall: string;
@@ -237,8 +257,14 @@ export function assessBorrowing(
       ? subtract(requested, ownShareLimit)
       : toMoney(0);
 
+  // Guarantors cover the part above the own share first. Capped at that part:
+  // the pledges are compared against it, never against the whole loan.
+  const pledged = toMoney(input.guaranteedAmount ?? 0);
+  const guaranteed = gt(pledged, aboveOwnShare) ? aboveOwnShare : pledged;
+  const uncovered = subtract(aboveOwnShare, guaranteed);
+
   const collateralRequired = policy.collateralRequiredAboveShare
-    ? percentageOf(aboveOwnShare, policy.collateralCoveragePercent)
+    ? percentageOf(uncovered, policy.collateralCoveragePercent)
     : toMoney(0);
 
   const collateralOffered = toMoney(input.collateralValue ?? 0);
@@ -257,15 +283,23 @@ export function assessBorrowing(
       });
     }
 
-    if (gt(aboveOwnShare, 0) && policy.collateralRequiredAboveShare) {
+    if (gt(guaranteed, 0) && policy.collateralRequiredAboveShare) {
+      requirements.push({
+        rule: "GUARANTORS_TO_ACCEPT",
+        params: { guaranteed: toMoneyString(guaranteed) },
+        message: `${toMoneyString(guaranteed)} is backed by your guarantors. Each of them must accept from their own account before the committee can approve it.`,
+      });
+    }
+
+    if (gt(uncovered, 0) && policy.collateralRequiredAboveShare) {
       if (collateralSatisfied) {
         requirements.push({
           rule: "COLLATERAL_TO_RECORD",
           params: {
-            above: toMoneyString(aboveOwnShare),
+            above: toMoneyString(uncovered),
             required: toMoneyString(collateralRequired),
           },
-          message: `${toMoneyString(aboveOwnShare)} of this is above your own savings share, so the committee must record collateral worth at least ${toMoneyString(collateralRequired)}.`,
+          message: `${toMoneyString(uncovered)} of this is above your own savings share and not covered by guarantors, so the committee must record collateral worth at least ${toMoneyString(collateralRequired)}.`,
         });
       } else {
         requestBlockers.push({
@@ -273,11 +307,13 @@ export function assessBorrowing(
           params: {
             requested: toMoneyString(requested),
             above: toMoneyString(aboveOwnShare),
+            guaranteed: toMoneyString(guaranteed),
+            uncovered: toMoneyString(uncovered),
             required: toMoneyString(collateralRequired),
             offered: toMoneyString(collateralOffered),
             shortfall: toMoneyString(collateralShortfall),
           },
-          message: `Borrowing ${toMoneyString(requested)} takes ${toMoneyString(aboveOwnShare)} from the association's pooled money. That needs collateral worth ${toMoneyString(collateralRequired)}; you have offered ${toMoneyString(collateralOffered)}, so ${toMoneyString(collateralShortfall)} more is needed.`,
+          message: `Borrowing ${toMoneyString(requested)} goes ${toMoneyString(aboveOwnShare)} beyond your own share, and that part must be backed by guarantors. Guarantors cover ${toMoneyString(guaranteed)}, which leaves ${toMoneyString(uncovered)}: add guarantors for it, or pledge items worth ${toMoneyString(collateralRequired)} (you have offered ${toMoneyString(collateralOffered)}).`,
         });
       }
     }
@@ -298,6 +334,8 @@ export function assessBorrowing(
   return {
     ownShareLimit: toMoneyString(ownShareLimit),
     aboveOwnShare: toMoneyString(aboveOwnShare),
+    guaranteed: toMoneyString(guaranteed),
+    uncoveredAboveShare: toMoneyString(uncovered),
     collateralRequired: toMoneyString(collateralRequired),
     collateralShortfall: toMoneyString(collateralShortfall),
     collateralSatisfied,
@@ -316,6 +354,38 @@ export function assessBorrowing(
         ? illustrateLoan(policy, toMoneyString(requested), term)
         : null,
   };
+}
+
+/**
+ * The largest loan the committee may approve on what is actually secured.
+ *
+ * The borrower's own share, plus what guarantors have ACCEPTED, plus whatever
+ * the recorded items cover at the collateral coverage rate. Null when the rules
+ * ask for no security above the own share, because then nothing here limits
+ * the approval.
+ *
+ * Pure and shared, so the reviewer's screen shows the same ceiling the server
+ * enforces when they press approve.
+ */
+export function securedCeiling(input: {
+  ownShareLimit: string;
+  acceptedGuarantees: string;
+  collateralValue?: string | null;
+  collateralRequiredAboveShare: boolean;
+  collateralCoveragePercent: string;
+}): string | null {
+  if (!input.collateralRequiredAboveShare) return null;
+
+  const coverage = toMoney(input.collateralCoveragePercent);
+  // A coverage rate of zero means items cover any amount; nothing is capped.
+  if (!coverage.greaterThan(0)) return null;
+
+  const coveredByItems = divide(
+    multiply(toMoney(input.collateralValue ?? 0), 100),
+    coverage
+  );
+
+  return toMoneyString(add(input.ownShareLimit, input.acceptedGuarantees, coveredByItems));
 }
 
 /**

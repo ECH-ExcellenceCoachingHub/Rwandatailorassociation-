@@ -59,6 +59,12 @@ export const AUDIT_ACTIONS = {
   MEMBER_SUSPENDED: "MEMBER_SUSPENDED",
   MEMBER_REACTIVATED: "MEMBER_REACTIVATED",
   MEMBER_KYC_VERIFIED: "MEMBER_KYC_VERIFIED",
+  MEMBER_KYC_REJECTED: "MEMBER_KYC_REJECTED",
+  /// The membership ended; every record it produced is kept.
+  MEMBER_EXITED: "MEMBER_EXITED",
+  /// A member record that never held money was erased. The whole file is
+  /// captured on the audit entry, because afterwards it exists nowhere else.
+  MEMBER_DELETED: "MEMBER_DELETED",
 
   // Savings ledger
   SAVINGS_DEPOSIT_POSTED: "SAVINGS_DEPOSIT_POSTED",
@@ -108,6 +114,11 @@ export const AUDIT_ACTIONS = {
   LOAN_WRITTEN_OFF: "LOAN_WRITTEN_OFF",
   LOAN_PENALTY_WAIVED: "LOAN_PENALTY_WAIVED",
   LOAN_PRODUCT_UPDATED: "LOAN_PRODUCT_UPDATED",
+  /// A guarantor answered, or their held savings were let go. Accepting moves
+  /// money out of a member's available balance, so it is audited like one.
+  GUARANTEE_ACCEPTED: "GUARANTEE_ACCEPTED",
+  GUARANTEE_DECLINED: "GUARANTEE_DECLINED",
+  GUARANTEE_RELEASED: "GUARANTEE_RELEASED",
 
   // Association borrowing & investment
   /// The association took on, changed, or repaid a debt of its own. Kept apart
@@ -227,6 +238,9 @@ const REASON_REQUIRED: ReadonlySet<string> = new Set<string>([
   AUDIT_ACTIONS.WITHDRAWAL_REJECTED,
   AUDIT_ACTIONS.ADMIN_REJECTED_LOAN,
   AUDIT_ACTIONS.MEMBER_SUSPENDED,
+  AUDIT_ACTIONS.MEMBER_KYC_REJECTED,
+  AUDIT_ACTIONS.MEMBER_EXITED,
+  AUDIT_ACTIONS.MEMBER_DELETED,
   AUDIT_ACTIONS.PAYMENT_MATCHED_MANUALLY,
   AUDIT_ACTIONS.PAYMENT_DELETED,
   // Amending the rulebook and forgiving a fine are the two places where an
@@ -259,6 +273,7 @@ const CRITICAL_ACTIONS: ReadonlySet<string> = new Set<string>([
   AUDIT_ACTIONS.CROSS_TENANT_ACCESS_BLOCKED,
   AUDIT_ACTIONS.PAYMENT_DUPLICATE_REJECTED,
   AUDIT_ACTIONS.PAYMENT_DELETED,
+  AUDIT_ACTIONS.MEMBER_DELETED,
   AUDIT_ACTIONS.ASSOCIATION_SUSPENDED,
 ]);
 

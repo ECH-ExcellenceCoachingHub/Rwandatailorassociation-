@@ -324,12 +324,12 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
     defaultValue: "true",
     displayOrder: 130,
     title: {
-      en: "Borrowing more than your own share needs collateral",
-      rw: "Kuguza hejuru y'igice cyawe bisaba ingwate",
+      en: "Borrowing more than your own share needs guarantors",
+      rw: "Kuguza hejuru y'igice cyawe bisaba abishingizi",
     },
     body: {
-      en: "Anything above your own share comes from the association's pooled money — that is other members' savings. To borrow it you must pledge something of your own: machines, materials, equipment, or any property the committee accepts and records.",
-      rw: "Ibirenze igice cyawe biva mu kigega rusange cy'ihuriro — ubwo ni ubuzigame bw'abandi banyamuryango. Kugira ngo ubiguze ugomba gutanga ingwate yawe bwite: imashini, ibikoresho, cyangwa undi mutungo komite yemera kandi ikawandika.",
+      en: "Anything above your own share comes from other members' savings, so other members must stand behind it. Name one or more guarantors — registered members who have saved enough — and say how much each one covers; together they must cover everything above your share. Each guarantor accepts from their own account page, and from then on that amount is held out of their available balance. It is released back to them when you have repaid the whole loan. Any part guarantors do not cover can instead be backed by items the committee accepts and records: machines, materials or equipment.",
+      rw: "Ibirenze igice cyawe biva mu buzigame bw'abandi banyamuryango, bityo abandi banyamuryango bagomba kubyishingira. Vuga umwishingizi umwe cyangwa benshi — abanyamuryango banditse bazigamye bihagije — n'amafaranga buri wese yishingira; bose hamwe bagomba kwishingira ibirenze igice cyawe byose. Buri mwishingizi abyemera kuri paji ya konti ye, kandi kuva ubwo ayo mafaranga afatirwa ku mafaranga ye ashobora gukoresha. Asubizwa igihe umaze kwishyura inguzanyo yose. Igice abishingizi batishingiye gishobora kwishingirwa n'ibintu komite yemera kandi ikandika: imashini, ibikoresho cyangwa ibindi.",
     },
   },
   {
@@ -344,8 +344,8 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
       rw: "Agaciro ingwate igomba kugira",
     },
     body: {
-      en: "The pledged items must be worth at least this share of the amount borrowed above your own savings. The committee records what was pledged and what it was valued at, and both appear on the loan file.",
-      rw: "Ibintu byatanzwe ho ingwate bigomba kugira agaciro nibura kangana na iyi ngano y'amafaranga waguze hejuru y'ubuzigame bwawe. Komite yandika icyatanzwe n'agaciro cyahawe, kandi byombi bigaragara ku idosiye y'inguzanyo.",
+      en: "When items are pledged for the part above your own share that guarantors do not cover, they must be worth at least this share of that part. The committee records what was pledged and what it was valued at, and both appear on the loan file.",
+      rw: "Iyo hatanzwe ibintu ho ingwate ku gice kirenze igice cyawe abishingizi batishingiye, bigomba kugira agaciro nibura kangana na iyi ngano y'icyo gice. Komite yandika icyatanzwe n'agaciro cyahawe, kandi byombi bigaragara ku idosiye y'inguzanyo.",
     },
   },
   {

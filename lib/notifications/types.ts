@@ -86,6 +86,14 @@ export const NOTIFICATION_EVENTS = {
   LOAN_OVERDUE: "LOAN_OVERDUE",
   LOAN_COMPLETED: "LOAN_COMPLETED",
 
+  /// A member has been named as a guarantor and must accept or decline.
+  GUARANTEE_REQUESTED: "GUARANTEE_REQUESTED",
+  /// Told to the borrower: a guarantor answered.
+  GUARANTEE_ACCEPTED: "GUARANTEE_ACCEPTED",
+  GUARANTEE_DECLINED: "GUARANTEE_DECLINED",
+  /// Told to the guarantor: the savings they pledged are theirs to use again.
+  GUARANTEE_RELEASED: "GUARANTEE_RELEASED",
+
   PASSWORD_CHANGED: "PASSWORD_CHANGED",
   PASSWORD_RESET_REQUESTED: "PASSWORD_RESET_REQUESTED",
   NEW_LOGIN: "NEW_LOGIN",

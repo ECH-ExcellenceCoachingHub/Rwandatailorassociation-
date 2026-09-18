@@ -494,7 +494,7 @@ export async function getAvailableLoanProducts(
     }),
     prisma.savingsAccount.findFirst({
       where: { memberId, isActive: true },
-      select: { balance: true },
+      select: { balance: true, lockedBalance: true },
     }),
     prisma.loan.count({
       where: {
@@ -520,7 +520,12 @@ export async function getAvailableLoanProducts(
     getMemberStanding(memberId),
   ]);
 
-  const balance = account?.balance ?? new Prisma.Decimal(0);
+  // The AVAILABLE balance, as the server uses on submit: savings held for a
+  // loan this member guarantees, or for a withdrawal in progress, cannot also
+  // secure a loan of their own.
+  const held = account?.lockedBalance ?? new Prisma.Decimal(0);
+  const gross = account?.balance ?? new Prisma.Decimal(0);
+  const balance = gross.greaterThan(held) ? gross.minus(held) : new Prisma.Decimal(0);
   const now = new Date();
 
   // Anchored on approval, then joining, then creation — the same order the

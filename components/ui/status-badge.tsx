@@ -104,6 +104,13 @@ const STATUS_TONES: Record<string, StatusTone> = {
   SUBMITTED: "info",
   MORE_INFORMATION_REQUIRED: "warning",
 
+  // Guarantees. ACCEPTED is info rather than success: the guarantor's money
+  // is held, which is a standing commitment, not a finished good thing.
+  // RELEASED is success — that is the moment the money comes back.
+  ACCEPTED: "info",
+  DECLINED: "danger",
+  RELEASED: "success",
+
   // Loans
   PENDING_DISBURSEMENT: "pending",
   DISBURSED: "info",
