@@ -19,6 +19,12 @@ export interface ShellCopy {
   member: string;
   admin: string;
   superAdmin: string;
+  /// Shown by the dashboard's error boundary. Worded for the failure people
+  /// actually meet — a dropped connection — rather than as a crash, because a
+  /// second try is usually all it takes.
+  errorTitle: string;
+  errorBody: string;
+  errorRetry: string;
 }
 
 export const shell: Record<Locale, ShellCopy> = {
@@ -40,6 +46,10 @@ export const shell: Record<Locale, ShellCopy> = {
     member: "Member",
     admin: "Administrator",
     superAdmin: "Super administrator",
+    errorTitle: "This page could not be loaded",
+    errorBody:
+      "The connection to the server dropped while the page was loading. Nothing you entered has been lost — try again in a moment.",
+    errorRetry: "Try again",
   },
 
   rw: {
@@ -60,5 +70,9 @@ export const shell: Record<Locale, ShellCopy> = {
     member: "Umunyamuryango",
     admin: "Umuyobozi",
     superAdmin: "Umuyobozi mukuru",
+    errorTitle: "Iyi paji ntiyashoboye gufunguka",
+    errorBody:
+      "Ihuzanzira na seriveri ryacitse mu gihe paji yafunguka. Nta kintu wanditse cyatakaye — ongera ugerageze mu kanya gato.",
+    errorRetry: "Ongera ugerageze",
   },
 };

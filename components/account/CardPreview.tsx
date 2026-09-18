@@ -34,6 +34,13 @@ export interface CardPreviewProps {
   photoUrl: string | null;
   /// Type sizes as fractions of card height, measured by the PDF renderer.
   sizes: { name: number; title: number; phone: number };
+  /// Shown in the code's place when `qrDataUri` is null, so a card with no
+  /// code does not read as one whose code failed to draw. The admin card
+  /// register uses this for members who are not active and so get no code.
+  qrPlaceholder?: string;
+  /// Unique per preview on the page. Two previews sharing a clip-path id would
+  /// both clip to whichever the browser found first.
+  clipId?: string;
 }
 
 export function CardFrontPreview({
@@ -43,6 +50,8 @@ export function CardFrontPreview({
   qrDataUri,
   photoUrl,
   sizes,
+  qrPlaceholder,
+  clipId = "card-photo-clip",
 }: CardPreviewProps) {
   const photoR = py(FRONT.photo.r);
   const photoCx = px(FRONT.photo.cx);
@@ -80,7 +89,7 @@ export function CardFrontPreview({
       {photoUrl && (
         <>
           <defs>
-            <clipPath id="card-photo-clip">
+            <clipPath id={clipId}>
               <circle cx={photoCx} cy={photoCy} r={photoR} />
             </clipPath>
           </defs>
@@ -91,7 +100,7 @@ export function CardFrontPreview({
             width={photoR * 2}
             height={photoR * 2}
             preserveAspectRatio="xMidYMid slice"
-            clipPath="url(#card-photo-clip)"
+            clipPath={`url(#${clipId})`}
           />
         </>
       )}
@@ -134,6 +143,33 @@ export function CardFrontPreview({
         </>
       )}
 
+      {!qrDataUri && qrPlaceholder && (
+        <>
+          <rect
+            x={px(FRONT.qr.x)}
+            y={py(FRONT.qr.y)}
+            width={qrSize}
+            height={qrSize}
+            fill="#f1f5f9"
+            stroke="#1c80d4"
+            strokeWidth={px(FRONT.qrFrame.stroke)}
+            strokeDasharray={`${qrSize / 12} ${qrSize / 18}`}
+          />
+          <text
+            x={px(FRONT.qr.x) + qrSize / 2}
+            y={py(FRONT.qr.y) + qrSize / 2}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={qrSize / 4}
+            fontFamily="Helvetica, Arial, sans-serif"
+            fontWeight="bold"
+            fill="#94a3b8"
+          >
+            {qrPlaceholder}
+          </text>
+        </>
+      )}
+
       <text
         x={px(FRONT.name.x)}
         y={baseline(FRONT.name, sizes.name)}
@@ -166,6 +202,18 @@ export function CardFrontPreview({
           {phone}
         </text>
       )}
+
+      <text
+        x={px(FRONT.tag.right)}
+        y={baseline(FRONT.tag, FRONT.tag.size)}
+        textAnchor="end"
+        fontSize={py(FRONT.tag.size)}
+        fontFamily="Helvetica, Arial, sans-serif"
+        fontWeight="bold"
+        fill="#ffffff"
+      >
+        {FRONT.tag.text}
+      </text>
     </svg>
   );
 }

@@ -190,6 +190,60 @@ export async function getActiveQrCode(userId: string): Promise<ActiveQrCode | nu
   };
 }
 
+/**
+ * `getActiveQrCode` for many holders at once, keyed by user id. A holder with
+ * no usable code is simply absent from the map.
+ *
+ * For printing cards in bulk: one query for the whole batch instead of one per
+ * card, with the same rules — newest live code wins, and an undecryptable one
+ * counts as none.
+ */
+export async function getActiveQrCodes(
+  userIds: readonly string[]
+): Promise<Map<string, ActiveQrCode>> {
+  const codes = new Map<string, ActiveQrCode>();
+  if (userIds.length === 0) return codes;
+
+  const rows = await prisma.accessQrCode.findMany({
+    where: { userId: { in: [...userIds] }, revokedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { issuedAt: "desc" },
+    select: {
+      id: true,
+      userId: true,
+      secretCipher: true,
+      issuedAt: true,
+      expiresAt: true,
+      lastUsedAt: true,
+      useCount: true,
+    },
+  });
+
+  const seen = new Set<string>();
+
+  for (const row of rows) {
+    // Newest first, so the first row seen for a holder is the one that counts
+    // — even when it cannot be decrypted, exactly as in `getActiveQrCode`.
+    if (seen.has(row.userId)) continue;
+    seen.add(row.userId);
+
+    const token = decryptSecret(row.secretCipher);
+    if (!token) continue;
+
+    codes.set(row.userId, {
+      id: row.id,
+      token,
+      url: qrAccessUrl(token),
+      issuedAt: row.issuedAt,
+      expiresAt: row.expiresAt,
+      daysUntilExpiry: daysUntil(row.expiresAt),
+      lastUsedAt: row.lastUsedAt,
+      useCount: row.useCount,
+    });
+  }
+
+  return codes;
+}
+
 function daysUntil(date: Date): number {
   return Math.max(0, Math.ceil((date.getTime() - Date.now()) / 86_400_000));
 }

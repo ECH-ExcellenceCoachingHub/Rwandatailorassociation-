@@ -14,8 +14,21 @@ import {
 } from "@/components/ui/select";
 import { useLanguage } from "@/components/LanguageProvider";
 
-/** Search and status filter for the member register. State lives in the URL. */
-export function MemberSearch({ basePath }: { basePath: string }) {
+/**
+ * Search and status filter for the member register. State lives in the URL.
+ *
+ * `defaultStatus` is what the page shows when the URL names no status. The
+ * register shows everyone; the card register shows active members only, so
+ * there choosing "All statuses" has to be written into the URL as ALL rather
+ * than dropped, or the page would quietly fall back to active.
+ */
+export function MemberSearch({
+  basePath,
+  defaultStatus = "ALL",
+}: {
+  basePath: string;
+  defaultStatus?: string;
+}) {
   const router = useRouter();
   const params = useSearchParams();
   const { d } = useLanguage();
@@ -36,7 +49,8 @@ export function MemberSearch({ basePath }: { basePath: string }) {
   function apply(next: Record<string, string | undefined>) {
     const search = new URLSearchParams(params.toString());
     for (const [key, value] of Object.entries(next)) {
-      if (!value || value === "ALL") search.delete(key);
+      const isDefault = key === "status" ? value === defaultStatus : false;
+      if (!value || isDefault) search.delete(key);
       else search.set(key, value);
     }
     search.delete("page");
@@ -79,7 +93,7 @@ export function MemberSearch({ basePath }: { basePath: string }) {
           {d.common.status}
         </label>
         <Select
-          value={params.get("status") ?? "ALL"}
+          value={params.get("status") ?? defaultStatus}
           onValueChange={(value) => apply({ status: value })}
         >
           <SelectTrigger id="member-status">

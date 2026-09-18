@@ -91,6 +91,38 @@ export interface AdminCopy {
     editDescription: string;
     backToFile: string;
   };
+  /// The card register: every member's card, for the office that prints them.
+  memberCards: {
+    title: string;
+    description: string;
+    matching: string;
+    photoLabel: string;
+    photoAny: string;
+    photoMissing: string;
+    photoPresent: string;
+    credentialTitle: string;
+    credentialBody: string;
+    bulkTitle: string;
+    bulkBody: string;
+    batchLabel: string;
+    batchShown: string;
+    fronts: string;
+    backs: string;
+    front: string;
+    back: string;
+    qrPlaceholder: string;
+    qrNote: string;
+    noCode: string;
+    noPhoto: string;
+    lastPrinted: string;
+    neverPrinted: string;
+    preparing: string;
+    failed: string;
+    noneTitle: string;
+    noneBody: string;
+    printTitle: string;
+    printBody: string;
+  };
   /// A single member's file.
   file: {
     description: string;
@@ -986,6 +1018,42 @@ export const admin: Record<Locale, AdminCopy> = {
       editDescription:
         "Member {number}. Their member number and payment reference cannot be changed — those are printed on every payment instruction they hold.",
       backToFile: "Back to member file",
+    },
+    memberCards: {
+      title: "Membership cards",
+      description:
+        "Every member's card, as it will print. Download one card, or a whole batch for the card printer.",
+      matching: "{count} card matches these filters.|{count} cards match these filters.",
+      photoLabel: "Photograph",
+      photoAny: "Any",
+      photoMissing: "Missing ({count})",
+      photoPresent: "On file",
+      credentialTitle: "Every front is a key",
+      credentialBody:
+        "The QR code on each card is the member's working sign-in code: anyone who photographs this screen or a printed card can sign in as that member. Each download is recorded in the audit log under your name. Do not leave this page open on a shared screen, give printed cards only to their owners, and destroy spoiled ones.",
+      bulkTitle: "Print in bulk",
+      bulkBody:
+        "Each file holds up to {size} cards, one per page, in the order shown below. Print the fronts, put the same stack back in the printer, then print the backs.",
+      batchLabel: "Cards {from}–{to}",
+      batchShown: "shown below",
+      fronts: "Fronts",
+      backs: "Backs",
+      front: "Front",
+      back: "Back",
+      qrPlaceholder: "QR",
+      qrNote:
+        "Each card is shown exactly as it prints, sign-in code included. Opening this page gives a code to any active member who does not have one yet, and records it in the audit log.",
+      noCode: "No sign-in code — member not active",
+      noPhoto: "No photograph",
+      lastPrinted: "Printed by the office {date}",
+      neverPrinted: "Not yet printed by the office",
+      preparing: "Preparing…",
+      failed: "The file could not be prepared. Try again.",
+      noneTitle: "No cards to show",
+      noneBody: "No members match these filters. Try another status or clear the search.",
+      printTitle: "Printing",
+      printBody:
+        "Every page is exactly 85.6 × 54 mm — standard card size. Print at 100% and do not let the printer scale the pages to fit.",
     },
     file: {
       description: "Member {number} · payment reference {reference}",
@@ -1981,6 +2049,44 @@ export const admin: Record<Locale, AdminCopy> = {
       editDescription:
         "Umunyamuryango {number}. Nimero ye y'umunyamuryango na nimero y'ubwishyu ntizihinduka — zanditse ku mabwiriza yose y'ubwishyu afite.",
       backToFile: "Subira ku dosiye y'umunyamuryango",
+    },
+    memberCards: {
+      title: "Amakarita y'abanyamuryango",
+      description:
+        "Ikarita ya buri munyamuryango, uko izacapwa. Kuramo ikarita imwe, cyangwa itsinda ryose ryo gucapisha icyarimwe.",
+      matching:
+        "Ikarita {count} ihuye n'ibyo washunguye.|Amakarita {count} ahuye n'ibyo washunguye.",
+      photoLabel: "Ifoto",
+      photoAny: "Zose",
+      photoMissing: "Idafite ifoto ({count})",
+      photoPresent: "Ifite ifoto",
+      credentialTitle: "Imbere ha buri karita ni urufunguzo",
+      credentialBody:
+        "Kode ya QR iri kuri buri karita ni kode ikora y'umunyamuryango yo kwinjira: uwafotora iyi ecran cyangwa ikarita icapwe yakwinjira nk'uwo munyamuryango. Buri gukuramo kwandikwa mu gitabo cy'igenzura mu izina ryawe. Ntusige iyi paji ifunguye kuri ecran ikoreshwa n'abandi, amakarita yacapwe uyahe ba nyirayo gusa, kandi wangize ayangiritse.",
+      bulkTitle: "Gucapa byinshi icyarimwe",
+      bulkBody:
+        "Buri dosiye irimo amakarita agera kuri {size}, imwe kuri buri paji, akurikiranye nk'uko agaragara hano hasi. Banza ucape imbere, usubize ayo makarita muri mucapyi, hanyuma ucape inyuma.",
+      batchLabel: "Amakarita {from}–{to}",
+      batchShown: "agaragara hasi",
+      fronts: "Imbere",
+      backs: "Inyuma",
+      front: "Imbere",
+      back: "Inyuma",
+      qrPlaceholder: "QR",
+      qrNote:
+        "Buri karita igaragara uko izacapwa, harimo na kode yo kwinjira. Gufungura iyi paji biha kode umunyamuryango wese ukora utarayibona, kandi bikandikwa mu gitabo cy'igenzura.",
+      noCode: "Nta kode yo kwinjira — umunyamuryango ntakora",
+      noPhoto: "Nta foto",
+      lastPrinted: "Yacapwe n'ibiro {date}",
+      neverPrinted: "Ntiracapwa n'ibiro",
+      preparing: "Biritegurwa…",
+      failed: "Dosiye ntiyashoboye gutegurwa. Ongera ugerageze.",
+      noneTitle: "Nta karita yo kwerekana",
+      noneBody:
+        "Nta munyamuryango uhuye n'ibyo washunguye. Gerageza indi miterere cyangwa usibe ibyo washakishije.",
+      printTitle: "Gucapa",
+      printBody:
+        "Buri paji ni 85.6 × 54 mm neza — ingano isanzwe y'ikarita. Capa kuri 100%, kandi ntukemere ko mucapyi ihindura ingano ngo ikwire urupapuro.",
     },
     file: {
       description: "Umunyamuryango {number} · nimero y'ubwishyu {reference}",

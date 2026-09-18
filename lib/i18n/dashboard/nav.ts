@@ -40,6 +40,7 @@ export interface NavCopy {
   members: string;
   allMembers: string;
   pendingApprovals: string;
+  memberCards: string;
   accounts: string;
   payments: string;
   allPayments: string;
@@ -107,6 +108,7 @@ export const nav: Record<Locale, NavCopy> = {
     members: "Members",
     allMembers: "All members",
     pendingApprovals: "Pending approvals",
+    memberCards: "Membership cards",
     accounts: "Accounts",
     payments: "Payments",
     allPayments: "All payments",
@@ -173,6 +175,7 @@ export const nav: Record<Locale, NavCopy> = {
     members: "Abanyamuryango",
     allMembers: "Abanyamuryango bose",
     pendingApprovals: "Bategereje kwemezwa",
+    memberCards: "Amakarita y'abanyamuryango",
     accounts: "Konti",
     payments: "Ubwishyu",
     allPayments: "Ubwishyu bwose",

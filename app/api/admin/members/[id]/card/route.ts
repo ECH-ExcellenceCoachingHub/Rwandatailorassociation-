@@ -59,7 +59,9 @@ export const GET = withErrorHandling(
       return new Response(new Uint8Array(await renderCardBack()), { headers });
     }
 
-    const data = await getMembershipCardData(member.user.id);
+    // Passing the officer means a code issued for this print is logged as
+    // theirs, not as something the member did.
+    const data = await getMembershipCardData(member.user.id, context.user);
 
     await recordAudit(
       {

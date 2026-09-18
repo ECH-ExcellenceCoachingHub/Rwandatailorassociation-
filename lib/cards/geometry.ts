@@ -80,6 +80,14 @@ export const FRONT = {
    * thousandths out reads as a badly cut-out face.
    */
   photo: { cx: 0.7051, cy: 0.5128, r: 0.2436 },
+  /**
+   * "STGT", the same on every card. Set in white in the solid blue of the
+   * bottom-right corner — below the photograph's ring and right of the pale
+   * diagonal stripe — which is the one clear area of the artwork that no live
+   * field shares. Anchored by its RIGHT edge (`right`), so a change of wording
+   * grows leftwards into the blue rather than off the edge of the card.
+   */
+  tag: { text: "STGT", right: 0.94, y: 0.85, size: 0.056 },
 } as const;
 
 /**

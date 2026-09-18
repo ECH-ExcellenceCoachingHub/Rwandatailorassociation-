@@ -236,6 +236,15 @@ const ADMIN_NAV: NavSection[] = [
         permission: PERMISSIONS.MEMBERS_APPROVE,
         badgeKey: "pendingMembers",
       },
+      // Every member's card in one place, for the office that prints them —
+      // most members have no printer, so the association prints and hands
+      // them out. Behind the same permission as the register it is drawn from.
+      {
+        labelKey: "memberCards",
+        href: "/admin/members/cards",
+        icon: IdCard,
+        permission: PERMISSIONS.MEMBERS_VIEW,
+      },
     ],
   },
   {

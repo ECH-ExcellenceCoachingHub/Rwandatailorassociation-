@@ -1,7 +1,9 @@
 import "server-only";
+import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, Prisma } from "@/lib/generated/prisma/client";
 import { getEnv } from "@/lib/env";
+import { logger, serialiseError } from "@/lib/logger";
 
 /**
  * PrismaClient singleton.
@@ -21,10 +23,112 @@ declare global {
   var __rtaPrisma: PrismaClient | undefined;
 }
 
+/**
+ * Failures that mean a new connection never got as far as sending a query:
+ * the host name did not resolve, the host refused, or the socket was cut
+ * during the handshake.
+ *
+ * WHY THESE ARE RETRIED. The database is hosted (Neon, eu-central-1) and the
+ * people using this reach it over home and mobile connections where a DNS
+ * lookup fails outright for a second at a time. The pool closes idle
+ * connections after 30s, so the first query after any pause opens a fresh one —
+ * and a single failed lookup then surfaced as P1001, "Can't reach database
+ * server", which killed the whole page while the next click worked fine.
+ *
+ * WHY THIS IS SAFE FOR WRITES. Only connection establishment is retried, never
+ * a query. A client that failed to connect has sent nothing, so trying again
+ * cannot apply anything twice. Errors on an established connection, and the
+ * pool's own "timed out waiting for a free connection", are deliberately not
+ * here: the first may have reached the server, and retrying the second only
+ * piles more load onto a pool that is already full.
+ */
+const TRANSIENT_CONNECT_CODES = new Set([
+  "ENOTFOUND",
+  "EAI_AGAIN",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ENETUNREACH",
+  "EHOSTUNREACH",
+  "EPIPE",
+]);
+
+/// Delays before each retry. Short, because a member is watching a spinner;
+/// three tries spread over about two seconds clear an ordinary network blip.
+const CONNECT_RETRY_DELAYS_MS = [200, 600, 1_500];
+
+export function isTransientConnectError(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code;
+  if (typeof code === "string" && TRANSIENT_CONNECT_CODES.has(code)) return true;
+
+  const message = error instanceof Error ? error.message : "";
+  return (
+    // The server closed the socket mid-handshake.
+    message === "Connection terminated unexpectedly" ||
+    // Neon's proxy, when the compute behind it is still waking from suspend.
+    message.toLowerCase().includes("couldn't connect to compute node")
+  );
+}
+
+type ConnectCallback = (
+  err: Error | undefined,
+  client: pg.PoolClient | undefined,
+  done: (release?: unknown) => void
+) => void;
+
+/**
+ * A pg Pool whose `connect()` retries transient connection failures.
+ *
+ * Overriding `connect` covers every path the Prisma adapter takes: it calls
+ * `pool.connect()` itself to open a transaction, and `pool.query()` calls
+ * `this.connect(callback)` internally — which is why the callback form has to
+ * keep working as well as the promise form.
+ */
+export class ResilientPool extends pg.Pool {
+  override connect(): Promise<pg.PoolClient>;
+  override connect(callback: ConnectCallback): void;
+  override connect(callback?: ConnectCallback): Promise<pg.PoolClient> | void {
+    const connectOnce = () => super.connect();
+    const connecting = connectWithRetry(connectOnce);
+
+    if (!callback) return connecting;
+
+    connecting.then(
+      (client) => callback(undefined, client, (release) => client.release(release as Error)),
+      (error: Error) => callback(error, undefined, () => undefined)
+    );
+  }
+}
+
+export async function connectWithRetry<T>(
+  connectOnce: () => Promise<T>,
+  delaysMs: readonly number[] = CONNECT_RETRY_DELAYS_MS
+): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await connectOnce();
+    } catch (error) {
+      const delay = delaysMs[attempt];
+      if (delay === undefined || !isTransientConnectError(error)) throw error;
+
+      logger.warn(
+        {
+          component: "db",
+          attempt: attempt + 1,
+          retryInMs: delay,
+          code: (error as { code?: unknown }).code,
+          ...serialiseError(error),
+        },
+        "database connection failed — retrying"
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
 function createClient(): PrismaClient {
   const env = getEnv();
 
-  const adapter = new PrismaPg({
+  const pool = new ResilientPool({
     connectionString: env.DATABASE_URL,
     // Sizing note: a ledger posting holds its connection for the whole time it
     // is queued behind another writer's row lock, so concurrent postings to the
@@ -39,6 +143,11 @@ function createClient(): PrismaClient {
     connectionTimeoutMillis: 30_000,
     idleTimeoutMillis: 30_000,
   });
+
+  // The adapter would otherwise build its own plain Pool. `disposeExternalPool`
+  // keeps the old shutdown behaviour: `$disconnect()` still ends the pool, so
+  // the worker and scripts exit instead of hanging on open sockets.
+  const adapter = new PrismaPg(pool, { disposeExternalPool: true });
 
   return new PrismaClient({
     adapter,
