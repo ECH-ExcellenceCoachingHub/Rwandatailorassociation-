@@ -3,6 +3,12 @@ import { Prisma, prisma } from "@/lib/db/prisma";
 import { add, gt, multiply, subtract, toMoney, toMoneyString } from "@/lib/money";
 import { availableBalance } from "@/lib/services/ledger";
 import { getMemberStanding, type ContributionStatus } from "@/lib/services/contributions";
+import { getPolicy } from "@/lib/services/rulebook";
+import {
+  assessBorrowing,
+  wholeMonthsBetween,
+  type BorrowingBlocker,
+} from "@/lib/rules/borrowing";
 import {
   getMemberWarehouseSummary,
   type MemberWarehouseSummary,
@@ -149,6 +155,30 @@ export interface AccountLoanSummary {
   loanCount: number;
 }
 
+/**
+ * WHAT THE MEMBER MAY BORROW AGAINST THEIR OWN MONEY.
+ *
+ * The rulebook's own-savings share — 80% unless the committee has changed it —
+ * applied to the AVAILABLE balance, not the gross one. Money already held
+ * against a loan cannot secure a second one, and quoting a limit on the gross
+ * figure would promise a member money the association would then refuse.
+ *
+ * Worked out by `assessBorrowing`, the function the loan form and the server
+ * use, so the rules that stop somebody borrowing today (arrears, unpaid fines,
+ * a loan still running, too new to borrow) are the same ones named here.
+ */
+export interface AccountBorrowingLimit {
+  /// The rulebook percentage, trimmed for display: "80", not "80.0000".
+  percent: string;
+  /// The balance the percentage was applied to.
+  basis: string;
+  /// percent × basis: what the member may take without pledging collateral.
+  limit: string;
+  /// False when a rule stops them borrowing today, whatever the limit says.
+  canBorrow: boolean;
+  blockers: BorrowingBlocker[];
+}
+
 export interface AccountStatusSummary {
   // Identity
   memberNumber: string;
@@ -178,6 +208,7 @@ export interface AccountStatusSummary {
 
   shareholding: ShareholdingSummary | null;
   loan: AccountLoanSummary | null;
+  borrowing: AccountBorrowingLimit;
   warehouse: MemberWarehouseSummary | null;
 
   /// Every fine against this member, of both kinds — missed daily saving and
@@ -211,10 +242,14 @@ export async function getAccountStatusSummary(
       kycStatus: true,
       joinedAt: true,
       approvedAt: true,
+      createdAt: true,
+      associationId: true,
       user: {
         select: { firstName: true, lastName: true, phone: true, email: true },
       },
-      association: { select: { currency: true } },
+      // `createdAt` because the lending unlock counts from the association's
+      // own first day, not the member's.
+      association: { select: { currency: true, createdAt: true } },
       savingsAccounts: {
         where: { isActive: true },
         orderBy: { openedAt: "asc" },
@@ -245,6 +280,8 @@ export async function getAccountStatusSummary(
     standing,
     warehouse,
     fines,
+    policy,
+    openLoanCount,
   ] = await Promise.all([
       prisma.loan.findFirst({
         where: { memberId, status: { in: ["DISBURSED", "ACTIVE", "OVERDUE"] } },
@@ -334,11 +371,40 @@ export async function getAccountStatusSummary(
       getMemberStanding(memberId),
       getMemberWarehouseSummary(memberId),
       listMemberFines(memberId),
+
+      getPolicy(member.associationId),
+      // Wider than `activeLoan` above: a loan approved but not yet paid out
+      // also stops a second one, and the loan form counts it the same way.
+      prisma.loan.count({
+        where: {
+          memberId,
+          status: { in: ["PENDING_DISBURSEMENT", "DISBURSED", "ACTIVE", "OVERDUE"] },
+        },
+      }),
     ]);
 
   const account = member.savingsAccounts[0] ?? null;
   const nextInstalment = activeLoan?.installments[0] ?? null;
   const currency = account?.currency ?? member.association.currency;
+
+  const available = account
+    ? availableBalance(account.balance, account.lockedBalance)
+    : "0.00";
+
+  // Tenure anchored on approval, then joining, then creation — the order the
+  // loan form uses, so the two screens count the same months.
+  const now = new Date();
+  const since = member.approvedAt ?? member.joinedAt ?? member.createdAt;
+
+  const assessment = assessBorrowing({
+    policy,
+    savingsBalance: available,
+    membershipMonths: wholeMonthsBetween(since, now),
+    associationMonths: wholeMonthsBetween(member.association.createdAt, now),
+    missedDays: standing?.missedDays ?? 0,
+    outstandingFines: standing?.outstandingFineAmount ?? "0.00",
+    hasActiveLoan: openLoanCount > 0,
+  });
 
   return {
     memberNumber: member.memberNumber,
@@ -356,7 +422,7 @@ export async function getAccountStatusSummary(
       ? {
           accountNumber: account.accountNumber,
           balance: toMoneyString(account.balance),
-          available: availableBalance(account.balance, account.lockedBalance),
+          available,
           locked: toMoneyString(account.lockedBalance),
           totalDeposits: toMoneyString(account.totalDeposits),
           totalWithdrawals: toMoneyString(account.totalWithdrawals),
@@ -376,6 +442,14 @@ export async function getAccountStatusSummary(
       lifetimeRepaid: loanTotals._sum.totalPaid,
       loanCount,
     }),
+
+    borrowing: {
+      percent: toMoney(policy.ownSavingsPercent).toDecimalPlaces(2).toString(),
+      basis: available,
+      limit: assessment.ownShareLimit,
+      canBorrow: assessment.canBorrow,
+      blockers: assessment.blockers,
+    },
 
     warehouse,
     fines,

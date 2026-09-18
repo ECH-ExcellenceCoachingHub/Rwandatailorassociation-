@@ -20,23 +20,17 @@ export interface AccountCopy {
     description: string;
     signedInWithQr: string;
     accountState: string;
-    membership: string;
     identityCheck: string;
-    role: string;
-    association: string;
     memberNumber: string;
     paymentReference: string;
     paymentReferenceHint: string;
     memberSince: string;
     notRecorded: string;
-    savingsBalance: string;
-    availableToWithdraw: string;
     outstandingLoan: string;
     nextRepayment: string;
     nothingOwed: string;
     noRepaymentScheduled: string;
     goodStandingTitle: string;
-    goodStandingBody: string;
     overdueTitle: string;
     overdueBody: string;
     suspendedTitle: string;
@@ -50,6 +44,21 @@ export interface AccountCopy {
     continueToDashboard: string;
     myQrCode: string;
     noSavingsAccount: string;
+
+    // Your money, and what it lets you borrow --------------------------------
+    moneyTitle: string;
+    balance: string;
+    balanceHint: string;
+    availableBalance: string;
+    availableBalanceHint: string;
+    /// The own-savings share of the available balance: what the rulebook lets
+    /// a member borrow without pledging anything.
+    loanLimit: string;
+    loanLimitHint: string;
+    loanLimitBlocked: string;
+    applyForLoan: string;
+    none: string;
+    finesPaid: string;
 
     // Who the association thinks you are ------------------------------------
     yourDetails: string;
@@ -70,7 +79,6 @@ export interface AccountCopy {
     /// then finds themselves in arrears by a fee nobody named.
     dailyCost: string;
     dailyCostHint: string;
-    dailyCostNote: string;
     paidAhead: string;
     paidAheadHint: string;
     behindBy: string;
@@ -84,7 +92,6 @@ export interface AccountCopy {
     fineTonightTitle: string;
     fineTonightBody: string;
     finesTitle: string;
-    finesHint: string;
     finesSeeAll: string;
     finesCleared: string;
 
@@ -120,10 +127,6 @@ export interface AccountCopy {
     returnOverdue: string;
     dueBack: string;
     issuedOn: string;
-    itemColumn: string;
-    quantityColumn: string;
-    unitValueColumn: string;
-    valueColumn: string;
     againstLoan: string;
     termsPurchase: string;
     termsLoanOut: string;
@@ -132,14 +135,9 @@ export interface AccountCopy {
 
     // Everything that has moved ---------------------------------------------
     transactionsTitle: string;
-    transactionsHint: string;
     transactionsEmpty: string;
     showingRecent: string;
     viewFullStatement: string;
-    dateColumn: string;
-    referenceColumn: string;
-    detailColumn: string;
-    amountColumn: string;
     balanceColumn: string;
   };
   qr: {
@@ -254,25 +252,18 @@ export const account: Record<Locale, AccountCopy> = {
       description: "Where your membership and your money stand today.",
       signedInWithQr: "Signed in with your QR code.",
       accountState: "Account",
-      membership: "Membership",
       identityCheck: "Identity check",
-      role: "Role",
-      association: "Association",
       memberNumber: "Membership number",
       paymentReference: "Payment reference",
       paymentReferenceHint:
         "Quote this on every payment so it reaches your account the same day.",
       memberSince: "Member since",
       notRecorded: "Not recorded",
-      savingsBalance: "Savings balance",
-      availableToWithdraw: "Available to withdraw",
       outstandingLoan: "Loan outstanding",
       nextRepayment: "Next repayment",
       nothingOwed: "Nothing owed",
       noRepaymentScheduled: "None scheduled",
       goodStandingTitle: "Your account is in good standing",
-      goodStandingBody:
-        "Your membership is active and there is nothing needing your attention.",
       overdueTitle: "A repayment is overdue",
       overdueBody:
         "Your loan is {days} days past due. Settle it to keep your account in good standing.",
@@ -292,6 +283,18 @@ export const account: Record<Locale, AccountCopy> = {
       myQrCode: "My QR code",
       noSavingsAccount: "No savings account has been opened yet.",
 
+      moneyTitle: "Your money",
+      balance: "Balance",
+      balanceHint: "Everything on your savings account",
+      availableBalance: "Available balance",
+      availableBalanceHint: "Your balance, less anything held against a loan",
+      loanLimit: "Loan you can get",
+      loanLimitHint: "{percent}% of your available balance ({basis})",
+      loanLimitBlocked: "You cannot borrow yet",
+      applyForLoan: "Apply for a loan",
+      none: "None",
+      finesPaid: "Fines paid",
+
       yourDetails: "Your details",
       fullName: "Full name",
       telephone: "Telephone",
@@ -307,8 +310,6 @@ export const account: Record<Locale, AccountCopy> = {
       perDay: "per day",
       dailyCost: "One day costs",
       dailyCostHint: "{savings} becomes your shares + {fee} service fee per share",
-      dailyCostNote:
-        "A full day of membership is {total}. Paying only {savings} leaves you short by the {fee} service fee each day, and those shortfalls are what put you behind.",
       paidAhead: "Paid in advance",
       paidAheadHint: "{days} days ahead",
       behindBy: "Behind by",
@@ -323,8 +324,6 @@ export const account: Record<Locale, AccountCopy> = {
       fineTonightBody:
         "You are {behind} day(s) behind. Paying {amount} today is the last chance to avoid it.",
       finesTitle: "Fines against you",
-      finesHint:
-        "Raised for falling behind on the daily saving, or for paying a warehouse instalment late. Each one shows how it was worked out.",
       finesSeeAll: "See all my fines",
       finesCleared: "No unpaid fines",
 
@@ -358,10 +357,6 @@ export const account: Record<Locale, AccountCopy> = {
       returnOverdue: "Return overdue",
       dueBack: "Due back",
       issuedOn: "Issued",
-      itemColumn: "Item",
-      quantityColumn: "Quantity",
-      unitValueColumn: "Unit price",
-      valueColumn: "Value",
       againstLoan: "Against loan {reference}",
       termsPurchase: "Bought",
       termsLoanOut: "Borrowed",
@@ -369,15 +364,9 @@ export const account: Record<Locale, AccountCopy> = {
       termsFreeIssue: "Given",
 
       transactionsTitle: "Everything on your account",
-      transactionsHint:
-        "Every deposit, withdrawal, loan movement, interest payment and fee, newest first.",
       transactionsEmpty: "Nothing has moved on your account yet.",
       showingRecent: "Showing the most recent {shown} of {total}",
       viewFullStatement: "See the full statement",
-      dateColumn: "Date",
-      referenceColumn: "Reference",
-      detailColumn: "Detail",
-      amountColumn: "Amount",
       balanceColumn: "Balance",
     },
     qr: {
@@ -511,25 +500,18 @@ export const account: Record<Locale, AccountCopy> = {
       description: "Uko ubunyamuryango bwawe n'amafaranga yawe bihagaze uyu munsi.",
       signedInWithQr: "Winjiye ukoresheje kode yawe ya QR.",
       accountState: "Konti",
-      membership: "Ubunyamuryango",
       identityCheck: "Igenzura ry'umwirondoro",
-      role: "Uruhare",
-      association: "Ihuriro",
       memberNumber: "Nimero y'umunyamuryango",
       paymentReference: "Nimero y'ubwishyu",
       paymentReferenceHint:
         "Andika iyi nimero kuri buri bwishyu kugira ngo bugere kuri konti yawe uwo munsi.",
       memberSince: "Yinjiye",
       notRecorded: "Ntibyanditswe",
-      savingsBalance: "Ubwizigame bwawe",
-      availableToWithdraw: "Ushobora kubikuza",
       outstandingLoan: "Inguzanyo isigaye",
       nextRepayment: "Ubwishyu bukurikira",
       nothingOwed: "Nta cyo urimo",
       noRepaymentScheduled: "Nta bwishyu buteganyijwe",
       goodStandingTitle: "Konti yawe ihagaze neza",
-      goodStandingBody:
-        "Ubunyamuryango bwawe burakora kandi nta kintu gisaba ko ugikoraho.",
       overdueTitle: "Hari ubwishyu bwatinze",
       overdueBody:
         "Inguzanyo yawe yatinze iminsi {days}. Yishyure kugira ngo konti yawe ikomeze kuba nziza.",
@@ -549,6 +531,18 @@ export const account: Record<Locale, AccountCopy> = {
       myQrCode: "Kode yanjye ya QR",
       noSavingsAccount: "Nta konti y'ubwizigame irafungurwa.",
 
+      moneyTitle: "Amafaranga yawe",
+      balance: "Amafaranga ufite",
+      balanceHint: "Ayo ufite yose kuri konti yawe y'ubwizigame",
+      availableBalance: "Amafaranga ushobora gukoresha",
+      availableBalanceHint: "Ayo ufite, ukuyemo ayafatiriwe ku nguzanyo",
+      loanLimit: "Inguzanyo ushobora guhabwa",
+      loanLimitHint: "{percent}% by'amafaranga ushobora gukoresha ({basis})",
+      loanLimitBlocked: "Ntushobora kuguza ubu",
+      applyForLoan: "Saba inguzanyo",
+      none: "Ntayo",
+      finesPaid: "Amahazabu wishyuye",
+
       yourDetails: "Amakuru yawe",
       fullName: "Amazina",
       telephone: "Telefone",
@@ -564,8 +558,6 @@ export const account: Record<Locale, AccountCopy> = {
       perDay: "ku munsi",
       dailyCost: "Umunsi umwe ugutwara",
       dailyCostHint: "{savings} bihinduka umugabane wawe + {fee} ya serivisi ku buri mugabane",
-      dailyCostNote:
-        "Umunsi wuzuye wo kuba umunyamuryango ni {total}. Wishyura {savings} gusa usigara ubura {fee} ya serivisi buri munsi, kandi ubwo buke ni bwo bugutera gusigara inyuma.",
       paidAhead: "Wishyuye mbere",
       paidAheadHint: "Iminsi {days} imbere",
       behindBy: "Usigaye inyuma",
@@ -580,8 +572,6 @@ export const account: Record<Locale, AccountCopy> = {
       fineTonightBody:
         "Usigaye inyuma iminsi {behind}. Kwishyura {amount} uyu munsi ni wo mwanya wa nyuma wo kuyirinda.",
       finesTitle: "Amahazabu wahawe",
-      finesHint:
-        "Atangwa iyo usigaye inyuma mu kuzigama kwa buri munsi, cyangwa iyo wishyuye utinze ideni ry'ububiko. Buri kimwe kigaragaza uko cyabaruwe.",
       finesSeeAll: "Reba amahazabu yanjye yose",
       finesCleared: "Nta hazabu itishyuwe",
 
@@ -615,10 +605,6 @@ export const account: Record<Locale, AccountCopy> = {
       returnOverdue: "Kugarura byatinze",
       dueBack: "Bigomba kugarurwa",
       issuedOn: "Byatanzwe",
-      itemColumn: "Ikintu",
-      quantityColumn: "Ingano",
-      unitValueColumn: "Igiciro cy'igice",
-      valueColumn: "Agaciro",
       againstLoan: "Ku nguzanyo {reference}",
       termsPurchase: "Byaguzwe",
       termsLoanOut: "Byatijwe",
@@ -626,15 +612,9 @@ export const account: Record<Locale, AccountCopy> = {
       termsFreeIssue: "Byatanzwe ku buntu",
 
       transactionsTitle: "Ibikorwa byose kuri konti yawe",
-      transactionsHint:
-        "Buri kubitsa, kubikuza, ibijyanye n'inguzanyo, inyungu n'amafaranga ya serivisi, uhereye ku biheruka.",
       transactionsEmpty: "Nta kintu kiratangira kugenda kuri konti yawe.",
       showingRecent: "Hagaragara {shown} biheruka kuri {total}",
       viewFullStatement: "Reba icyemezo cyuzuye",
-      dateColumn: "Itariki",
-      referenceColumn: "Nimero",
-      detailColumn: "Ibisobanuro",
-      amountColumn: "Amafaranga",
       balanceColumn: "Asigaye",
     },
     qr: {
