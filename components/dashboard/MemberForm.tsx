@@ -9,6 +9,7 @@ import { Input, NativeSelect, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { RwandaLocationFields } from "@/components/ui/rwanda-location-fields";
+import { PhotoField } from "@/components/ui/photo-field";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill } from "@/lib/i18n/fill";
 import { formatMoney } from "@/lib/money";
@@ -73,9 +74,11 @@ export interface MemberFormValues {
   successorName: string;
   successorPhone: string;
   successorRelation: string;
+  successorNationalId: string;
   sharesSubscribed: string;
-  /// "YES", "NO", or "" for never asked — both of these.
+  /// "YES", "NO", or "" for never asked — all three of these.
   hasCompany: string;
+  hasProfessionalCertificate: string;
   acceptsInterns: string;
   internCapacity: string;
 }
@@ -85,7 +88,10 @@ interface CreatedMember {
   memberNumber: string;
   paymentReference: string;
   temporaryPassword: string;
-  message: string;
+  /// Carried over from the submitted form rather than the response: the
+  /// confirmation names the member, and the sentence around that name has to
+  /// be written in the administrator's language, not the API's.
+  name: string;
 }
 
 export function MemberForm({
@@ -136,6 +142,11 @@ export function MemberForm({
       "",
     district: canonicalDistrict(member?.district) ?? "",
   }));
+  // The photographs are the one part of this form React has to hold: they are
+  // cropped in the browser into a `data:` URL, which no file input can carry
+  // back out. Both start empty even when editing — see the hint on the field.
+  const [photo, setPhoto] = useState("");
+  const [successorPhoto, setSuccessorPhoto] = useState("");
   const [hasCompany, setHasCompany] = useState(member?.hasCompany ?? "");
   const [acceptsInterns, setAcceptsInterns] = useState(member?.acceptsInterns ?? "");
 
@@ -149,6 +160,11 @@ export function MemberForm({
     const payload = Object.fromEntries(
       [...form.entries()].map(([key, value]) => [key, String(value)])
     );
+
+    // A blank photograph field means "leave the one on file alone", which the
+    // schema reads from the empty string.
+    payload.photo = photo;
+    payload.successorPhoto = successorPhoto;
 
     try {
       const response = await fetch(
@@ -178,7 +194,10 @@ export function MemberForm({
         return;
       }
 
-      setCreated(body);
+      setCreated({
+        ...body,
+        name: `${payload.firstName ?? ""} ${payload.lastName ?? ""}`.trim(),
+      });
       // So the register and the sidebar counts reflect the new member.
       router.refresh();
     } catch {
@@ -192,7 +211,10 @@ export function MemberForm({
     return (
       <div className="space-y-5">
         <Alert variant="success" title={copy.enrolledTitle}>
-          {created.message}
+          {fill(copy.enrolledBody, {
+            name: created.name,
+            number: created.memberNumber,
+          })}
         </Alert>
 
         <div className="rounded-2xl border border-border bg-surface p-5 shadow-card">
@@ -345,6 +367,15 @@ export function MemberForm({
               </NativeSelect>
             )}
           </Field>
+
+          <PhotoField
+            id="photo"
+            label={app.photo}
+            hint={member ? copy.photoKeepsExisting : app.photoHintAdmin}
+            error={errors.photo}
+            value={photo}
+            onChange={setPhoto}
+          />
         </div>
       </Section>
 
@@ -457,6 +488,31 @@ export function MemberForm({
           >
             {(props) => <Input name="successorRelation" defaultValue={member?.successorRelation ?? ""} placeholder={d.forms.placeholder.relation} {...props} />}
           </Field>
+
+          <Field
+            id="successorNationalId"
+            label={app.successorNationalId}
+            error={errors.successorNationalId}
+          >
+            {(props) => (
+              <Input
+                name="successorNationalId"
+                defaultValue={member?.successorNationalId ?? ""}
+                inputMode="numeric"
+                placeholder={d.forms.placeholder.nationalId}
+                {...props}
+              />
+            )}
+          </Field>
+
+          <PhotoField
+            id="successorPhoto"
+            label={app.successorPhoto}
+            hint={member ? copy.photoKeepsExisting : app.successorPhotoHint}
+            error={errors.successorPhoto}
+            value={successorPhoto}
+            onChange={setSuccessorPhoto}
+          />
         </div>
       </Section>
 
@@ -495,6 +551,24 @@ export function MemberForm({
                   // clearing the answer keeps a stale "yes" from coming back.
                   if (e.target.value !== "YES") setAcceptsInterns("");
                 }}
+                {...props}
+              >
+                <option value="">{d.common.notRecorded}</option>
+                <option value="YES">{d.common.yes}</option>
+                <option value="NO">{d.common.no}</option>
+              </NativeSelect>
+            )}
+          </Field>
+
+          <Field
+            id="hasProfessionalCertificate"
+            label={app.certificate}
+            error={errors.hasProfessionalCertificate}
+          >
+            {(props) => (
+              <NativeSelect
+                name="hasProfessionalCertificate"
+                defaultValue={member?.hasProfessionalCertificate ?? ""}
                 {...props}
               >
                 <option value="">{d.common.notRecorded}</option>

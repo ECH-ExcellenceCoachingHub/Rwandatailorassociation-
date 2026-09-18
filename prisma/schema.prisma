@@ -465,7 +465,7 @@ model Association {
   platformFeeCharges    PlatformFeeCharge[]
   interestDistributions InterestDistribution[]
 
-  bkTransactions BkTransaction[]
+  bkTransactions  BkTransaction[]
   bkPaymentClaims BkPaymentClaim[]
 
   /// The store of fabric, machines and tools the association buys in bulk and
@@ -568,9 +568,9 @@ model User {
   recordedRepayments  InstitutionalLoanRepayment[] @relation("BorrowingRepaymentRecordedBy")
   recordedInvestments AssociationInvestment[]      @relation("InvestmentRecordedBy")
 
-  createdWarehouseItems     WarehouseItem[]          @relation("WarehouseItemCreatedBy")
-  recordedStockMovements    WarehouseStockMovement[] @relation("WarehouseMovementRecordedBy")
-  warehouseIssuancesMade    WarehouseIssuance[]      @relation("WarehouseIssuedBy")
+  createdWarehouseItems        WarehouseItem[]              @relation("WarehouseItemCreatedBy")
+  recordedStockMovements       WarehouseStockMovement[]     @relation("WarehouseMovementRecordedBy")
+  warehouseIssuancesMade       WarehouseIssuance[]          @relation("WarehouseIssuedBy")
   warehouseCreditsOpened       WarehouseCredit[]            @relation("WarehouseCreditOpenedBy")
   warehouseCreditPaymentsTaken WarehouseCreditPayment[]     @relation("WarehouseCreditPaymentRecordedBy")
   warehouseInstalmentsWaived   WarehouseCreditInstallment[] @relation("WarehouseInstallmentWaivedBy")
@@ -585,10 +585,10 @@ model User {
   chargedPlatformFees PlatformFeeCharge[]       @relation("PlatformFeeChargedBy")
 
   // BK transaction matching
-  matchedBkTransactions BkTransaction[]        @relation("BkTransactionMatchedBy")
-  bkReconciliations   BkTransactionReconciliation[] @relation("BkReconciliationPerformedBy")
-  bkSyncLogs           BkSyncLog[]            @relation("BkSyncTriggeredBy")
-  bkPaymentClaims      BkPaymentClaim[]       @relation("BkClaimCreatedBy")
+  matchedBkTransactions BkTransaction[]               @relation("BkTransactionMatchedBy")
+  bkReconciliations     BkTransactionReconciliation[] @relation("BkReconciliationPerformedBy")
+  bkSyncLogs            BkSyncLog[]                   @relation("BkSyncTriggeredBy")
+  bkPaymentClaims       BkPaymentClaim[]              @relation("BkClaimCreatedBy")
 
   @@unique([email])
   @@unique([phone])
@@ -832,9 +832,14 @@ model Member {
   /// collecting goods from the warehouse, and the other errands that would
   /// otherwise need the member in person. Not the same as next of kin, who is
   /// who to call.
-  successorName     String?
-  successorPhone    String?
-  successorRelation String?
+  successorName       String?
+  successorPhone      String?
+  successorRelation   String?
+  /// The successor's national ID. Asked for because the successor turns up at
+  /// the warehouse counter in the member's place, and a name and a photograph
+  /// are what the counter checks — the number is what settles an argument
+  /// about which of two people with the same name is standing there.
+  successorNationalId String?
 
   /// Imigabane: how many shares the member holds, 1–30 on the public form.
   /// Each share saves the rulebook's daily amount (1,000 RWF by default), so
@@ -846,6 +851,13 @@ model Member {
   /// Whether the member has a company. The interns questions below are only
   /// asked of those who do. Null means never asked.
   hasCompany Boolean?
+
+  /// Icyemezo cy'umwuga — whether the member holds a trade certificate. Asked
+  /// of every applicant, because it decides who the association can put
+  /// forward for work that requires one. Null means never asked, which is
+  /// every member enrolled before the question existed, and stays
+  /// distinguishable from an answered no.
+  hasProfessionalCertificate Boolean?
 
   /// Whether the member will take on interns (abimenyereza umwuga). Null means
   /// never asked — every member enrolled before the question existed, and
@@ -874,12 +886,14 @@ model Member {
   notes            MemberNote[]
   guarantorFor     Guarantor[]
 
+  successorPhoto MemberSuccessorPhoto?
+
   contributionFines     ContributionFine[]
   contributionStanding  MemberContributionStanding?
   platformFeeCharges    PlatformFeeCharge[]
   interestDistributions InterestDistribution[]
 
-  bkTransactions BkTransaction[]
+  bkTransactions  BkTransaction[]
   bkPaymentClaims BkPaymentClaim[]
 
   /// Everything this member has taken out of the warehouse, what they are
@@ -895,6 +909,37 @@ model Member {
   @@index([bankAccountNumber])
   @@index([nationalId])
   @@map("members")
+}
+
+/// The successor's photograph.
+///
+/// A TABLE OF ITS OWN for the same reason UserAvatar is one: these bytes are
+/// the largest thing the record owns, and a `findMany` over members that
+/// forgot to `select` would otherwise drag every successor's face across the
+/// wire to render a list of names.
+///
+/// Stored in Postgres rather than on disk because the app runs on Render,
+/// whose filesystem does not survive a deploy, and no object store is
+/// configured. A photograph resized to 512px is a few tens of kilobytes.
+///
+/// The member's own photograph is not here — it is UserAvatar, because it is
+/// the same photograph that prints on their membership card, and two tables
+/// holding one face would drift.
+model MemberSuccessorPhoto {
+  memberId String @id
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  data      Bytes
+  mimeType  String
+  /// Bytes, kept alongside so a size check never has to load the image.
+  sizeBytes Int
+  width     Int
+  height    Int
+
+  uploadedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("member_successor_photos")
 }
 
 /// Free-text admin annotations on a member file. Append-only by convention.
@@ -1031,11 +1076,11 @@ model SavingsTransaction {
   /// this fee the platform's, or the association's?" of the ledger row itself.
   /// Without them the association's income reports would count the platform's
   /// service fee as association income.
-  platformFeeCharge    PlatformFeeCharge?
-  contributionFine     ContributionFine?
-  interestDistribution InterestDistribution?
+  platformFeeCharge      PlatformFeeCharge?
+  contributionFine       ContributionFine?
+  interestDistribution   InterestDistribution?
   /// Set when this debit paid for goods taken out of the warehouse.
-  warehouseIssuance    WarehouseIssuance?
+  warehouseIssuance      WarehouseIssuance?
   /// Set when this debit paid an instalment on goods bought on credit.
   warehouseCreditPayment WarehouseCreditPayment?
 
@@ -2369,11 +2414,11 @@ enum PlatformFeeStatus {
 /// THE PLATFORM'S SERVICE FEE — MONEY THAT IS NOT THE ASSOCIATION'S.
 ///
 /// The daily contribution is 1,000 of savings plus 50 of service fee per share.
-   /// Those 50 belong to whoever operates this platform; the association merely
-   /// collects them. Recording the fee in its own table, rather than as one more credit in
-   /// the association's income, is what stops a committee distributing money it
-   /// never owned — and what lets the admin screens show the two apart, which is
-   /// the first thing a member will ask to see.
+/// Those 50 belong to whoever operates this platform; the association merely
+/// collects them. Recording the fee in its own table, rather than as one more credit in
+/// the association's income, is what stops a committee distributing money it
+/// never owned — and what lets the admin screens show the two apart, which is
+/// the first thing a member will ask to see.
 ///
 /// `coveredThroughDay` is the member's cumulative contribution-day count that
 /// this charge takes the fee up to. Unique per member, so the charging job is
@@ -2500,41 +2545,41 @@ enum BkMatchStrategy {
 /// separately from Jenga payments because they come through a different
 /// channel and carry different identifying information.
 model BkTransaction {
-  id  String @id @default(cuid())
+  id            String       @id @default(cuid())
   /// Nullable: a transaction not yet associated with an association.
   associationId String?
   association   Association? @relation(fields: [associationId], references: [id], onDelete: Restrict)
 
   /// Primary duplicate guard: the BK extras.id field
-  bkTransactionId String  @unique(map: "bk_transactions_bk_transaction_id_key")
+  bkTransactionId         String  @unique(map: "bk_transactions_bk_transaction_id_key")
   /// BK clientReference, if present
-  bkClientReference String?
+  bkClientReference       String?
   /// BK transactionReference
-  bkTransactionReference String?
+  bkTransactionReference  String?
   /// BK extras.paymentCode
-  bkPaymentCode String?
+  bkPaymentCode           String?
   /// BK extras.clientReference
   bkExtrasClientReference String?
 
   /// Amount received
-  amount Decimal @db.Decimal(18, 2)
+  amount   Decimal @db.Decimal(18, 2)
   currency String  @default("RWF")
 
   /// BK transaction status (e.g., PENDING, SUCCESS)
-  bkStatus String?
+  bkStatus       String?
   /// BK extras.status
   bkExtrasStatus String?
 
   /// Payer information from BK extras
-  payerNames  String?
+  payerNames   String?
   payerAccount String?
   payerContact String?
 
   /// Payee information
-  payeeNames  String?
-  payeeAccount String?
-  beneficiaryNames  String?
-  beneficiaryBank  String?
+  payeeNames          String?
+  payeeAccount        String?
+  beneficiaryNames    String?
+  beneficiaryBank     String?
   beneficiaryBankCode String?
 
   /// Transaction details
@@ -2544,20 +2589,20 @@ model BkTransaction {
   sourceChannel String?
 
   /// BK transaction stage and status comment
-  transactionStage       String?
-  transactionStatus      String?
+  transactionStage         String?
+  transactionStatus        String?
   transactionStatusComment String?
 
   /// Digital profile ID
   digitalProfileId String?
 
   /// Debited/credited accounts (masked in BK response)
-  debitedAccount         String?
-  debitedAccountOwnerNames String?
-  creditedAccount         String?
+  debitedAccount            String?
+  debitedAccountOwnerNames  String?
+  creditedAccount           String?
   creditedAccountOwnerNames String?
-  debitCurrency String?
-  creditCurrency String?
+  debitCurrency             String?
+  creditCurrency            String?
 
   /// Debit account from BK
   debitAccount  String?
@@ -2565,8 +2610,8 @@ model BkTransaction {
 
   /// Timestamps from BK
   transactionDate DateTime?
-  createdDate    DateTime?
-  updatedDate    DateTime?
+  createdDate     DateTime?
+  updatedDate     DateTime?
 
   /// Raw BK response stored for audit/debugging
   rawPayload Json?
@@ -2579,19 +2624,19 @@ model BkTransaction {
   matchedMember   Member? @relation(fields: [matchedMemberId], references: [id], onDelete: SetNull)
 
   /// How the transaction was matched
-  matchStrategy BkMatchStrategy @default(NONE)
+  matchStrategy   BkMatchStrategy @default(NONE)
   /// 0-100 confidence score
-  matchConfidence Int @default(0)
+  matchConfidence Int             @default(0)
 
   /// Manual match details
   matchedById String?
-  matchedBy   User?  @relation("BkTransactionMatchedBy", fields: [matchedById], references: [id], onDelete: SetNull)
+  matchedBy   User?     @relation("BkTransactionMatchedBy", fields: [matchedById], references: [id], onDelete: SetNull)
   matchedAt   DateTime?
   matchReason String?
 
   /// RTA Payment link (when reconciled to the ledger)
-  paymentId         String? @unique
-  payment           Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  paymentId String?  @unique
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
 
   /// Import tracking
   importedAt   DateTime @default(now())
@@ -2602,7 +2647,7 @@ model BkTransaction {
   syncErrorCode String?
 
   /// Reversal tracking
-  isReversal Boolean @default(false)
+  isReversal   Boolean @default(false)
   reversedById String?
 
   createdAt DateTime @default(now())
@@ -2623,14 +2668,14 @@ model BkTransaction {
 
 /// Reconciliation audit trail for BK transactions.
 model BkTransactionReconciliation {
-  id            String  @id @default(cuid())
+  id              String        @id @default(cuid())
   bkTransactionId String
-  bkTransaction BkTransaction @relation(fields: [bkTransactionId], references: [id], onDelete: Cascade)
+  bkTransaction   BkTransaction @relation(fields: [bkTransactionId], references: [id], onDelete: Cascade)
 
-  attempt    Int   @default(1)
+  attempt    Int                    @default(1)
   outcome    BkReconciliationStatus
-  strategy   BkMatchStrategy @default(NONE)
-  confidence Int   @default(0)
+  strategy   BkMatchStrategy        @default(NONE)
+  confidence Int                    @default(0)
 
   /// Candidate members considered for matching
   candidateIds     String[]
@@ -2661,27 +2706,27 @@ model BkPaymentClaim {
   association   Association @relation(fields: [associationId], references: [id], onDelete: Cascade)
 
   /// Our own reference, sent to BK and echoed back on the transaction.
-  clientReference String @unique
+  clientReference String  @unique
   /// The payer's six-digit code from Internet Banking or the BK app.
-  payerCode String
-  narration String
-  amount    Decimal @db.Decimal(18, 2)
-  currency  String  @default("RWF")
+  payerCode       String
+  narration       String
+  amount          Decimal @db.Decimal(18, 2)
+  currency        String  @default("RWF")
 
   /// Which member this claim was raised for, when known.
   memberId String?
   member   Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
 
   /// BK's answer: CLAIMED, or an error we recorded instead.
-  status      String
-  expiryTime  DateTime?
-  failed      Boolean   @default(false)
+  status       String
+  expiryTime   DateTime?
+  failed       Boolean   @default(false)
   errorMessage String?
-  rawResponse Json?
+  rawResponse  Json?
 
   /// Set when the transaction sync first returns a transaction carrying this
   /// clientReference. Null means BK has not surfaced it yet.
-  observedAt         DateTime?
+  observedAt            DateTime?
   observedTransactionId String?
 
   createdById String?
@@ -2706,28 +2751,28 @@ model BkSyncLog {
 
   /// Sync configuration
   lookbackHours Int?
-  pageSize     Int?
-  startPage    Int?
-  endPage     Int?
+  pageSize      Int?
+  startPage     Int?
+  endPage       Int?
 
   /// Results
   transactionsFetched Int @default(0)
   transactionsCreated Int @default(0)
   transactionsUpdated Int @default(0)
-  duplicatesSkipped  Int @default(0)
-  matchedCount       Int @default(0)
-  unmatchedCount     Int @default(0)
-  errorsCount        Int @default(0)
+  duplicatesSkipped   Int @default(0)
+  matchedCount        Int @default(0)
+  unmatchedCount      Int @default(0)
+  errorsCount         Int @default(0)
 
   /// Pagination cursor
-  nextPage   Int?
-  hasMore    Boolean @default(false)
+  nextPage Int?
+  hasMore  Boolean @default(false)
 
   errorMessage String?
   errorDetails Json?
 
   triggeredById String?
-  triggeredBy  User?  @relation("BkSyncTriggeredBy", fields: [triggeredById], references: [id], onDelete: SetNull)
+  triggeredBy   User?   @relation("BkSyncTriggeredBy", fields: [triggeredById], references: [id], onDelete: SetNull)
 
   @@index([status, startedAt])
   @@index([startedAt])
@@ -2980,7 +3025,7 @@ model WarehouseIssuance {
   amountReturned Decimal @default(0) @db.Decimal(18, 2)
   currency       String  @default("RWF")
 
-  issuedAt DateTime @default(now())
+  issuedAt     DateTime  @default(now())
   /// When a LOAN_OUT is expected back. Null on terms that expect no return.
   dueBackAt    DateTime?
   returnedAt   DateTime?
@@ -3138,17 +3183,17 @@ model WarehouseCredit {
   // --- Terms, frozen at the moment the credit was opened -------------------
 
   /// What the goods were worth. The principal.
-  goodsValue Decimal @db.Decimal(18, 2)
+  goodsValue            Decimal @db.Decimal(18, 2)
   /// Interest for the WHOLE term, not per month — the association's rule is a
   /// flat 2% on the value of the goods, however early it is paid off.
-  interestRate   Decimal @db.Decimal(9, 4)
-  interestAmount Decimal @db.Decimal(18, 2)
+  interestRate          Decimal @db.Decimal(9, 4)
+  interestAmount        Decimal @db.Decimal(18, 2)
   /// Charged on the unpaid part of an instalment that passed its due date.
-  fineRate       Decimal @db.Decimal(9, 4)
+  fineRate              Decimal @db.Decimal(9, 4)
   /// Days after a due date before the fine is assessed. Zero means the fine
   /// falls the day after.
-  fineGraceDays  Int     @default(0)
-  termMonths     Int
+  fineGraceDays         Int     @default(0)
+  termMonths            Int
   /// False only if an association ever resolves to share this interest with
   /// the borrower the way cash-loan interest is shared. Stored per row so an
   /// old credit stays explainable under the rule that produced it.
@@ -3266,7 +3311,7 @@ model WarehouseCreditPayment {
 
   /// Position in this credit's ledger. Unique per credit — the database itself
   /// rejects two concurrent writers claiming the same slot.
-  sequence Int
+  sequence  Int
   /// Member-facing payment id, e.g. "WCP-2609-0001234".
   reference String @unique
 
@@ -3375,10 +3420,10 @@ model WarehouseCreditFine {
 
   status WarehouseCreditFineStatus @default(OUTSTANDING)
 
-  assessedAt DateTime @default(now())
+  assessedAt   DateTime @default(now())
   /// Null when the scheduled job assessed it, set when an officer did.
   assessedById String?
-  assessedBy   User?   @relation("WarehouseFineAssessedBy", fields: [assessedById], references: [id], onDelete: SetNull)
+  assessedBy   User?    @relation("WarehouseFineAssessedBy", fields: [assessedById], references: [id], onDelete: SetNull)
 
   settledAt DateTime?
 

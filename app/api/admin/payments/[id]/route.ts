@@ -80,6 +80,8 @@ export const DELETE = withErrorHandling(
 
     if (!result.ok) return apiBadRequest(result.message);
 
-    return apiSuccess({ message: result.message });
+    // The confirmation the administrator reads is written in the browser, in
+    // their own language; the service's English sentence stays on the server.
+    return apiSuccess({ deleted: true });
   }
 );

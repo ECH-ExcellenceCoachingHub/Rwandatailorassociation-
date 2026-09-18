@@ -10,6 +10,7 @@ import {
 import { generateToken, sha256 } from "@/lib/auth/jwt";
 import { createSession, revokeAllUserSessions } from "@/lib/auth/session";
 import { recordAudit, AUDIT_ACTIONS } from "@/lib/audit";
+import { acceptPhotoDataUrl } from "@/lib/images/photo";
 import type { RegisterInput } from "@/lib/validation/auth";
 import type { TokenPurpose } from "@/lib/generated/prisma/enums";
 
@@ -259,7 +260,11 @@ async function recordLoginAttempt(
 
 export type RegistrationResult =
   | { ok: true; userId: string; memberNumber: string; paymentReference: string }
-  | { ok: false; field: "email" | "phone" | "nationalId" | "_"; message: string };
+  | {
+      ok: false;
+      field: "email" | "phone" | "nationalId" | "photo" | "successorPhoto" | "_";
+      message: string;
+    };
 
 /**
  * Registers a new member against an association.
@@ -278,7 +283,12 @@ export async function registerMember(
   context: { ipAddress?: string | null; userAgent?: string | null } = {}
 ): Promise<RegistrationResult> {
   const [existingEmail, existingPhone] = await Promise.all([
-    prisma.user.findUnique({ where: { email: input.email }, select: { id: true } }),
+    // Only worth asking when one was given. `where: { email: undefined }` is
+    // not "no email" to Prisma — it is an absent filter, which would match the
+    // first user in the table and refuse every applicant who left it blank.
+    input.email
+      ? prisma.user.findUnique({ where: { email: input.email }, select: { id: true } })
+      : Promise.resolve(null),
     prisma.user.findUnique({ where: { phone: input.phone }, select: { id: true } }),
   ]);
 
@@ -311,6 +321,24 @@ export async function registerMember(
     }
   }
 
+  // The bytes are vetted before the transaction opens. A photograph that turns
+  // out not to be one is the applicant's mistake to correct, and finding that
+  // out halfway through creating a user, a member, a number and an account
+  // would mean rolling all of it back to say so.
+  const photo = acceptPhotoDataUrl(input.photo);
+  if (!photo.ok) {
+    return { ok: false, field: "photo", message: photo.message };
+  }
+
+  let successorPhoto: typeof photo.photo | null = null;
+  if (input.successorPhoto) {
+    const vetted = acceptPhotoDataUrl(input.successorPhoto);
+    if (!vetted.ok) {
+      return { ok: false, field: "successorPhoto", message: vetted.message };
+    }
+    successorPhoto = vetted.photo;
+  }
+
   const passwordHash = await hashPassword(input.password);
 
   const result = await prisma.$transaction(async (tx) => {
@@ -336,7 +364,7 @@ export async function registerMember(
     const user = await tx.user.create({
       data: {
         associationId,
-        email: input.email,
+        email: input.email ?? null,
         phone: input.phone,
         firstName: input.firstName,
         lastName: input.lastName,
@@ -344,6 +372,10 @@ export async function registerMember(
         role: "MEMBER",
         // Not ACTIVE. An admin approves membership before the account works.
         status: "PENDING_VERIFICATION",
+        // The applicant's own photograph is their card photograph — one face,
+        // one row, rather than a copy here that drifts from the one the card
+        // prints.
+        avatar: { create: photo.photo },
         member: {
           create: {
             associationId,
@@ -358,10 +390,13 @@ export async function registerMember(
             successorName: input.successorName ?? null,
             successorPhone: input.successorPhone ?? null,
             successorRelation: input.successorRelation ?? null,
+            successorNationalId: input.successorNationalId ?? null,
             sharesSubscribed: input.sharesSubscribed,
             hasCompany: input.hasCompany ?? null,
+            hasProfessionalCertificate: input.hasProfessionalCertificate,
             acceptsInterns: input.acceptsInterns ?? null,
             internCapacity: input.internCapacity ?? null,
+            ...(successorPhoto ? { successorPhoto: { create: successorPhoto } } : {}),
             savingsAccounts: {
               create: {
                 associationId,
@@ -387,7 +422,7 @@ export async function registerMember(
       entityId: result.userId,
       associationId,
       newValue: {
-        email: input.email,
+        email: input.email ?? null,
         phone: input.phone,
         memberNumber: result.memberNumber,
       },

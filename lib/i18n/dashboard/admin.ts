@@ -202,7 +202,11 @@ export interface AdminCopy {
     nonePicked: string;
     bulkDeleteFailed: string;
     paymentDeleted: string;
-    paymentsDeleted: string;
+    /// Deleting in bulk reports its own count, and separately how many the
+    /// ledger refused to give up. Both sentences are composed here rather than
+    /// by the API, which answers in English only.
+    paymentsDeletedCount: string;
+    paymentsRefused: string;
 
     matchTitle: string;
     matchBody: string;
@@ -289,6 +293,12 @@ export interface AdminCopy {
     uploadFailed: string;
     importFailed: string;
     completeTitle: string;
+    /// The three outcomes of an import, counted. The route returns the figures;
+    /// the sentences are written here so they reach the administrator in their
+    /// own language.
+    importedCredited: string;
+    importedUnmatched: string;
+    importedSkipped: string;
     importAnother: string;
     reading: string;
     dropPrompt: string;
@@ -1094,8 +1104,11 @@ export const admin: Record<Locale, AdminCopy> = {
       deleteFailed: "Could not delete this payment",
       nonePicked: "Nothing selected",
       bulkDeleteFailed: "Could not delete these payments",
-      paymentDeleted: "Payment deleted.",
-      paymentsDeleted: "Payments deleted.",
+      paymentDeleted:
+        "Payment deleted. If it arrives again from the provider or in another statement upload, it will reappear in this queue.",
+      paymentsDeletedCount: "{count} payment deleted.|{count} payments deleted.",
+      paymentsRefused:
+        "{count} could not be deleted because it is already posted to the ledger — reverse it instead.|{count} could not be deleted because they are already posted to the ledger — reverse those instead.",
 
       matchTitle: "Credit this payment to a member",
       matchBody:
@@ -1209,6 +1222,12 @@ export const admin: Record<Locale, AdminCopy> = {
       uploadFailed: "Could not upload the file. Check your connection and try again.",
       importFailed: "The import failed",
       completeTitle: "Import complete",
+      importedCredited:
+        "{count} payment credited, and the member notified by SMS.|{count} payments credited, and the members notified by SMS.",
+      importedUnmatched:
+        "{count} could not be matched and is waiting in the unmatched queue.|{count} could not be matched and are waiting in the unmatched queue.",
+      importedSkipped:
+        "{count} was already imported.|{count} were already imported.",
       importAnother: "Import another statement",
       reading: "Reading the statement…",
       dropPrompt: "Upload a bank statement PDF",
@@ -2086,8 +2105,11 @@ export const admin: Record<Locale, AdminCopy> = {
       deleteFailed: "Ntibyashobotse gusiba ubu bwishyu",
       nonePicked: "Nta kintu cyatoranyijwe",
       bulkDeleteFailed: "Ntibyashobotse gusiba ubu bwishyu",
-      paymentDeleted: "Ubwishyu bwasibwe.",
-      paymentsDeleted: "Ubwishyu bwasibwe.",
+      paymentDeleted:
+        "Ubwishyu bwasibwe. Nibwongera kugaruka buvuye kuri banki cyangwa mu yindi nyandiko yinjijwe, buzongera kugaragara kuri uru rutonde.",
+      paymentsDeletedCount: "Ubwishyu {count} bwasibwe.|Ubwishyu {count} bwasibwe.",
+      paymentsRefused:
+        "Ubwishyu {count} ntibwashoboye gusibwa kuko bwamaze kwandikwa mu gitabo — ahubwo bugomba gusubizwa inyuma.|Ubwishyu {count} ntibwashoboye gusibwa kuko bwamaze kwandikwa mu gitabo — ahubwo bugomba gusubizwa inyuma.",
 
       matchTitle: "Andika ubu bwishyu ku munyamuryango",
       matchBody:
@@ -2207,6 +2229,12 @@ export const admin: Record<Locale, AdminCopy> = {
         "Ntibyashobotse kohereza dosiye. Reba umurongo wa interineti hanyuma wongere ugerageze.",
       importFailed: "Kwinjiza ntibyashobotse",
       completeTitle: "Kwinjiza byarangiye",
+      importedCredited:
+        "Ubwishyu {count} bwanditswe, kandi umunyamuryango yoherejwe ubutumwa.|Ubwishyu {count} bwanditswe, kandi abanyamuryango boherejwe ubutumwa.",
+      importedUnmatched:
+        "Ubwishyu {count} ntibwashoboye guhuzwa, buracyategereje ku rutonde rw'ubutarahuzwa.|Ubwishyu {count} ntibwashoboye guhuzwa, buracyategereje ku rutonde rw'ubutarahuzwa.",
+      importedSkipped:
+        "Ubwishyu {count} bwari bwaramaze kwinjizwa.|Ubwishyu {count} bwari bwaramaze kwinjizwa.",
       importAnother: "Injiza indi nyandiko ya banki",
       reading: "Turasoma inyandiko…",
       dropPrompt: "Ohereza inyandiko ya banki muri PDF",

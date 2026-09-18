@@ -89,7 +89,5 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   return apiCreated({
     memberNumber: result.memberNumber,
     paymentReference: result.paymentReference,
-    message:
-      "Your application has been received. You will be notified once an administrator approves your membership.",
   });
 });

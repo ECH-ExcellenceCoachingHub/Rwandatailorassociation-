@@ -180,6 +180,30 @@ export default async function AdminMemberDetailPage({
         />
       </StatGrid>
 
+      {(member.user.avatar || member.successorPhoto) && (
+        <div className="flex flex-wrap gap-8 rounded-2xl border border-border bg-surface p-5 shadow-card">
+          {/*
+            The faces on the file. The successor's is here because the
+            warehouse counter has to recognise whoever turns up to collect in
+            the member's place, and a name alone does not let them.
+          */}
+          {member.user.avatar && (
+            <FaceOnFile
+              label={app.photo}
+              src={`/api/admin/members/${member.id}/photo`}
+              caption={`${member.user.firstName} ${member.user.lastName}`.trim()}
+            />
+          )}
+          {member.successorPhoto && (
+            <FaceOnFile
+              label={app.successorPhoto}
+              src={`/api/admin/members/${member.id}/photo?of=successor`}
+              caption={member.successorName ?? undefined}
+            />
+          )}
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Panel icon={UserRound} title={copy.memberFile}>
           <Row label={copy.memberNumber} value={member.memberNumber} mono />
@@ -200,6 +224,16 @@ export default async function AdminMemberDetailPage({
             }
           />
           <Row label={app.acceptsInterns} value={interns} />
+          <Row
+            label={app.certificate}
+            value={
+              member.hasProfessionalCertificate === null
+                ? "—"
+                : member.hasProfessionalCertificate
+                  ? d.common.yes
+                  : d.common.no
+            }
+          />
           <Row label={field.district} value={member.district ?? "—"} />
           <Row label={field.province} value={member.province ?? "—"} />
           <Row
@@ -240,6 +274,11 @@ export default async function AdminMemberDetailPage({
             }
           />
           <Row label={copy.theirPhone} value={member.successorPhone ?? "—"} />
+          <Row
+            label={app.successorNationalId}
+            value={member.successorNationalId ?? "—"}
+            mono
+          />
         </Panel>
       </div>
 
@@ -419,6 +458,42 @@ function Panel({
       </h2>
       <dl className="divide-y divide-border">{children}</dl>
     </section>
+  );
+}
+
+/**
+ * One face on the file.
+ *
+ * A plain <img>, not next/image: the bytes come from a permission-checked
+ * route that the image optimiser cannot fetch on a member of staff's behalf,
+ * and the photograph is already 512px.
+ */
+function FaceOnFile({
+  label,
+  src,
+  caption,
+}: {
+  label: string;
+  src: string;
+  caption?: string;
+}) {
+  return (
+    <figure className="flex items-center gap-4">
+      <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-primary/30 bg-ink/[0.04]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={label} className="size-full object-cover" />
+      </span>
+      <figcaption>
+        <span className="block text-xs font-semibold uppercase tracking-wider text-ink-muted">
+          {label}
+        </span>
+        {caption && (
+          <span className="mt-0.5 block font-heading text-sm font-semibold text-ink">
+            {caption}
+          </span>
+        )}
+      </figcaption>
+    </figure>
   );
 }
 

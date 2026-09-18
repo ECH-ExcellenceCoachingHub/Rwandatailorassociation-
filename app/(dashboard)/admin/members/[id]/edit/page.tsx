@@ -101,8 +101,10 @@ export default async function EditMemberPage({
           successorName: member.successorName ?? "",
           successorPhone: member.successorPhone ?? "",
           successorRelation: member.successorRelation ?? "",
+          successorNationalId: member.successorNationalId ?? "",
           sharesSubscribed: member.sharesSubscribed?.toString() ?? "",
           hasCompany: yesNo(member.hasCompany),
+          hasProfessionalCertificate: yesNo(member.hasProfessionalCertificate),
           acceptsInterns: yesNo(member.acceptsInterns),
           internCapacity: member.internCapacity?.toString() ?? "",
         }}

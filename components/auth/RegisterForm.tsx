@@ -15,10 +15,11 @@ import { Input, NativeSelect } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { Alert } from "@/components/ui/alert";
 import { PasswordStrength } from "@/components/ui/password-strength";
+import { PhotoField } from "@/components/ui/photo-field";
 import { RwandaLocationFields } from "@/components/ui/rwanda-location-fields";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill, split } from "@/lib/i18n/fill";
-import { add, formatMoney, gt, multiply } from "@/lib/money";
+import { add, formatMoney, multiply } from "@/lib/money";
 import { assessPasswordStrength } from "@/lib/auth/password.shared";
 import { isValidRwandanPhone } from "@/lib/phone";
 import {
@@ -43,7 +44,6 @@ import {
 interface SuccessState {
   memberNumber: string;
   paymentReference: string;
-  message: string;
 }
 
 const INITIAL = {
@@ -61,6 +61,13 @@ const INITIAL = {
   successorName: "",
   successorPhone: "",
   successorRelation: "",
+  successorNationalId: "",
+  hasProfessionalCertificate: "",
+  // Both photographs are held here as `data:` URLs and submitted with the
+  // rest of the form. See components/ui/photo-field.tsx for why they are not
+  // uploaded as they are chosen.
+  photo: "",
+  successorPhoto: "",
   password: "",
   confirmPassword: "",
 };
@@ -91,29 +98,19 @@ export default function RegisterForm({
   const [copied, setCopied] = useState(false);
 
   // What the chosen shares cost each day, shown beside the choice so nobody
-  // commits to a figure they first discover on their statement.
+  // commits to a figure they first discover on their statement. The saving and
+  // the service fee are quoted as one amount: an applicant is deciding what
+  // leaves their pocket daily, and how the association splits it afterwards is
+  // not a sum they should have to do here.
+  const perShareDaily = add(sharePrice, dailyFee);
   const shareCount = Number(values.sharesSubscribed) || 0;
-  const dailySavings = multiply(sharePrice, shareCount);
-  const dailyFeeTotal = multiply(dailyFee, shareCount);
   const sharesHint =
     shareCount > 0
-      ? [
-          fill(app.sharesDaily, {
-            count: shareCount,
-            price: formatMoney(sharePrice),
-            savings: formatMoney(dailySavings),
-          }),
-          gt(dailyFee, 0)
-            ? fill(app.sharesFee, {
-                fee: formatMoney(dailyFeeTotal),
-                total: formatMoney(add(dailySavings, dailyFeeTotal)),
-              })
-            : "",
-        ]
-          .join(" ")
-          .trim()
+      ? fill(app.sharesTotal, {
+          total: formatMoney(multiply(perShareDaily, shareCount)),
+        })
       : fill(app.sharesHintRegister, {
-          price: formatMoney(sharePrice),
+          price: formatMoney(perShareDaily),
           max: MAX_APPLICATION_SHARES,
         });
 
@@ -132,7 +129,12 @@ export default function RegisterForm({
 
     if (values.firstName.trim().length < 2) next.firstName = [copy.error.firstName];
     if (values.lastName.trim().length < 2) next.lastName = [copy.error.lastName];
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(values.email.trim())) {
+    // Only checked when one was given. The phone number is the identifier
+    // this form insists on; an email is a second way in for those who have one.
+    if (
+      values.email.trim() &&
+      !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(values.email.trim())
+    ) {
       next.email = [copy.error.email];
     }
     if (!isValidRwandanPhone(values.phone)) {
@@ -146,6 +148,23 @@ export default function RegisterForm({
     }
     if (!values.hasCompany) {
       next.hasCompany = [app.hasCompanyError];
+    }
+    if (!values.hasProfessionalCertificate) {
+      next.hasProfessionalCertificate = [app.certificateError];
+    }
+    if (!values.photo) {
+      next.photo = [app.photoError];
+    }
+    // A successor recorded by halves is one nobody can act on: the warehouse
+    // counter checks a face against a name and settles ties on the number.
+    // Naming one is optional; naming one and leaving the rest blank is not.
+    if (values.successorName.trim()) {
+      if (!/^\d{16}$/.test(values.successorNationalId.trim())) {
+        next.successorNationalId = [copy.error.successorNationalId];
+      }
+      if (!values.successorPhoto) {
+        next.successorPhoto = [copy.error.successorPhoto];
+      }
     }
     // The interns questions only appear beside a company, so only then can
     // they be left unanswered.
@@ -233,7 +252,7 @@ export default function RegisterForm({
             {copy.successTitle}
           </h3>
           <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
-            {success.message}
+            {copy.successBody}
           </p>
 
           <dl className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -341,7 +360,12 @@ export default function RegisterForm({
         </div>
 
         <div className="grid gap-5 sm:grid-cols-2">
-          <Field id="email" label={field.email} error={errors.email} required>
+          <Field
+            id="email"
+            label={field.email}
+            error={errors.email}
+            hint={d.forms.hint.emailOptionalRegister}
+          >
             {(props) => (
               <Input
                 {...props}
@@ -410,12 +434,25 @@ export default function RegisterForm({
           />
         </div>
 
+        <div className="grid gap-5 sm:grid-cols-2">
+          <PhotoField
+            id="photo"
+            label={app.photo}
+            hint={app.photoHintRegister}
+            error={errors.photo}
+            required
+            value={values.photo}
+            onChange={(dataUrl) => update("photo", dataUrl)}
+          />
+        </div>
+
         <hr className="border-border" />
 
         {/*
-          The association's own questions. Shares and the interns answer are
-          required, because the applicant is here to give them; the successor
-          may not be to hand, and an administrator can add them at approval.
+          The association's own questions. Shares, the certificate and the
+          interns answer are required, because the applicant is here to give
+          them; the successor may not be to hand, and an administrator can add
+          them at approval.
         */}
         <div className="grid gap-5 sm:grid-cols-2">
           <Field
@@ -437,7 +474,10 @@ export default function RegisterForm({
                 <option value="">{app.choose}</option>
                 {SHARE_OPTIONS.map((count) => (
                   <option key={count} value={count}>
-                    {count}
+                    {fill(app.sharesOption, {
+                      count,
+                      total: formatMoney(multiply(perShareDaily, count)),
+                    })}
                   </option>
                 ))}
               </NativeSelect>
@@ -465,6 +505,28 @@ export default function RegisterForm({
                     update("internCapacity", "");
                   }
                 }}
+              >
+                <option value="">{app.choose}</option>
+                <option value="YES">{d.common.yes}</option>
+                <option value="NO">{d.common.no}</option>
+              </NativeSelect>
+            )}
+          </Field>
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Field
+            id="hasProfessionalCertificate"
+            label={app.certificateQuestion}
+            hint={app.certificateHint}
+            error={errors.hasProfessionalCertificate}
+            required
+          >
+            {(props) => (
+              <NativeSelect
+                {...props}
+                value={values.hasProfessionalCertificate}
+                onChange={(e) => update("hasProfessionalCertificate", e.target.value)}
               >
                 <option value="">{app.choose}</option>
                 <option value="YES">{d.common.yes}</option>
@@ -557,6 +619,24 @@ export default function RegisterForm({
           </Field>
 
           <Field
+            id="successorNationalId"
+            label={app.successorNationalId}
+            error={errors.successorNationalId}
+            required={Boolean(values.successorName.trim())}
+          >
+            {(props) => (
+              <Input
+                {...props}
+                inputMode="numeric"
+                value={values.successorNationalId}
+                onChange={(e) => update("successorNationalId", e.target.value)}
+                autoComplete="off"
+                placeholder={d.forms.placeholder.nationalId}
+              />
+            )}
+          </Field>
+
+          <Field
             id="successorRelation"
             label={app.successorRelation}
             error={errors.successorRelation}
@@ -570,6 +650,16 @@ export default function RegisterForm({
               />
             )}
           </Field>
+
+          <PhotoField
+            id="successorPhoto"
+            label={app.successorPhoto}
+            hint={app.successorPhotoHint}
+            error={errors.successorPhoto}
+            required={Boolean(values.successorName.trim())}
+            value={values.successorPhoto}
+            onChange={(dataUrl) => update("successorPhoto", dataUrl)}
+          />
         </div>
 
         <hr className="border-border" />

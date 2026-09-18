@@ -10,9 +10,14 @@ import {
   normaliseInternAnswers,
   memberFieldsSchema,
   requireInternAnswers,
+  requireSuccessorIdentity,
   wholeNumber,
 } from "@/lib/validation/members";
 import { MAX_APPLICATION_SHARES } from "@/lib/application-limits";
+import {
+  MAX_PHOTO_DATA_URL_LENGTH,
+  PHOTO_DATA_URL_PATTERN,
+} from "@/lib/images/photo";
 
 /**
  * Auth request schemas.
@@ -63,7 +68,12 @@ export const registerSchema = z
   .object({
     firstName: z.string().trim().min(2, "Enter your first name").max(60),
     lastName: z.string().trim().min(2, "Enter your last name").max(60),
-    email: z.string().trim().toLowerCase().email("Enter a valid email address"),
+    /// The phone number is the required identifier here, not the email — the
+    /// same way round as the desk form, and for the same reason. A tailor
+    /// applying from a phone frequently has no email address, and the number
+    /// is what actually reaches them; it is a payment-matching key besides.
+    /// Either one signs them in, so an applicant who gives an email keeps both
+    /// doors open.
     phone: z
       .string()
       .trim()
@@ -104,12 +114,31 @@ export const registerSchema = z
       .enum(["YES", "NO"], { message: "Answer whether you have a company" })
       .transform((value) => value === "YES"),
     ...memberFieldsSchema.pick({
+      email: true,
       acceptsInterns: true,
       internCapacity: true,
       successorName: true,
       successorPhone: true,
       successorRelation: true,
+      successorNationalId: true,
+      successorPhoto: true,
     }).shape,
+    /// Required here, optional at the desk. The applicant is holding a phone
+    /// with a camera in it; an administrator transcribing a paper form is not
+    /// holding the applicant's face.
+    photo: z
+      .string()
+      .trim()
+      .min(1, "Add a passport photograph")
+      .max(MAX_PHOTO_DATA_URL_LENGTH, "That photograph is too large. The limit is 1MB.")
+      .regex(PHOTO_DATA_URL_PATTERN, "Choose a PNG or JPEG photograph"),
+    /// Icyemezo cy'umwuga. A yes and a no are both useful answers; a blank is
+    /// not, so the applicant has to pick one.
+    hasProfessionalCertificate: z
+      .enum(["YES", "NO"], {
+        message: "Answer whether you have a professional certificate",
+      })
+      .transform((value) => value === "YES"),
     password: passwordSchema,
     confirmPassword: z.string(),
     acceptedTerms: z
@@ -122,6 +151,7 @@ export const registerSchema = z
   })
   .superRefine(checkDistrictInProvince)
   .superRefine(requireInternAnswers)
+  .superRefine(requireSuccessorIdentity)
   .transform(normaliseInternAnswers);
 
 export const forgotPasswordSchema = z.object({

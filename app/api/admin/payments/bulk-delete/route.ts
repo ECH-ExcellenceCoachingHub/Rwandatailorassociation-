@@ -84,11 +84,5 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     reason: parsed.data.reason,
   });
 
-  const message =
-    result.refused.length === 0
-      ? `${result.deleted} payment(s) deleted.`
-      : `${result.deleted} payment(s) deleted. ${result.refused.length} could not be ` +
-        `deleted because they have already been posted to the ledger — reverse those instead.`;
-
-  return apiSuccess({ ...result, message });
+  return apiSuccess(result);
 });

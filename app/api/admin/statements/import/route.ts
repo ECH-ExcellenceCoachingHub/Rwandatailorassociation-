@@ -117,11 +117,5 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     fileHash: parsed.data.fileHash,
   });
 
-  return apiSuccess({
-    ...result,
-    message:
-      `${result.credited} payment(s) credited and members notified by SMS. ` +
-      `${result.unmatched} could not be matched and are waiting in the unmatched queue.` +
-      (result.skipped > 0 ? ` ${result.skipped} were already imported.` : ""),
-  });
+  return apiSuccess(result);
 });

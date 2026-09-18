@@ -6,6 +6,10 @@ import {
   optionalProvince,
 } from "@/lib/validation/rwanda";
 import { MAX_INTERN_CAPACITY, MAX_RECORDED_SHARES } from "@/lib/application-limits";
+import {
+  MAX_PHOTO_DATA_URL_LENGTH,
+  PHOTO_DATA_URL_PATTERN,
+} from "@/lib/images/photo";
 
 /**
  * Admin member enrolment.
@@ -111,6 +115,68 @@ function optionalYesNo() {
     .optional()
     .or(z.literal("").transform(() => undefined))
     .transform((value) => (value === undefined ? undefined : value === "YES"));
+}
+
+/**
+ * A photograph carried in the JSON body as a `data:` URL.
+ *
+ * Only the shape is checked here. Whether the bytes are really a PNG or a JPEG
+ * is decided by their own magic numbers once they are decoded, in
+ * lib/images/photo.ts — a media type written into a string by the sender is a
+ * claim, not a fact. The length cap is on the string rather than the decoded
+ * bytes so an oversized upload is refused before it is allocated.
+ */
+function optionalPhotoDataUrl() {
+  return z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal("").transform(() => undefined))
+    .transform((value) => value || undefined)
+    .refine((value) => value === undefined || value.length <= MAX_PHOTO_DATA_URL_LENGTH, {
+      message: "That photograph is too large. The limit is 1MB.",
+    })
+    .refine((value) => value === undefined || PHOTO_DATA_URL_PATTERN.test(value), {
+      message: "Choose a PNG or JPEG photograph",
+    });
+}
+
+/**
+ * A successor recorded by halves is a successor nobody can act on: the
+ * warehouse counter checks a face against a name and settles ties on the ID
+ * number, so a name with neither is a row that looks answered and answers
+ * nothing.
+ *
+ * Only the public form insists. The desk form does not — an administrator
+ * transcribing a paper application may genuinely not have been given the
+ * number, and refusing to save the rest of the file over it loses more than it
+ * protects. Editing an existing member does not insist either, or every member
+ * enrolled before the photograph was asked for would become uneditable.
+ */
+export function requireSuccessorIdentity(
+  data: {
+    successorName?: string;
+    successorNationalId?: string;
+    successorPhoto?: string;
+  },
+  ctx: z.RefinementCtx
+) {
+  if (!data.successorName) return;
+
+  if (!data.successorNationalId) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["successorNationalId"],
+      message: "Enter the successor's national ID",
+    });
+  }
+  if (!data.successorPhoto) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["successorPhoto"],
+      message: "Add a photograph of the successor",
+    });
+  }
 }
 
 /**
@@ -267,6 +333,12 @@ export const memberFieldsSchema = z.object({
   successorName: optionalText(120, "Successor name"),
   successorPhone: optionalPhone("Enter a valid phone number for the successor"),
   successorRelation: optionalText(60, "Relationship"),
+  successorNationalId: z
+    .string()
+    .trim()
+    .regex(/^\d{16}$/, "The successor's national ID must be 16 digits")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
 
   // Application: shares and interns -----------------------------------------
   /// The public form caps this at MAX_APPLICATION_SHARES; the desk may record
@@ -277,12 +349,24 @@ export const memberFieldsSchema = z.object({
     `Enter a number of shares between 1 and ${MAX_RECORDED_SHARES}`
   ),
   hasCompany: optionalYesNo(),
+  /// Icyemezo cy'umwuga. Asked of everyone, company or not — it is about the
+  /// trade, not the business.
+  hasProfessionalCertificate: optionalYesNo(),
   acceptsInterns: optionalYesNo(),
   internCapacity: optionalWholeNumber(
     1,
     MAX_INTERN_CAPACITY,
     `Enter a number of interns between 1 and ${MAX_INTERN_CAPACITY}`
   ),
+
+  // Photographs -------------------------------------------------------------
+  /// The member's own face, which is also what prints on their membership
+  /// card — so it is stored as their UserAvatar rather than a second time
+  /// here. Omitting it leaves whatever is already on file untouched.
+  photo: optionalPhotoDataUrl(),
+  /// The successor's face, checked at the warehouse counter when they collect
+  /// in the member's place.
+  successorPhoto: optionalPhotoDataUrl(),
 
   /// Recorded on the audit entry. Not optional: creating a member is creating
   /// a claim on the association's money.

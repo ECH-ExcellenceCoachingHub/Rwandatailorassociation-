@@ -37,6 +37,16 @@ export interface FormsCopy {
     confirmPassword: string;
     note: string;
   };
+  /// The words on the photograph control, shared by the public form and the
+  /// desk form.
+  photo: {
+    choose: string;
+    replace: string;
+    remove: string;
+    working: string;
+    failed: string;
+    preview: string;
+  };
   placeholder: {
     firstName: string;
     lastName: string;
@@ -56,6 +66,10 @@ export interface FormsCopy {
     nationalIdAdmin: string;
     memberTitle: string;
     emailOptional: string;
+    /// The applicant's own wording. Theirs is the one that has to say why
+    /// leaving it blank is safe — a required-looking field with no explanation
+    /// is a field people invent an address for.
+    emailOptionalRegister: string;
     mobileMoney: string;
     districtRegister: string;
   };
@@ -81,6 +95,10 @@ export interface FormsCopy {
     alreadyMember: string;
     signIn: string;
     successTitle: string;
+    /// What happens next after the application lands. The API answers in
+    /// English only, so the applicant is told here instead — this is the last
+    /// thing they read before leaving the page.
+    successBody: string;
     membershipNumber: string;
     paymentReference: string;
     copyReference: string;
@@ -94,6 +112,10 @@ export interface FormsCopy {
       email: string;
       phone: string;
       nationalId: string;
+      /// Only reached once a successor has been named. Naming one is optional;
+      /// naming one and leaving the rest blank is not.
+      successorNationalId: string;
+      successorPhoto: string;
       password: string;
       confirmPassword: string;
       terms: string;
@@ -129,7 +151,12 @@ export interface FormsCopy {
     enrolFailed: string;
     saveFailed: string;
     matchingWarning: string;
+    /// On the edit form the photograph fields start empty even when the member
+    /// already has one: the bytes are not loaded back into the form, so a
+    /// blank field has to mean "leave it alone" rather than "delete it".
+    photoKeepsExisting: string;
     enrolledTitle: string;
+    enrolledBody: string;
     giveToMember: string;
     memberNumber: string;
     paymentReference: string;
@@ -152,12 +179,21 @@ export interface FormsCopy {
     sharesHintRegister: string;
     sharesHintAdmin: string;
     sharesError: string;
-    sharesDaily: string;
-    sharesFee: string;
+    /// The one figure an applicant is asked to agree to: the daily saving and
+    /// the service fee already added together. The split is the association's
+    /// bookkeeping, not the applicant's decision.
+    sharesTotal: string;
+    sharesOption: string;
     choose: string;
     hasCompany: string;
     hasCompanyQuestion: string;
     hasCompanyError: string;
+    /// Icyemezo cy'umwuga. Asked of every applicant, company or not — it is
+    /// about the trade, not the business.
+    certificate: string;
+    certificateQuestion: string;
+    certificateHint: string;
+    certificateError: string;
     acceptsInterns: string;
     acceptsInternsQuestion: string;
     acceptsInternsError: string;
@@ -170,6 +206,16 @@ export interface FormsCopy {
     successorName: string;
     successorPhone: string;
     successorRelation: string;
+    successorNationalId: string;
+    /// The two faces on a member's file: their own, which is also what prints
+    /// on the membership card, and the successor's, which is what the
+    /// warehouse counter checks when somebody collects in their place.
+    photo: string;
+    photoHintRegister: string;
+    photoHintAdmin: string;
+    photoError: string;
+    successorPhoto: string;
+    successorPhotoHint: string;
   };
 }
 
@@ -196,6 +242,14 @@ export const forms: Record<Locale, FormsCopy> = {
       confirmPassword: "Confirm password",
       note: "Note",
     },
+    photo: {
+      choose: "Add photograph",
+      replace: "Replace photograph",
+      remove: "Remove",
+      working: "Preparing…",
+      failed: "That photograph could not be read. Choose a PNG or JPEG image.",
+      preview: "Photograph",
+    },
     placeholder: {
       firstName: "Jean",
       lastName: "Uwimana",
@@ -218,6 +272,8 @@ export const forms: Record<Locale, FormsCopy> = {
       nationalIdAdmin:
         "16 digits. Recording it marks their identity check as pending.",
       emailOptional: "Optional. Leave blank if they do not have one.",
+      emailOptionalRegister:
+        "Optional. Your phone number signs you in, so leave this blank if you do not have an email address.",
       mobileMoney: "Leave blank if it is the same as their phone number.",
       districtRegister: "Where you live or run your workshop",
     },
@@ -243,6 +299,8 @@ export const forms: Record<Locale, FormsCopy> = {
       alreadyMember: "Already a member?",
       signIn: "Sign in",
       successTitle: "Application received",
+      successBody:
+        "Your application has been received. You will be notified once an administrator approves your membership.",
       membershipNumber: "Membership number",
       paymentReference: "Your payment reference",
       copyReference: "Copy payment reference",
@@ -257,6 +315,8 @@ export const forms: Record<Locale, FormsCopy> = {
         email: "Enter a valid email address",
         phone: "Enter a valid Rwandan mobile number, e.g. 0788123456",
         nationalId: "The national ID must be 16 digits",
+        successorNationalId: "Enter the successor's national ID — 16 digits",
+        successorPhoto: "Add a photograph of the successor",
         password: "Choose a stronger password",
         confirmPassword: "Passwords do not match",
         terms: "You must accept the association rules to register",
@@ -296,7 +356,10 @@ export const forms: Record<Locale, FormsCopy> = {
       saveFailed: "The changes could not be saved",
       matchingWarning:
         "Changing the phone, mobile money or bank account number changes which payments are attributed to this member in future. The old and new values are both written to the audit log.",
+      photoKeepsExisting:
+        "Leave this empty to keep the photograph already on file. Choosing one replaces it.",
       enrolledTitle: "Member enrolled",
+      enrolledBody: "{name} has been enrolled as {number}.",
       giveToMember: "Give these to the member",
       memberNumber: "Member number",
       paymentReference: "Payment reference",
@@ -316,16 +379,21 @@ export const forms: Record<Locale, FormsCopy> = {
       sectionHint: "As given on the application.",
       shares: "Number of shares",
       sharesHintRegister:
-        "Each share is {price} saved every day. Choose 1 to {max}; for more than {max}, ask the association.",
+        "Each share costs {price} every day. Choose 1 to {max}; for more than {max}, ask the association.",
       sharesHintAdmin:
         "Each share is {price} saved every day. The application allows 1 to {max}; record more only when the association has agreed it.",
       sharesError: "Choose between 1 and {max} shares",
-      sharesDaily: "{count} × {price}: you save {savings} every day.",
-      sharesFee: "With the {fee} daily service fee per share, you pay {total} a day.",
+      sharesTotal: "You pay {total} every day.",
+      sharesOption: "{count} — {total} a day",
       choose: "Choose…",
       hasCompany: "Has a company",
       hasCompanyQuestion: "Do you have a company?",
       hasCompanyError: "Answer yes or no",
+      certificate: "Professional certificate",
+      certificateQuestion: "Do you have a professional certificate?",
+      certificateHint:
+        "A trade certificate in tailoring — from a TVET school, a recognised training centre or RTB. Answer no if you learned on the job; it does not affect your application.",
+      certificateError: "Answer whether you have a professional certificate",
       acceptsInterns: "Takes on interns",
       acceptsInternsQuestion:
         "Would you take on interns (people learning the trade)?",
@@ -340,7 +408,17 @@ export const forms: Record<Locale, FormsCopy> = {
         "Who may act for the member when they are not available — for example, collecting goods from the warehouse. Not the same as next of kin.",
       successorName: "Successor's full name",
       successorPhone: "Successor's phone number",
-      successorRelation: "Relationship",
+      successorRelation: "Relationship to you",
+      successorNationalId: "Successor's national ID",
+      photo: "Passport photograph",
+      photoHintRegister:
+        "A clear photograph of your face, looking at the camera. This is the photograph printed on your membership card.",
+      photoHintAdmin:
+        "Printed on the membership card. A clear photograph of the member's face, looking at the camera.",
+      photoError: "Add a passport photograph",
+      successorPhoto: "Successor's passport photograph",
+      successorPhotoHint:
+        "So the association can recognise them when they collect goods in your place.",
     },
   },
 
@@ -348,13 +426,13 @@ export const forms: Record<Locale, FormsCopy> = {
     field: {
       firstName: "Izina ribanza",
       lastName: "Izina ry'umuryango",
-      email: "Aderesi imeyili",
-      phone: "Nimero ya telefone",
+      email: "Aderesi ya imeyili",
+      phone: "Nimero ya telefoni",
       nationalId: "Indangamuntu",
       dateOfBirth: "Itariki y'amavuko",
       gender: "Igitsina",
-      memberTitle: "Umwanya afite",
-      occupation: "Umwuga cyangwa ubucuruzi",
+      memberTitle: "Inshingano afite mu ihuriro",
+      occupation: "Umwuga cyangwa ibikorwa by'ubucuruzi",
       businessName: "Izina ry'ubucuruzi",
       address: "Aderesi",
       city: "Umujyi cyangwa umurenge",
@@ -366,6 +444,14 @@ export const forms: Record<Locale, FormsCopy> = {
       confirmPassword: "Emeza ijambobanga",
       note: "Icyitonderwa",
     },
+    photo: {
+      choose: "Shyiramo ifoto",
+      replace: "Simbuza ifoto",
+      remove: "Kuraho",
+      working: "Turategura ifoto…",
+      failed: "Iyi foto ntiyashobotse gusomwa. Hitamo ifoto ya PNG cyangwa JPEG.",
+      preview: "Ifoto",
+    },
     placeholder: {
       firstName: "Jean",
       lastName: "Uwimana",
@@ -376,10 +462,10 @@ export const forms: Record<Locale, FormsCopy> = {
       city: "Kigali",
       password: "Byibuze inyuguti 10",
       confirmPassword: "Ongera wandike ijambobanga",
-      relation: "Uwo mubana",
+      relation: "Umubano mufitanye",
     },
     hint: {
-      phoneRegister: "Ikoreshwa mu guhuza ubwishyu no kohereza ubutumwa",
+      phoneRegister: "Iyi nimero izifashishwa mu kwemeza ubwishyu no kukugezaho ubutumwa bugufi (SMS)",
       phoneAdmin:
         "Ikoreshwa mu kumugeraho, no guhuza ubwishyu bwoherejwe kuri iyi nimero.",
       nationalIdRegister:
@@ -388,7 +474,9 @@ export const forms: Record<Locale, FormsCopy> = {
         "Icapwa munsi y’izina rye ku ikarita y’ubunyamuryango. Usige ubusa ku munyamuryango usanzwe — ikarita yandika “Umunyamuryango”.",
       nationalIdAdmin:
         "Imibare 16. Kuyandika bituma igenzura ry'umwirondoro riba ritegereje.",
-      emailOptional: "Ntibigomba. Siga ubusa niba adafite imeyili.",
+      emailOptional: "Si ngombwa. Siga aha hantu ubusa niba nta aderesi ya imeyili afite.",
+      emailOptionalRegister:
+        "Si ngombwa. Niba udafite aderesi ya imeyili, usige aha hantu ubusa. Uzajya winjira ukoresheje nimero ya telefone yawe.",
       mobileMoney: "Siga ubusa niba ari imwe na nimero ya telefone.",
       districtRegister: "Aho utuye cyangwa aho ukorera",
     },
@@ -411,13 +499,15 @@ export const forms: Record<Locale, FormsCopy> = {
       submit: "Ohereza ubusabe bwo kwinjira mu ihuriro",
       submitting: "Turohereza ubusabe…",
       failed: "Ntitwashoboye kohereza ubusabe bwawe.",
-      alreadyMember: "Uri umunyamuryango?",
-      signIn: "Injira",
+      alreadyMember: "Usanzwe uri umunyamuryango?",
+      signIn: "Injira muri konti yawe",
       successTitle: "Ubusabe bwakiriwe",
+      successBody:
+        "Ubusabe bwawe bwakiriwe. Uzamenyeshwa igihe umuyobozi azaba yemeje ubunyamuryango bwawe.",
       membershipNumber: "Nimero y'umunyamuryango",
       paymentReference: "Nimero yawe y'ubwishyu",
       copyReference: "Koporora nimero y'ubwishyu",
-      keepReferenceTitle: "Bika neza nimero yawe y'ubwishyu.",
+      keepReferenceTitle: "Bika neza nimero yawe y'ubwishyu kugira ngo uzayikoreshe igihe cyose wohereza amafaranga mu ihuriro.",
       keepReferenceBody:
         "Andika {reference} kuri buri bwishyu bwose wohereza mu ihuriro. Ni yo ituma amafaranga yawe ajya kuri konti yawe y'ubuzigame.",
       goToSignIn: "Jya ku rupapuro rwo kwinjira",
@@ -428,6 +518,8 @@ export const forms: Record<Locale, FormsCopy> = {
         email: "Andika aderesi imeyili nyayo",
         phone: "Andika nimero ya telefone yo mu Rwanda, urugero 0788123456",
         nationalId: "Indangamuntu igomba kuba imibare 16",
+        successorNationalId: "Andika indangamuntu y'umusimbura — imibare 16",
+        successorPhoto: "Shyiramo ifoto y'umusimbura",
         password: "Hitamo ijambobanga rikomeye kurushaho",
         confirmPassword: "Amagambobanga ntaba amwe",
         terms: "Ugomba kwemera amabwiriza y'ihuriro mbere yo kwiyandikisha",
@@ -439,22 +531,22 @@ export const forms: Record<Locale, FormsCopy> = {
       livelihood: "Icyo akora",
       livelihoodHint: "Umurimo umunyamuryango abeshejweho.",
       address: "Aderesi",
-      paymentIdentifiers: "Ibimenyetso by'ubwishyu",
+      paymentIdentifiers: "Amakuru afasha kumenya ubwishyu",
       paymentIdentifiersHint:
         "Ibimenyetso bifashisha guhuza ubwishyu bwageze butagira nimero y'ubwishyu.",
-      nextOfKin: "Uwo mwegereye",
+      nextOfKin: "Umuntu wa hafi ushobora kuvugwa igihe bikenewe",
       nextOfKinName: "Amazina yose",
-      nextOfKinPhone: "Nimero ya telefone",
-      nextOfKinRelation: "Isano",
+      nextOfKinPhone: "Nimero ya telefoni",
+      nextOfKinRelation: "Isano mufitanye",
       enrolment: "Kwinjiza umunyamuryango",
       enrolmentHint:
         "Abanyamuryango bakora (ACTIVE) bashobora kubitsa cyangwa kuguza ako kanya. Iki cyemezo cyandikwa ku izina ryawe.",
-      recordChange: "Andika impinduka",
+      recordChange: "Bika impinduka zakozwe",
       recordChangeHint:
         "Imimerere y'ubunyamuryango ihindurwa mu dosiye y'umunyamuryango, atari hano — kwemeza, guhagarika no kongera gukora bisaba impamvu yihariye.",
       membershipStatus: "Imimerere y'ubunyamuryango",
       statusActive: "Arakora — ashobora kuzigama no kuguza nonaha",
-      statusPending: "Ategereje kwemezwa — bisaba igenzura rya kabiri",
+      statusPending: "Ategereje kwemezwa n'ubuyobozi — bisaba igenzura rya kabiri",
       noteLabel: "Icyitonderwa cy'igitabo cy'ibyakozwe",
       noteHintEnrol: "Ntibigomba. Urugero: aho urupapuro rw'ubusabe ruturutse.",
       noteHintEdit:
@@ -467,15 +559,18 @@ export const forms: Record<Locale, FormsCopy> = {
       saveFailed: "Impinduka ntizashoboye kubikwa",
       matchingWarning:
         "Guhindura nimero ya telefone, ya mobile money cyangwa ya konti ya banki bihindura ubwishyu buzahuzwa n'uyu munyamuryango. Agaciro ka kera n'aka none byombi byandikwa mu gitabo cy'ibyakozwe.",
+      photoKeepsExisting:
+        "Siga ahantu harimo ubusa kugira ngo ifoto isanzwe iri kuri dosiye igume. Guhitamo indi irayisimbura.",
       enrolledTitle: "Umunyamuryango yinjijwe",
+      enrolledBody: "{name} yinjijwe afite nimero {number}.",
       giveToMember: "Ibi bihe umunyamuryango",
       memberNumber: "Nimero y'umunyamuryango",
       paymentReference: "Nimero y'ubwishyu",
       paymentReferenceHint:
-        "Agomba kuyandika kuri buri bwitso kugira ngo yandikwe ku konti ye ako kanya.",
+        "Agomba kuyandika kuri buri bwishyu kugira ngo yandikwe ku konti ye ako kanya.",
       temporaryPassword: "Ijambobanga ry'agateganyo",
       temporaryPasswordHint:
-        "Rigaragara rimwe gusa. Azasabwa kurihindura ubwa mbere ainjira.",
+        "Rigaragara rimwe gusa. Azasabwa kurihindura ubwa mbere yinjira.",
       copyDetails: "Koporora amakuru",
       openMemberFile: "Fungura dosiye y'umunyamuryango",
       enrolAnother: "Injiza undi",
@@ -487,16 +582,20 @@ export const forms: Record<Locale, FormsCopy> = {
       sectionHint: "Nk'uko byanditswe ku busabe.",
       shares: "Umubare w'imigabane",
       sharesHintRegister:
-        "Umugabane umwe ni {price} uzigama buri munsi. Hitamo kuva kuri 1 kugeza kuri {max}; niba ushaka irenze {max}, baza ihuriro.",
+        "Buri mugabane usaba kuzigama {price} buri munsi. Hitamo kuva kuri 1 kugeza kuri {max}; niba ushaka irenze {max}, baza ihuriro.",
       sharesHintAdmin:
         "Umugabane umwe ni {price} azigama buri munsi. Ubusabe bwemera kuva kuri 1 kugeza kuri {max}; andika irenzeho gusa iyo ihuriro ryabyemeje.",
       sharesError: "Hitamo imigabane iri hagati ya 1 na {max}",
-      sharesDaily: "{count} × {price}: uzajya uzigama {savings} buri munsi.",
-      sharesFee:
-        "Hamwe n'amafaranga ya serivisi {fee} ku buri mugabane ku munsi, uzajya wishyura {total} ku munsi.",
+      sharesTotal: "Uzajya wishyura {total} buri munsi.",
+      sharesOption: "{count} — {total} ku munsi",
       choose: "Hitamo…",
-      hasCompany: "Afite sosiyete",
-      hasCompanyQuestion: "Ese ufite sosiyete (kompanyi)?",
+      hasCompany: "Afite ikigo cy'ubucuruzi cyangwa sosiyete",
+      hasCompanyQuestion: "Ese ufite ikigo cy'ubucuruzi cyangwa sosiyete?",
+      certificate: "Icyemezo cy'umwuga",
+      certificateQuestion: "Ese ufite icyemezo cy'umwuga?",
+      certificateHint:
+        "Icyemezo cy'umwuga wo kudoda — cyaba giturutse ku ishuri rya TVET, ikigo cyemewe cyigisha imyuga cyangwa RTB. Subiza oya niba warigiye ku kazi; ntibihindura ubusabe bwawe.",
+      certificateError: "Emeza niba ufite icyemezo cy'umwuga",
       hasCompanyError: "Subiza yego cyangwa oya",
       acceptsInterns: "Yakira abimenyereza umwuga",
       acceptsInternsQuestion:
@@ -513,7 +612,17 @@ export const forms: Record<Locale, FormsCopy> = {
         "Umuntu ushobora guhagararira umunyamuryango igihe adahari — urugero, gufata ibikoresho mu bubiko. Si kimwe n'uwo begereye.",
       successorName: "Amazina y'umusimbura",
       successorPhone: "Telefone y'umusimbura",
-      successorRelation: "Isano",
+      successorNationalId: "Indangamuntu y'umusimbura",
+      photo: "Ifoto ya pasiporo",
+      photoHintRegister:
+        "Ifoto igaragara neza y'isura yawe, urebye kuri kamera. Ni yo foto izacapwa ku ikarita yawe y'ubunyamuryango.",
+      photoHintAdmin:
+        "Icapwa ku ikarita y'ubunyamuryango. Ifoto igaragara neza y'isura y'umunyamuryango, arebye kuri kamera.",
+      photoError: "Shyiramo ifoto ya pasiporo",
+      successorPhoto: "Ifoto ya pasiporo y'umusimbura",
+      successorPhotoHint:
+        "Kugira ngo ihuriro rimumenye igihe aje gufata ibintu mu mwanya wawe.",
+      successorRelation: "Isano mufitanye",
     },
   },
 };

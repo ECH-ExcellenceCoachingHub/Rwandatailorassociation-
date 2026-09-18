@@ -116,7 +116,13 @@ export function StatementImport({ canImport }: { canImport: boolean }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
-  const [result, setResult] = useState<{ message: string; credited: number } | null>(null);
+  // The counts, not the sentence: the route reports what happened in figures
+  // and this component writes them up in the administrator's language.
+  const [result, setResult] = useState<{
+    credited: number;
+    unmatched: number;
+    skipped: number;
+  } | null>(null);
 
   async function handleUpload(file: File) {
     setError(null);
@@ -197,7 +203,11 @@ export function StatementImport({ canImport }: { canImport: boolean }) {
       throw new Error(payload?.error?.message ?? copy.importFailed);
     }
 
-    setResult({ message: payload.message, credited: payload.credited });
+    setResult({
+      credited: payload.credited ?? 0,
+      unmatched: payload.unmatched ?? 0,
+      skipped: payload.skipped ?? 0,
+    });
     setPreview(null);
     setSelected(new Set());
     router.refresh();
@@ -225,7 +235,17 @@ export function StatementImport({ canImport }: { canImport: boolean }) {
     return (
       <div className="space-y-4">
         <Alert variant="success" title={copy.completeTitle}>
-          {result.message}
+          {[
+            pluralize(copy.importedCredited, result.credited),
+            pluralize(copy.importedUnmatched, result.unmatched),
+            // Only worth a sentence when it happened; a re-upload of a
+            // statement already imported is the normal case for this line.
+            result.skipped > 0
+              ? pluralize(copy.importedSkipped, result.skipped)
+              : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
         </Alert>
         <Button onClick={() => setResult(null)}>
           <Upload className="size-4" aria-hidden="true" />

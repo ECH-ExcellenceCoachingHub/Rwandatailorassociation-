@@ -5,25 +5,21 @@ import { useRouter } from "next/navigation";
 import { Camera, Loader2, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/LanguageProvider";
+import { toCircularPng } from "@/lib/images/prepare";
 
 /**
  * The photograph that goes on the front of the membership card.
  *
- * THE CROP HAPPENS HERE, IN THE BROWSER, and that is a deliberate division of
- * labour rather than a shortcut. The card renderer draws with pdf-lib, which
- * cannot clip a path — so a square photograph would print as a square sitting
- * on top of the artwork instead of filling the circular frame. Something has
- * to cut the circle, and doing it before upload also means a 6MB photograph
- * straight off a phone camera never crosses a Rwandan mobile connection: what
- * is sent is a 512px PNG of a few tens of kilobytes.
+ * Replacing a photograph on an account that already exists, which is what
+ * separates this from the photograph fields on the registration and enrolment
+ * forms: there is a member to upload against, so the bytes go straight to the
+ * server instead of waiting in a form's state. The crop itself is the same one
+ * — see lib/images/prepare.ts for why it happens in the browser.
  *
  * The server does not take the client's word for any of it — the bytes are
  * re-identified from their own magic numbers on arrival. This component is
  * about sparing the member a slow upload, not about establishing trust.
  */
-
-/** Matches the card renderer's expectation: square, and big enough for 300dpi. */
-const OUTPUT_PX = 512;
 
 export function CardPhotoUpload({ hasPhoto }: { hasPhoto: boolean }) {
   const router = useRouter();
@@ -36,45 +32,6 @@ export function CardPhotoUpload({ hasPhoto }: { hasPhoto: boolean }) {
   // Bumped after every change so the <img> refetches rather than showing the
   // browser's cached copy of the photograph that was just replaced.
   const [version, setVersion] = useState(0);
-
-  /**
-   * Centre-crops to a square, scales to 512px, and masks to a circle.
-   *
-   * `destination-in` is what cuts the circle: it keeps the photograph only
-   * where the subsequently drawn disc is opaque, leaving a transparent
-   * surround. PNG, not JPEG, because JPEG has no alpha channel and would fill
-   * that surround with black.
-   */
-  async function toCircularPng(file: File): Promise<Blob> {
-    const bitmap = await createImageBitmap(file);
-
-    const edge = Math.min(bitmap.width, bitmap.height);
-    const sx = (bitmap.width - edge) / 2;
-    const sy = (bitmap.height - edge) / 2;
-
-    const canvas = document.createElement("canvas");
-    canvas.width = OUTPUT_PX;
-    canvas.height = OUTPUT_PX;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Canvas is unavailable");
-
-    ctx.drawImage(bitmap, sx, sy, edge, edge, 0, 0, OUTPUT_PX, OUTPUT_PX);
-
-    ctx.globalCompositeOperation = "destination-in";
-    ctx.beginPath();
-    ctx.arc(OUTPUT_PX / 2, OUTPUT_PX / 2, OUTPUT_PX / 2, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.fill();
-
-    bitmap.close();
-
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/png")
-    );
-    if (!blob) throw new Error("The image could not be encoded");
-    return blob;
-  }
 
   async function upload(file: File) {
     setBusy(true);

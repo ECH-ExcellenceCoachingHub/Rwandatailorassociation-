@@ -187,7 +187,7 @@ export function UnmatchedPaymentsTable({
       next.delete(deleting.id);
       return next;
     });
-    setNotice(payload?.message ?? copy.paymentDeleted);
+    setNotice(copy.paymentDeleted);
     router.refresh();
   }
 
@@ -211,7 +211,18 @@ export function UnmatchedPaymentsTable({
     }
 
     setChecked(new Set());
-    setNotice(payload?.message ?? copy.paymentsDeleted);
+    // The route reports how many went and how many the ledger held on to; the
+    // sentence is assembled here so it is not English-only.
+    const deleted = payload?.deleted ?? 0;
+    const refused = payload?.refused?.length ?? 0;
+    setNotice(
+      [
+        pluralize(copy.paymentsDeletedCount, deleted),
+        refused > 0 ? pluralize(copy.paymentsRefused, refused) : "",
+      ]
+        .filter(Boolean)
+        .join(" ")
+    );
     router.refresh();
   }
 

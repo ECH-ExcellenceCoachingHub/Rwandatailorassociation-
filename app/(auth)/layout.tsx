@@ -9,9 +9,14 @@ import { LanguageToggle } from "@/components/ui/language-toggle";
  *
  * A focused two-panel shell rather than the marketing chrome: someone signing
  * in to check a savings balance does not need the site navigation or a
- * "Become a Member" call to action. Branding still carries over — same logo,
- * same teal, same Poppins/Manrope pairing — so it reads as the same
- * organisation rather than a bolted-on portal.
+ * "Become a Member" call to action.
+ *
+ * This is also where the name changes. The public website is the association;
+ * what a member signs in to is STGT — Save Today, Grow Tomorrow — the
+ * association's savings programme. So the lockup here reads STGT, with the
+ * association named beneath it, and the logo, teal and Poppins/Manrope pairing
+ * carry over unchanged so it is plainly the same organisation and not a
+ * bolted-on portal.
  *
  * The brand panel is hidden below `lg`, where the form deserves the full
  * width; the logo moves inline above the form so branding is never lost.
@@ -61,11 +66,11 @@ export default async function AuthLayout({
             className="size-12 shrink-0 rounded-full object-cover"
           />
           <span className="leading-tight">
-            <span className="block font-heading text-[17px] font-bold tracking-tight text-white">
-              RWANDA TAILORS
+            <span className="block font-heading text-xl font-bold tracking-[0.06em] text-white">
+              STGT
             </span>
-            <span className="block font-heading text-xs font-semibold tracking-[0.2em] text-primary">
-              ASSOCIATION
+            <span className="block font-heading text-[10.5px] font-semibold uppercase tracking-[0.14em] text-primary">
+              {copy.brandTagline}
             </span>
           </span>
         </Link>
@@ -97,9 +102,12 @@ export default async function AuthLayout({
           </ul>
         </div>
 
-        <p className="relative text-xs text-white/40">
-          © {new Date().getFullYear()} Rwanda Tailors Association
-        </p>
+        <div className="relative text-xs leading-relaxed text-white/40">
+          <p>{copy.brandProgramme}</p>
+          <p className="mt-1">
+            © {new Date().getFullYear()} Rwanda Tailors Association
+          </p>
+        </div>
       </aside>
 
       {/* Form panel */}
@@ -132,11 +140,11 @@ export default async function AuthLayout({
                 className="size-11 shrink-0 rounded-full object-cover"
               />
               <span className="leading-tight">
-                <span className="block font-heading text-[15px] font-bold tracking-tight text-ink">
-                  RWANDA TAILORS
+                <span className="block font-heading text-[17px] font-bold tracking-[0.06em] text-ink">
+                  STGT
                 </span>
-                <span className="block font-heading text-[11px] font-semibold tracking-[0.2em] text-primary">
-                  ASSOCIATION
+                <span className="block font-heading text-[9.5px] font-semibold uppercase tracking-[0.12em] text-primary">
+                  {copy.brandTagline}
                 </span>
               </span>
             </Link>

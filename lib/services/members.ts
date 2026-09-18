@@ -5,6 +5,7 @@ import { recordAudit, diffFields, AUDIT_ACTIONS } from "@/lib/audit";
 import { notify, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { hashPassword } from "@/lib/auth/password";
 import { add, toMoneyString } from "@/lib/money";
+import { acceptPhotoDataUrl, type AcceptedPhoto } from "@/lib/images/photo";
 import type { CreateMemberInput, UpdateMemberInput } from "@/lib/validation/members";
 import type { MemberStatus, UserStatus } from "@/lib/generated/prisma/enums";
 
@@ -180,6 +181,46 @@ function generateTemporaryPassword(): string {
 }
 
 /**
+ * Turns the two `data:` URLs a member form may carry into bytes worth storing.
+ *
+ * Both are optional at the desk, unlike on the public form: an administrator
+ * transcribing a paper application has the application, not the applicant's
+ * face. An absent photograph leaves whatever is already on file alone; it is
+ * not a way to delete one. Removing a photograph is its own action, on the
+ * card screen, where it asks first.
+ *
+ * The bytes are re-identified from their own magic numbers. What the browser
+ * called them was a claim, and a claim from the client side of a form is worth
+ * exactly nothing.
+ */
+async function vetPhotos(input: {
+  photo?: string;
+  successorPhoto?: string;
+}): Promise<
+  | { ok: true; member: AcceptedPhoto | null; successor: AcceptedPhoto | null }
+  | { ok: false; field: string; message: string }
+> {
+  let member: AcceptedPhoto | null = null;
+  let successor: AcceptedPhoto | null = null;
+
+  if (input.photo) {
+    const vetted = acceptPhotoDataUrl(input.photo);
+    if (!vetted.ok) return { ok: false, field: "photo", message: vetted.message };
+    member = vetted.photo;
+  }
+
+  if (input.successorPhoto) {
+    const vetted = acceptPhotoDataUrl(input.successorPhoto);
+    if (!vetted.ok) {
+      return { ok: false, field: "successorPhoto", message: vetted.message };
+    }
+    successor = vetted.photo;
+  }
+
+  return { ok: true, member, successor };
+}
+
+/**
  * Enrols a member on an administrator's authority.
  *
  * The counterpart to self-registration, and it shares that path's mechanics on
@@ -239,6 +280,12 @@ export async function createMember(params: {
     }
   }
 
+  // Vetted before the transaction opens, so a photograph that turns out not to
+  // be one is reported without first creating and rolling back a user, a
+  // member, a number and a savings account.
+  const photos = await vetPhotos(input);
+  if (!photos.ok) return photos;
+
   const temporaryPassword = generateTemporaryPassword();
   const passwordHash = await hashPassword(temporaryPassword);
   const active = input.status === "ACTIVE";
@@ -288,6 +335,9 @@ export async function createMember(params: {
         // secret the moment the member signs in.
         mustChangePassword: true,
         createdById: actorId,
+        // The member's own photograph is their card photograph — one face, one
+        // row, rather than a copy that drifts from the one the card prints.
+        ...(photos.member ? { avatar: { create: photos.member } } : {}),
         member: {
           create: {
             associationId,
@@ -312,10 +362,15 @@ export async function createMember(params: {
             successorName: input.successorName ?? null,
             successorPhone: input.successorPhone ?? null,
             successorRelation: input.successorRelation ?? null,
+            successorNationalId: input.successorNationalId ?? null,
             sharesSubscribed: input.sharesSubscribed ?? null,
             hasCompany: input.hasCompany ?? null,
+            hasProfessionalCertificate: input.hasProfessionalCertificate ?? null,
             acceptsInterns: input.acceptsInterns ?? null,
             internCapacity: input.internCapacity ?? null,
+            ...(photos.successor
+              ? { successorPhoto: { create: photos.successor } }
+              : {}),
             joinedAt: active ? now : null,
             approvedAt: active ? now : null,
             approvedById: active ? actorId : null,
@@ -538,8 +593,10 @@ const EDITABLE_FIELDS = [
   "successorName",
   "successorPhone",
   "successorRelation",
+  "successorNationalId",
   "sharesSubscribed",
   "hasCompany",
+  "hasProfessionalCertificate",
   "acceptsInterns",
   "internCapacity",
 ] as const;
@@ -664,8 +721,10 @@ export async function updateMember(params: {
     successorName: existing.successorName,
     successorPhone: existing.successorPhone,
     successorRelation: existing.successorRelation,
+    successorNationalId: existing.successorNationalId,
     sharesSubscribed: existing.sharesSubscribed,
     hasCompany: existing.hasCompany,
+    hasProfessionalCertificate: existing.hasProfessionalCertificate,
     acceptsInterns: existing.acceptsInterns,
     internCapacity: existing.internCapacity,
   };
@@ -693,17 +752,25 @@ export async function updateMember(params: {
     successorName: input.successorName ?? null,
     successorPhone: input.successorPhone ?? null,
     successorRelation: input.successorRelation ?? null,
+    successorNationalId: input.successorNationalId ?? null,
     sharesSubscribed: input.sharesSubscribed ?? null,
     hasCompany: input.hasCompany ?? null,
+    hasProfessionalCertificate: input.hasProfessionalCertificate ?? null,
     acceptsInterns: input.acceptsInterns ?? null,
     internCapacity: input.internCapacity ?? null,
   };
 
+  const photos = await vetPhotos(input);
+  if (!photos.ok) return photos;
+
   const { oldValue, newValue } = diffFields(before, after, [...EDITABLE_FIELDS]);
 
   // Nothing changed: writing an audit row saying so is noise in a log that
-  // people have to read.
-  if (Object.keys(newValue).length === 0) return { ok: true };
+  // people have to read. A new photograph counts as a change even though it is
+  // not a diffable field — the bytes are not put in the audit entry, so the
+  // field list cannot see them.
+  const replacingPhoto = Boolean(photos.member || photos.successor);
+  if (Object.keys(newValue).length === 0 && !replacingPhoto) return { ok: true };
 
   // Recording a national ID where there was none puts identity back in the
   // queue to be checked; it has not been verified merely by being typed in.
@@ -746,13 +813,33 @@ export async function updateMember(params: {
         successorName: input.successorName ?? null,
         successorPhone: input.successorPhone ?? null,
         successorRelation: input.successorRelation ?? null,
+        successorNationalId: input.successorNationalId ?? null,
         sharesSubscribed: input.sharesSubscribed ?? null,
         hasCompany: input.hasCompany ?? null,
+        hasProfessionalCertificate: input.hasProfessionalCertificate ?? null,
         acceptsInterns: input.acceptsInterns ?? null,
         internCapacity: input.internCapacity ?? null,
         kycStatus,
       },
     });
+
+    // Replaced only when a new one was sent. A form submitted without a
+    // photograph field is an edit to the rest of the file, not an instruction
+    // to delete the face on it.
+    if (photos.member) {
+      await tx.userAvatar.upsert({
+        where: { userId: existing.userId },
+        create: { userId: existing.userId, ...photos.member },
+        update: photos.member,
+      });
+    }
+    if (photos.successor) {
+      await tx.memberSuccessorPhoto.upsert({
+        where: { memberId },
+        create: { memberId, ...photos.successor },
+        update: photos.successor,
+      });
+    }
 
     await recordAudit(
       {
@@ -1013,8 +1100,14 @@ export async function getMemberProfile(memberId: string) {
           lastLoginAt: true,
           emailVerifiedAt: true,
           phoneVerifiedAt: true,
+          // Whether there is a photograph, never the photograph itself. The
+          // bytes are the largest thing on the file and the page only needs to
+          // know whether to render an <img> pointed at the route that serves
+          // them.
+          avatar: { select: { updatedAt: true } },
         },
       },
+      successorPhoto: { select: { updatedAt: true } },
       savingsAccounts: { where: { isActive: true }, take: 1 },
       loans: {
         orderBy: { createdAt: "desc" },

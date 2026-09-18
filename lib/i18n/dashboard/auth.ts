@@ -24,6 +24,12 @@ export interface AuthCopy {
     accountedBody: string;
     backToWebsite: string;
     homeLabel: string;
+    /// The brand this side of the sign-in belongs to. The public website is
+    /// the association; everything behind this door is STGT, its savings
+    /// programme, and a member arriving at a sign-in link has to be told which
+    /// of the two they are looking at.
+    brandTagline: string;
+    brandProgramme: string;
   };
   login: {
     title: string;
@@ -120,6 +126,8 @@ export const auth: Record<Locale, AuthCopy> = {
         "Every transaction carries a reference and a running balance you can verify.",
       backToWebsite: "Back to website",
       homeLabel: "Rwanda Tailors Association — home",
+      brandTagline: "Save today, grow tomorrow",
+      brandProgramme: "The savings programme of the Rwanda Tailors Association",
     },
     login: {
       title: "Welcome back",
@@ -227,6 +235,8 @@ export const auth: Record<Locale, AuthCopy> = {
         "Buri gikorwa gifite nimero yacyo n'amafaranga asigaye ushobora kugenzura.",
       backToWebsite: "Subira ku rubuga",
       homeLabel: "Ihuriro ry'Abadozi mu Rwanda — ahabanza",
+      brandTagline: "Zigama uyu munsi, ukure ejo",
+      brandProgramme: "Gahunda yo kuzigama y'Ihuriro ry'Abadozi mu Rwanda",
     },
     login: {
       title: "Murakaza neza",

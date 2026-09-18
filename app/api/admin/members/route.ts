@@ -65,8 +65,5 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     return apiBadRequest(result.message, { [result.field]: [result.message] });
   }
 
-  return apiCreated({
-    ...result.member,
-    message: `${parsed.data.firstName} ${parsed.data.lastName} has been enrolled as ${result.member.memberNumber}.`,
-  });
+  return apiCreated(result.member);
 });

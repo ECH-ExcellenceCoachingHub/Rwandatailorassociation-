@@ -89,6 +89,15 @@
     padding-bottom: clamp(4rem, 7vw, 7rem);
   }
 
+  /* A standalone page opens directly under the navbar, where section-pad's
+     top gap — sized to separate one home-page section from the next — reads
+     as a hole above the heading. The bottom is left alone; it still has the
+     footer to clear. */
+  .page-pad {
+    padding-top: clamp(1.75rem, 3vw, 3rem);
+    padding-bottom: clamp(4rem, 7vw, 7rem);
+  }
+
   .container-page {
     max-width: var(--container-page);
     margin-inline: auto;
