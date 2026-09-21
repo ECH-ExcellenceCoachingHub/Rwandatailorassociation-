@@ -10,7 +10,7 @@ import {
 import { generateToken, sha256 } from "@/lib/auth/jwt";
 import { createSession, revokeAllUserSessions } from "@/lib/auth/session";
 import { recordAudit, AUDIT_ACTIONS } from "@/lib/audit";
-import { acceptPhotoDataUrl } from "@/lib/images/photo";
+import { acceptPhotoDataUrl, type AcceptedPhoto } from "@/lib/images/photo";
 import type { RegisterInput } from "@/lib/validation/auth";
 import type { TokenPurpose } from "@/lib/generated/prisma/enums";
 
@@ -324,13 +324,18 @@ export async function registerMember(
   // The bytes are vetted before the transaction opens. A photograph that turns
   // out not to be one is the applicant's mistake to correct, and finding that
   // out halfway through creating a user, a member, a number and an account
-  // would mean rolling all of it back to say so.
-  const photo = acceptPhotoDataUrl(input.photo);
-  if (!photo.ok) {
-    return { ok: false, field: "photo", message: photo.message };
+  // would mean rolling all of it back to say so. Both are optional; an
+  // applicant who sent none is registered without one.
+  let photo: AcceptedPhoto | null = null;
+  if (input.photo) {
+    const vetted = acceptPhotoDataUrl(input.photo);
+    if (!vetted.ok) {
+      return { ok: false, field: "photo", message: vetted.message };
+    }
+    photo = vetted.photo;
   }
 
-  let successorPhoto: typeof photo.photo | null = null;
+  let successorPhoto: AcceptedPhoto | null = null;
   if (input.successorPhoto) {
     const vetted = acceptPhotoDataUrl(input.successorPhoto);
     if (!vetted.ok) {
@@ -375,7 +380,7 @@ export async function registerMember(
         // The applicant's own photograph is their card photograph — one face,
         // one row, rather than a copy here that drifts from the one the card
         // prints.
-        avatar: { create: photo.photo },
+        ...(photo ? { avatar: { create: photo } } : {}),
         member: {
           create: {
             associationId,

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import {
+  Camera,
   CheckCircle2,
   Copy,
   Eye,
@@ -91,6 +92,11 @@ export default function RegisterForm({
   const [values, setValues] = useState(INITIAL);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  // Both photographs are optional, and a camera button on the form reads as
+  // "you cannot go on without this". So each field stays hidden behind a link
+  // until the applicant asks for it.
+  const [showPhoto, setShowPhoto] = useState(false);
+  const [showSuccessorPhoto, setShowSuccessorPhoto] = useState(false);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -152,19 +158,17 @@ export default function RegisterForm({
     if (!values.hasProfessionalCertificate) {
       next.hasProfessionalCertificate = [app.certificateError];
     }
-    if (!values.photo) {
-      next.photo = [app.photoError];
-    }
-    // A successor recorded by halves is one nobody can act on: the warehouse
-    // counter checks a face against a name and settles ties on the number.
-    // Naming one is optional; naming one and leaving the rest blank is not.
-    if (values.successorName.trim()) {
-      if (!/^\d{16}$/.test(values.successorNationalId.trim())) {
-        next.successorNationalId = [copy.error.successorNationalId];
-      }
-      if (!values.successorPhoto) {
-        next.successorPhoto = [copy.error.successorPhoto];
-      }
+    // Neither photograph is checked: both are optional, so an applicant with
+    // no usable picture to hand can still send the application.
+    //
+    // A successor recorded by name alone is one nobody can act on: the
+    // warehouse counter settles who is who on the number. Naming one is
+    // optional; naming one without their ID is not.
+    if (
+      values.successorName.trim() &&
+      !/^\d{16}$/.test(values.successorNationalId.trim())
+    ) {
+      next.successorNationalId = [copy.error.successorNationalId];
     }
     // The interns questions only appear beside a company, so only then can
     // they be left unanswered.
@@ -434,17 +438,20 @@ export default function RegisterForm({
           />
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <PhotoField
-            id="photo"
-            label={app.photo}
-            hint={app.photoHintRegister}
-            error={errors.photo}
-            required
-            value={values.photo}
-            onChange={(dataUrl) => update("photo", dataUrl)}
-          />
-        </div>
+        {showPhoto ? (
+          <div className="grid gap-5 sm:grid-cols-2">
+            <PhotoField
+              id="photo"
+              label={app.photo}
+              hint={app.photoHintRegister}
+              error={errors.photo}
+              value={values.photo}
+              onChange={(dataUrl) => update("photo", dataUrl)}
+            />
+          </div>
+        ) : (
+          <RevealPhotoLink label={app.photoReveal} onClick={() => setShowPhoto(true)} />
+        )}
 
         <hr className="border-border" />
 
@@ -651,16 +658,24 @@ export default function RegisterForm({
             )}
           </Field>
 
-          <PhotoField
-            id="successorPhoto"
-            label={app.successorPhoto}
-            hint={app.successorPhotoHint}
-            error={errors.successorPhoto}
-            required={Boolean(values.successorName.trim())}
-            value={values.successorPhoto}
-            onChange={(dataUrl) => update("successorPhoto", dataUrl)}
-          />
+          {showSuccessorPhoto && (
+            <PhotoField
+              id="successorPhoto"
+              label={app.successorPhoto}
+              hint={app.successorPhotoHint}
+              error={errors.successorPhoto}
+              value={values.successorPhoto}
+              onChange={(dataUrl) => update("successorPhoto", dataUrl)}
+            />
+          )}
         </div>
+
+        {!showSuccessorPhoto && (
+          <RevealPhotoLink
+            label={app.successorPhotoReveal}
+            onClick={() => setShowSuccessorPhoto(true)}
+          />
+        )}
 
         <hr className="border-border" />
 
@@ -766,5 +781,19 @@ export default function RegisterForm({
         </Link>
       </p>
     </form>
+  );
+}
+
+/** The link that stands in for a hidden photograph field until it is wanted. */
+function RevealPhotoLink({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-2 text-sm font-semibold text-primary underline-offset-4 hover:underline"
+    >
+      <Camera className="size-4" aria-hidden="true" />
+      {label}
+    </button>
   );
 }

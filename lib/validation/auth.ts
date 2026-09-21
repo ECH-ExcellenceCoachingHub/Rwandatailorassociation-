@@ -14,10 +14,6 @@ import {
   wholeNumber,
 } from "@/lib/validation/members";
 import { MAX_APPLICATION_SHARES } from "@/lib/application-limits";
-import {
-  MAX_PHOTO_DATA_URL_LENGTH,
-  PHOTO_DATA_URL_PATTERN,
-} from "@/lib/images/photo";
 
 /**
  * Auth request schemas.
@@ -121,17 +117,13 @@ export const registerSchema = z
       successorPhone: true,
       successorRelation: true,
       successorNationalId: true,
+      // Both photographs are optional, the same as at the desk. An applicant
+      // without a usable photograph to hand should still get their application
+      // in; their own can be added later from their card page, and the
+      // successor's by an administrator at approval.
+      photo: true,
       successorPhoto: true,
     }).shape,
-    /// Required here, optional at the desk. The applicant is holding a phone
-    /// with a camera in it; an administrator transcribing a paper form is not
-    /// holding the applicant's face.
-    photo: z
-      .string()
-      .trim()
-      .min(1, "Add a passport photograph")
-      .max(MAX_PHOTO_DATA_URL_LENGTH, "That photograph is too large. The limit is 1MB.")
-      .regex(PHOTO_DATA_URL_PATTERN, "Choose a PNG or JPEG photograph"),
     /// Icyemezo cy'umwuga. A yes and a no are both useful answers; a blank is
     /// not, so the applicant has to pick one.
     hasProfessionalCertificate: z

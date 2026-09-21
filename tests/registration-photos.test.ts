@@ -14,10 +14,11 @@ import { loginSchema, registerSchema } from "@/lib/validation/auth";
  * bytes are not checked, that file is stored, served back with an image
  * content type, and nothing goes wrong until it does.
  *
- * The second is that a successor is recorded whole or not at all. The
- * warehouse counter matches a face to a name and settles ties on the ID
- * number; a row carrying only a name looks answered and answers nothing, and
- * nobody finds out until somebody is standing at the counter.
+ * The second is that a named successor comes with their ID number. The
+ * warehouse counter settles who is who on it; a row carrying only a name looks
+ * answered and answers nothing, and nobody finds out until somebody is
+ * standing at the counter. The photographs themselves are optional, so an
+ * applicant without one to hand is never stopped at the last step.
  */
 
 /**
@@ -185,8 +186,20 @@ describe("the application form", () => {
     expect(issuePaths(application({ phone: "12345" }))).toContain("phone");
   });
 
-  it("insists on a photograph", () => {
-    expect(issuePaths(application({ photo: "" }))).toContain("photo");
+  it("does not insist on a photograph", () => {
+    const blank = registerSchema.safeParse(application({ photo: "" }));
+    const absent = registerSchema.safeParse(application({ photo: undefined }));
+
+    expect(blank.success).toBe(true);
+    expect(absent.success).toBe(true);
+    if (!blank.success) return;
+    expect(blank.data.photo).toBeUndefined();
+  });
+
+  it("still refuses a photograph that is not one", () => {
+    expect(issuePaths(application({ photo: "https://example.com/face.png" }))).toContain(
+      "photo"
+    );
   });
 
   it("insists on an answer about the professional certificate", () => {
@@ -211,11 +224,22 @@ describe("the application form", () => {
     expect(registerSchema.safeParse(application()).success).toBe(true);
   });
 
-  it("demands the ID and the photograph once a successor is named", () => {
+  it("demands the ID, but not the photograph, once a successor is named", () => {
     const paths = issuePaths(application({ successorName: "Alice Mukamana" }));
 
     expect(paths).toContain("successorNationalId");
-    expect(paths).toContain("successorPhoto");
+    expect(paths).not.toContain("successorPhoto");
+  });
+
+  it("accepts a named successor with no photograph", () => {
+    const parsed = registerSchema.safeParse(
+      application({
+        successorName: "Alice Mukamana",
+        successorNationalId: "1199012345678901",
+      })
+    );
+
+    expect(parsed.success).toBe(true);
   });
 
   it("accepts a successor recorded in full", () => {

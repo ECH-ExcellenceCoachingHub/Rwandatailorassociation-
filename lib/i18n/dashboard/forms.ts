@@ -113,9 +113,8 @@ export interface FormsCopy {
       phone: string;
       nationalId: string;
       /// Only reached once a successor has been named. Naming one is optional;
-      /// naming one and leaving the rest blank is not.
+      /// naming one without their ID is not.
       successorNationalId: string;
-      successorPhoto: string;
       password: string;
       confirmPassword: string;
       terms: string;
@@ -213,9 +212,12 @@ export interface FormsCopy {
     photo: string;
     photoHintRegister: string;
     photoHintAdmin: string;
-    photoError: string;
     successorPhoto: string;
     successorPhotoHint: string;
+    /// The links that reveal the photograph fields on the public form, which
+    /// are hidden until asked for so nobody mistakes them for a requirement.
+    photoReveal: string;
+    successorPhotoReveal: string;
   };
 }
 
@@ -316,7 +318,6 @@ export const forms: Record<Locale, FormsCopy> = {
         phone: "Enter a valid Rwandan mobile number, e.g. 0788123456",
         nationalId: "The national ID must be 16 digits",
         successorNationalId: "Enter the successor's national ID — 16 digits",
-        successorPhoto: "Add a photograph of the successor",
         password: "Choose a stronger password",
         confirmPassword: "Passwords do not match",
         terms: "You must accept the association rules to register",
@@ -412,13 +413,14 @@ export const forms: Record<Locale, FormsCopy> = {
       successorNationalId: "Successor's national ID",
       photo: "Passport photograph",
       photoHintRegister:
-        "A clear photograph of your face, looking at the camera. This is the photograph printed on your membership card.",
+        "A clear photograph of your face, looking at the camera. This is the photograph printed on your membership card. You can also add it later from your account.",
       photoHintAdmin:
         "Printed on the membership card. A clear photograph of the member's face, looking at the camera.",
-      photoError: "Add a passport photograph",
       successorPhoto: "Successor's passport photograph",
       successorPhotoHint:
-        "So the association can recognise them when they collect goods in your place.",
+        "Optional. So the association can recognise them when they collect goods in your place.",
+      photoReveal: "Add a passport photograph (optional)",
+      successorPhotoReveal: "Add the successor's photograph (optional)",
     },
   },
 
@@ -519,7 +521,6 @@ export const forms: Record<Locale, FormsCopy> = {
         phone: "Andika nimero ya telefone yo mu Rwanda, urugero 0788123456",
         nationalId: "Indangamuntu igomba kuba imibare 16",
         successorNationalId: "Andika indangamuntu y'umusimbura — imibare 16",
-        successorPhoto: "Shyiramo ifoto y'umusimbura",
         password: "Hitamo ijambobanga rikomeye kurushaho",
         confirmPassword: "Amagambobanga ntaba amwe",
         terms: "Ugomba kwemera amabwiriza y'ihuriro mbere yo kwiyandikisha",
@@ -615,13 +616,14 @@ export const forms: Record<Locale, FormsCopy> = {
       successorNationalId: "Indangamuntu y'umusimbura",
       photo: "Ifoto ya pasiporo",
       photoHintRegister:
-        "Ifoto igaragara neza y'isura yawe, urebye kuri kamera. Ni yo foto izacapwa ku ikarita yawe y'ubunyamuryango.",
+        "Ifoto igaragara neza y'isura yawe, urebye kuri kamera. Ni yo foto izacapwa ku ikarita yawe y'ubunyamuryango. Ushobora no kuyishyiramo nyuma muri konti yawe.",
       photoHintAdmin:
         "Icapwa ku ikarita y'ubunyamuryango. Ifoto igaragara neza y'isura y'umunyamuryango, arebye kuri kamera.",
-      photoError: "Shyiramo ifoto ya pasiporo",
       successorPhoto: "Ifoto ya pasiporo y'umusimbura",
       successorPhotoHint:
-        "Kugira ngo ihuriro rimumenye igihe aje gufata ibintu mu mwanya wawe.",
+        "Si ngombwa. Kugira ngo ihuriro rimumenye igihe aje gufata ibintu mu mwanya wawe.",
+      photoReveal: "Shyiramo ifoto ya pasiporo (si ngombwa)",
+      successorPhotoReveal: "Shyiramo ifoto y'umusimbura (si ngombwa)",
       successorRelation: "Isano mufitanye",
     },
   },

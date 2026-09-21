@@ -143,22 +143,22 @@ function optionalPhotoDataUrl() {
 }
 
 /**
- * A successor recorded by halves is a successor nobody can act on: the
- * warehouse counter checks a face against a name and settles ties on the ID
- * number, so a name with neither is a row that looks answered and answers
- * nothing.
+ * A successor recorded by name alone is a successor nobody can act on: the
+ * warehouse counter settles who is who on the ID number, so a name without one
+ * is a row that looks answered and answers nothing.
+ *
+ * The photograph is not insisted on. An applicant rarely has a usable picture
+ * of somebody else to hand, and an administrator can add it at approval.
  *
  * Only the public form insists. The desk form does not — an administrator
  * transcribing a paper application may genuinely not have been given the
  * number, and refusing to save the rest of the file over it loses more than it
- * protects. Editing an existing member does not insist either, or every member
- * enrolled before the photograph was asked for would become uneditable.
+ * protects.
  */
 export function requireSuccessorIdentity(
   data: {
     successorName?: string;
     successorNationalId?: string;
-    successorPhoto?: string;
   },
   ctx: z.RefinementCtx
 ) {
@@ -169,13 +169,6 @@ export function requireSuccessorIdentity(
       code: "custom",
       path: ["successorNationalId"],
       message: "Enter the successor's national ID",
-    });
-  }
-  if (!data.successorPhoto) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["successorPhoto"],
-      message: "Add a photograph of the successor",
     });
   }
 }
