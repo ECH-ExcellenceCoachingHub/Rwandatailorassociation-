@@ -65,6 +65,12 @@ export interface AdminCopy {
     title: string;
     inRegister: string;
     enrol: string;
+    /// Every member's account status on one printable statement, and the same
+    /// as a spreadsheet.
+    statement: string;
+    statementHint: string;
+    statementCsv: string;
+    statementCsvHint: string;
     noneTitle: string;
     noneBody: string;
     colMember: string;
@@ -1102,6 +1108,11 @@ export const admin: Record<Locale, AdminCopy> = {
       inRegister:
         "{count} member in the register.|{count} members in the register.",
       enrol: "Enrol member",
+      statement: "Accounts statement",
+      statementHint:
+        "Every member's balance, shares, arrears, fines, loans and warehouse debt as of now. Opens a printable page you can save as PDF.",
+      statementCsv: "CSV",
+      statementCsvHint: "Download the same statement as a spreadsheet (CSV).",
       noneTitle: "No members found",
       noneBody: "No members match these filters. Try clearing the search.",
       colMember: "Member",
@@ -2279,6 +2290,11 @@ export const admin: Record<Locale, AdminCopy> = {
       inRegister:
         "Umunyamuryango {count} uri mu gitabo.|Abanyamuryango {count} bari mu gitabo.",
       enrol: "Injiza umunyamuryango",
+      statement: "Inyandiko ya konti zose",
+      statementHint:
+        "Ubuzigame, imigabane, ibirarane, ibihano, inguzanyo n'umwenda w'ububiko bya buri munyamuryango, uko bihagaze ubu. Ifungura urupapuro rushobora gucapwa cyangwa kubikwa nka PDF.",
+      statementCsv: "CSV",
+      statementCsvHint: "Kuramo iyo nyandiko nk'urupapuro rw'imibare (CSV).",
       noneTitle: "Nta munyamuryango wabonetse",
       noneBody:
         "Nta munyamuryango uhuye n'ibyo washungurishije. Gerageza usibe ibyo washakishije.",

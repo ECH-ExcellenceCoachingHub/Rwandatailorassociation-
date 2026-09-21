@@ -191,7 +191,7 @@ export async function buildMemberStatement(
 }
 
 /**
- * CSV rendering.
+ * One CSV field.
  *
  * Every field is quoted and internal quotes doubled — a member's description
  * can legitimately contain a comma, and an unquoted CSV would silently shift
@@ -202,12 +202,23 @@ export async function buildMemberStatement(
  * problem, which on a financial export means a downloaded statement that can
  * execute something when opened.
  */
+export function csvCell(value: string | number): string {
+  const text = String(value ?? "");
+  const guarded = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  return `"${guarded.replace(/"/g, '""')}"`;
+}
+
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** CSV rendering. See csvCell for how each field is guarded. */
 export function statementToCsv(statement: StatementData): string {
-  const esc = (value: string | number): string => {
-    const text = String(value ?? "");
-    const guarded = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
-    return `"${guarded.replace(/"/g, '""')}"`;
-  };
+  const esc = csvCell;
 
   const lines: string[] = [];
 
@@ -305,14 +316,7 @@ export function statementToCsv(statement: StatementData): string {
  * document that is mostly a table. The stylesheet is print-first.
  */
 export function statementToHtml(statement: StatementData): string {
-  const escapeHtml = (value: string): string =>
-    value
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-
-  const date = (d: Date) =>
+  const date =(d: Date) =>
     d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
   const rows = statement.transactions

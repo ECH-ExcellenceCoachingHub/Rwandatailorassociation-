@@ -587,9 +587,74 @@ export async function listStandings(
     asOf?: Date;
   } = {}
 ): Promise<StandingsPage> {
-  const asOf = options.asOf ?? new Date();
   const pageSize = Math.min(options.pageSize ?? 25, 200);
   const page = Math.max(1, options.page ?? 1);
+
+  const computed = (await computeStandings(associationId, options)).map(
+    ({ row }) => row
+  );
+
+  const summary = {
+    members: computed.length,
+    current: computed.filter((row) => row.status === "CURRENT").length,
+    behind: computed.filter(
+      (row) => row.status === "BEHIND" || row.status === "AT_RISK"
+    ).length,
+    finable: computed.filter((row) => row.status === "FINABLE").length,
+    exempt: computed.filter((row) => row.status === "EXEMPT").length,
+    totalArrears: toMoneyString(
+      computed.reduce((total, row) => add(total, row.arrearsTotal), toMoney(0))
+    ),
+    outstandingFines: toMoneyString(
+      computed.reduce((total, row) => add(total, row.outstandingFineAmount), toMoney(0))
+    ),
+    feesPending: toMoneyString(
+      computed.reduce(
+        (total, row) => add(total, multiply(row.dailyFee, row.feeDaysOwed)),
+        toMoney(0)
+      )
+    ),
+  };
+
+  const filtered =
+    options.status && options.status !== "ALL"
+      ? computed.filter((row) => row.status === options.status)
+      : computed;
+
+  // Worst first. An arrears screen sorted by name is a screen nobody acts on.
+  //
+  // The float conversion is for ORDERING ONLY and never flows back into a
+  // stored value — the same edge-conversion rule the charts follow. Two fines
+  // a cent apart sorting the wrong way round costs nothing; the amounts
+  // themselves stay exact strings.
+  const ordered = filtered.sort(
+    (a, b) =>
+      b.missedDays - a.missedDays ||
+      Number(b.outstandingFineAmount) - Number(a.outstandingFineAmount) ||
+      a.memberName.localeCompare(b.memberName)
+  );
+
+  return {
+    rows: ordered.slice((page - 1) * pageSize, page * pageSize),
+    total: ordered.length,
+    summary,
+  };
+}
+
+/**
+ * Every contributing member's standing, unsorted and unpaginated — the
+ * computation behind `listStandings`, shared with the association-wide member
+ * account statement so the arrears an officer prints and the arrears on the
+ * compliance screen come from the same arithmetic.
+ *
+ * Carries the full `ContributionStanding` beside the row because the statement
+ * also needs the day counts the shareholding figure is built from.
+ */
+export async function computeStandings(
+  associationId: string,
+  options: { search?: string; asOf?: Date } = {}
+): Promise<{ row: MemberStandingRow; standing: ContributionStanding }[]> {
+  const asOf = options.asOf ?? new Date();
 
   const [policy, association, members] = await Promise.all([
     getPolicy(associationId),
@@ -660,7 +725,7 @@ export async function listStandings(
 
   const timeZone = association?.timezone ?? "Africa/Kigali";
 
-  const computed = members.map((member) => {
+  return members.map((member) => {
     const totalContributed = member.savingsAccounts.reduce(
       (total, account) => add(total, account.totalDeposits),
       toMoney(0)
@@ -719,54 +784,8 @@ export async function listStandings(
       obligationStart: obligationStart.toISOString().slice(0, 10),
     };
 
-    return row;
+    return { row, standing };
   });
-
-  const summary = {
-    members: computed.length,
-    current: computed.filter((row) => row.status === "CURRENT").length,
-    behind: computed.filter(
-      (row) => row.status === "BEHIND" || row.status === "AT_RISK"
-    ).length,
-    finable: computed.filter((row) => row.status === "FINABLE").length,
-    exempt: computed.filter((row) => row.status === "EXEMPT").length,
-    totalArrears: toMoneyString(
-      computed.reduce((total, row) => add(total, row.arrearsTotal), toMoney(0))
-    ),
-    outstandingFines: toMoneyString(
-      computed.reduce((total, row) => add(total, row.outstandingFineAmount), toMoney(0))
-    ),
-    feesPending: toMoneyString(
-      computed.reduce(
-        (total, row) => add(total, multiply(row.dailyFee, row.feeDaysOwed)),
-        toMoney(0)
-      )
-    ),
-  };
-
-  const filtered =
-    options.status && options.status !== "ALL"
-      ? computed.filter((row) => row.status === options.status)
-      : computed;
-
-  // Worst first. An arrears screen sorted by name is a screen nobody acts on.
-  //
-  // The float conversion is for ORDERING ONLY and never flows back into a
-  // stored value — the same edge-conversion rule the charts follow. Two fines
-  // a cent apart sorting the wrong way round costs nothing; the amounts
-  // themselves stay exact strings.
-  const ordered = filtered.sort(
-    (a, b) =>
-      b.missedDays - a.missedDays ||
-      Number(b.outstandingFineAmount) - Number(a.outstandingFineAmount) ||
-      a.memberName.localeCompare(b.memberName)
-  );
-
-  return {
-    rows: ordered.slice((page - 1) * pageSize, page * pageSize),
-    total: ordered.length,
-    summary,
-  };
 }
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { UserPlus, Users } from "lucide-react";
+import { FileSpreadsheet, FileText, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { requirePermission, resolveAssociationScope } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
@@ -58,19 +58,61 @@ export default async function AdminMembersPage({
         : undefined,
   });
 
+  // The statement covers one association's ledger, so a super administrator
+  // viewing the platform-wide register is not offered one. The route re-checks
+  // both permissions.
+  const canDownloadStatement =
+    associationId !== null &&
+    context.permissions.has(PERMISSIONS.SAVINGS_VIEW_ALL) &&
+    context.permissions.has(PERMISSIONS.REPORTS_EXPORT);
+  const canEnrol = context.permissions.has(PERMISSIONS.MEMBERS_CREATE);
+
   return (
     <div>
       <PageHeader
         title={copy.title}
         description={pluralize(copy.inRegister, data.total)}
         actions={
-          context.permissions.has(PERMISSIONS.MEMBERS_CREATE) ? (
-            <Button asChild size="sm">
-              <Link href="/admin/members/new">
-                <UserPlus className="size-3.5" aria-hidden="true" />
-                {copy.enrol}
-              </Link>
-            </Button>
+          canDownloadStatement || canEnrol ? (
+            <>
+              {/* Plain links rather than fetches, as on the member's own
+                  statement page: the printable one needs a real document
+                  window for print-to-PDF, the CSV the browser's download. */}
+              {canDownloadStatement && (
+                <>
+                  <Button asChild size="sm" variant="outline">
+                    <a
+                      href="/api/admin/members/statement?format=html"
+                      target="_blank"
+                      rel="noopener"
+                      title={copy.statementHint}
+                    >
+                      <FileText className="size-3.5" aria-hidden="true" />
+                      {copy.statement}
+                    </a>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <a
+                      href="/api/admin/members/statement?format=csv"
+                      download
+                      title={copy.statementCsvHint}
+                      aria-label={copy.statementCsvHint}
+                    >
+                      <FileSpreadsheet className="size-3.5" aria-hidden="true" />
+                      {copy.statementCsv}
+                    </a>
+                  </Button>
+                </>
+              )}
+              {canEnrol && (
+                <Button asChild size="sm">
+                  <Link href="/admin/members/new">
+                    <UserPlus className="size-3.5" aria-hidden="true" />
+                    {copy.enrol}
+                  </Link>
+                </Button>
+              )}
+            </>
           ) : undefined
         }
       />

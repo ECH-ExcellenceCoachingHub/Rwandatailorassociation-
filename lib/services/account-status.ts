@@ -2,8 +2,12 @@ import "server-only";
 import { Prisma, prisma } from "@/lib/db/prisma";
 import { add, gt, multiply, subtract, toMoney, toMoneyString } from "@/lib/money";
 import { availableBalance } from "@/lib/services/ledger";
-import { getMemberStanding, type ContributionStatus } from "@/lib/services/contributions";
-import { getPolicy } from "@/lib/services/rulebook";
+import {
+  getMemberStanding,
+  type ContributionStanding,
+  type ContributionStatus,
+} from "@/lib/services/contributions";
+import { getPolicy, type AssociationPolicy } from "@/lib/services/rulebook";
 import {
   assessBorrowing,
   wholeMonthsBetween,
@@ -236,6 +240,29 @@ export interface AccountStatusSummary {
 /// statement. Enough to cover a month of daily saving on one screen.
 const TRANSACTION_LIMIT = 40;
 
+/// A loan being repaid right now — the one the page calls "current".
+export const LIVE_LOAN_STATUSES: LoanStatus[] = ["DISBURSED", "ACTIVE", "OVERDUE"];
+
+/// Every loan that actually reached the member, settled ones included.
+/// Applications and undisbursed approvals are excluded: money that was never
+/// advanced is not money they borrowed.
+export const ADVANCED_LOAN_STATUSES: LoanStatus[] = [
+  "DISBURSED",
+  "ACTIVE",
+  "OVERDUE",
+  "COMPLETED",
+  "DEFAULTED",
+  "WRITTEN_OFF",
+  "RESTRUCTURED",
+];
+
+/// Wider than LIVE_LOAN_STATUSES: a loan approved but not yet paid out also
+/// stops a second one, and the loan form counts it the same way.
+export const OPEN_LOAN_STATUSES: LoanStatus[] = [
+  "PENDING_DISBURSEMENT",
+  ...LIVE_LOAN_STATUSES,
+];
+
 export async function getAccountStatusSummary(
   memberId: string
 ): Promise<AccountStatusSummary | null> {
@@ -292,7 +319,7 @@ export async function getAccountStatusSummary(
     guarantees,
   ] = await Promise.all([
       prisma.loan.findFirst({
-        where: { memberId, status: { in: ["DISBURSED", "ACTIVE", "OVERDUE"] } },
+        where: { memberId, status: { in: LIVE_LOAN_STATUSES } },
         orderBy: { createdAt: "desc" },
         select: {
           reference: true,
@@ -316,41 +343,14 @@ export async function getAccountStatusSummary(
       }),
 
       // Lifetime borrowing, across every loan that actually reached the
-      // member. Applications and undisbursed approvals are excluded: money
-      // that was never advanced is not money they borrowed.
+      // member.
       prisma.loan.aggregate({
-        where: {
-          memberId,
-          status: {
-            in: [
-              "DISBURSED",
-              "ACTIVE",
-              "OVERDUE",
-              "COMPLETED",
-              "DEFAULTED",
-              "WRITTEN_OFF",
-              "RESTRUCTURED",
-            ],
-          },
-        },
+        where: { memberId, status: { in: ADVANCED_LOAN_STATUSES } },
         _sum: { principal: true, totalPaid: true },
       }),
 
       prisma.loan.count({
-        where: {
-          memberId,
-          status: {
-            in: [
-              "DISBURSED",
-              "ACTIVE",
-              "OVERDUE",
-              "COMPLETED",
-              "DEFAULTED",
-              "WRITTEN_OFF",
-              "RESTRUCTURED",
-            ],
-          },
-        },
+        where: { memberId, status: { in: ADVANCED_LOAN_STATUSES } },
       }),
 
       prisma.savingsTransaction.findMany({
@@ -381,13 +381,8 @@ export async function getAccountStatusSummary(
       listMemberFines(memberId),
 
       getPolicy(member.associationId),
-      // Wider than `activeLoan` above: a loan approved but not yet paid out
-      // also stops a second one, and the loan form counts it the same way.
       prisma.loan.count({
-        where: {
-          memberId,
-          status: { in: ["PENDING_DISBURSEMENT", "DISBURSED", "ACTIVE", "OVERDUE"] },
-        },
+        where: { memberId, status: { in: OPEN_LOAN_STATUSES } },
       }),
 
       getMemberGuarantees(memberId),
@@ -400,21 +395,6 @@ export async function getAccountStatusSummary(
   const available = account
     ? availableBalance(account.balance, account.lockedBalance)
     : "0.00";
-
-  // Tenure anchored on approval, then joining, then creation — the order the
-  // loan form uses, so the two screens count the same months.
-  const now = new Date();
-  const since = member.approvedAt ?? member.joinedAt ?? member.createdAt;
-
-  const assessment = assessBorrowing({
-    policy,
-    savingsBalance: available,
-    membershipMonths: wholeMonthsBetween(since, now),
-    associationMonths: wholeMonthsBetween(member.association.createdAt, now),
-    missedDays: standing?.missedDays ?? 0,
-    outstandingFines: standing?.outstandingFineAmount ?? "0.00",
-    hasActiveLoan: openLoanCount > 0,
-  });
 
   return {
     memberNumber: member.memberNumber,
@@ -453,13 +433,15 @@ export async function getAccountStatusSummary(
       loanCount,
     }),
 
-    borrowing: {
-      percent: toMoney(policy.ownSavingsPercent).toDecimalPlaces(2).toString(),
-      basis: available,
-      limit: assessment.ownShareLimit,
-      canBorrow: assessment.canBorrow,
-      blockers: assessment.blockers,
-    },
+    borrowing: assessBorrowingLimit({
+      policy,
+      available,
+      member,
+      associationCreatedAt: member.association.createdAt,
+      standing,
+      openLoanCount,
+      asOf: new Date(),
+    }),
 
     warehouse,
     fines,
@@ -483,9 +465,49 @@ export async function getAccountStatusSummary(
   };
 }
 
-function buildShareholding(
-  standing: Awaited<ReturnType<typeof getMemberStanding>> & object
-): ShareholdingSummary {
+/**
+ * What the member may borrow today. Shared with the association-wide member
+ * account statement so an officer's printout and the member's own page quote
+ * the same limit for the same reasons.
+ */
+export function assessBorrowingLimit(input: {
+  policy: AssociationPolicy;
+  /// The AVAILABLE balance — see AccountBorrowingLimit.
+  available: string;
+  member: { approvedAt: Date | null; joinedAt: Date | null; createdAt: Date };
+  /// The lending unlock counts from the association's own first day.
+  associationCreatedAt: Date;
+  standing: ContributionStanding | null;
+  /// Loans in OPEN_LOAN_STATUSES.
+  openLoanCount: number;
+  asOf: Date;
+}): AccountBorrowingLimit {
+  const { member, asOf } = input;
+
+  // Tenure anchored on approval, then joining, then creation — the order the
+  // loan form uses, so the two screens count the same months.
+  const since = member.approvedAt ?? member.joinedAt ?? member.createdAt;
+
+  const assessment = assessBorrowing({
+    policy: input.policy,
+    savingsBalance: input.available,
+    membershipMonths: wholeMonthsBetween(since, asOf),
+    associationMonths: wholeMonthsBetween(input.associationCreatedAt, asOf),
+    missedDays: input.standing?.missedDays ?? 0,
+    outstandingFines: input.standing?.outstandingFineAmount ?? "0.00",
+    hasActiveLoan: input.openLoanCount > 0,
+  });
+
+  return {
+    percent: toMoney(input.policy.ownSavingsPercent).toDecimalPlaces(2).toString(),
+    basis: input.available,
+    limit: assessment.ownShareLimit,
+    canBorrow: assessment.canBorrow,
+    blockers: assessment.blockers,
+  };
+}
+
+export function buildShareholding(standing: ContributionStanding): ShareholdingSummary {
   const daysCredited = Math.min(standing.dueDays, standing.coveredDays);
   const advanceDays = Math.max(0, standing.coveredDays - standing.dueDays);
 
@@ -509,7 +531,7 @@ function buildShareholding(
   };
 }
 
-function buildLoanSummary(input: {
+export function buildLoanSummary(input: {
   activeLoan: {
     reference: string;
     status: LoanStatus;

@@ -1977,8 +1977,56 @@ export async function getMemberWarehouseSummary(
   });
 
   const asOf = new Date();
-  const issuances = rows.map((row) => toIssuanceDetail(row, asOf));
+  return summariseIssuances(
+    rows.map((row) => toIssuanceDetail(row, asOf)),
+    member.association.currency
+  );
+}
 
+/**
+ * Every member's warehouse position at once, keyed by member id — for the
+ * association-wide member account statement. One query for the whole
+ * association rather than one per member, totalled by the same function the
+ * account status page uses, so the two cannot disagree about what is owed.
+ * Members who have never taken anything from the store are absent.
+ */
+export async function getWarehouseSummariesByMember(
+  associationId: string
+): Promise<Map<string, MemberWarehouseSummary>> {
+  const [association, rows] = await Promise.all([
+    prisma.association.findUnique({
+      where: { id: associationId },
+      select: { currency: true },
+    }),
+    prisma.warehouseIssuance.findMany({
+      where: { associationId, status: { not: "CANCELLED" } },
+      orderBy: { issuedAt: "desc" },
+      select: ISSUANCE_SELECT,
+    }),
+  ]);
+
+  const asOf = new Date();
+  const byMember = new Map<string, WarehouseIssuanceDetail[]>();
+  for (const row of rows) {
+    const list = byMember.get(row.memberId) ?? [];
+    list.push(toIssuanceDetail(row, asOf));
+    byMember.set(row.memberId, list);
+  }
+
+  const currency = association?.currency ?? "RWF";
+  return new Map(
+    [...byMember].map(([memberId, issuances]) => [
+      memberId,
+      summariseIssuances(issuances, currency),
+    ])
+  );
+}
+
+/** Totals one member's issues, newest first, into their warehouse position. */
+function summariseIssuances(
+  issuances: WarehouseIssuanceDetail[],
+  currency: string
+): MemberWarehouseSummary {
   let totalIssuedValue = toMoney(0);
   let totalOwed = toMoney(0);
   let totalSettled = toMoney(0);
@@ -2043,7 +2091,7 @@ export async function getMemberWarehouseSummary(
     totalSettled: toMoneyString(totalSettled),
     creditOutstanding: toMoneyString(creditOutstanding),
     totalDueToStore: toMoneyString(add(totalOwed, creditOutstanding)),
-    currency: member.association.currency,
+    currency,
     openCount,
     overdueReturnCount,
     activeCreditCount,
