@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 import { loginSchema } from "@/lib/validation/auth";
 import { authenticate } from "@/lib/auth/service";
 import { setSessionCookie } from "@/lib/auth/session";
-import { ROLE_HOME } from "@/lib/auth/permissions";
+import { ROLE_LANDING } from "@/lib/auth/permissions";
 import {
   apiError,
   apiSuccess,
@@ -74,6 +74,6 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     // The client uses this only when no safe `next` was supplied.
     redirectTo: result.mustChangePassword
       ? "/account/password?required=1"
-      : ROLE_HOME[result.role],
+      : ROLE_LANDING[result.role],
   });
 });

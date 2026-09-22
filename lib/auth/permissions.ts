@@ -407,9 +407,23 @@ export function hasAllPermissions(
   return required.every((p) => set.has(p));
 }
 
-/** Landing route for a role, used after login and by the role guard. */
+/** A role's own dashboard, used by the role guard and as the way onward from
+ *  the account status page. */
 export const ROLE_HOME: Record<UserRole, string> = {
   MEMBER: "/dashboard",
   ADMIN: "/admin",
   SUPER_ADMIN: "/super-admin",
+};
+
+/**
+ * Where a role lands straight after signing in.
+ *
+ * A member arriving has one question — where do I stand — and the account
+ * status page answers it in full, so they start there, the same as after a QR
+ * sign-in. Staff land on the console they came to work in.
+ */
+export const ROLE_LANDING: Record<UserRole, string> = {
+  MEMBER: "/account/status",
+  ADMIN: ROLE_HOME.ADMIN,
+  SUPER_ADMIN: ROLE_HOME.SUPER_ADMIN,
 };

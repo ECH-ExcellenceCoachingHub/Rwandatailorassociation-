@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/jwt";
-import { ROLE_HOME } from "@/lib/auth/permissions";
+import { ROLE_HOME, ROLE_LANDING } from "@/lib/auth/permissions";
 
 /**
  * Edge middleware: routing and coarse role separation.
@@ -75,7 +75,8 @@ export async function middleware(request: NextRequest) {
   }
 
   if (claims && AUTH_ROUTES.some((route) => pathname.startsWith(route))) {
-    return NextResponse.redirect(new URL(ROLE_HOME[claims.role], request.url));
+    // Already signed in, so treat it as arriving: the same place login sends them.
+    return NextResponse.redirect(new URL(ROLE_LANDING[claims.role], request.url));
   }
 
   const response = NextResponse.next();
