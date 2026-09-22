@@ -117,9 +117,15 @@ export function describeMemberAction(
   const requireReason = reasonMinLength !== undefined;
 
   // Only the actions that touch a login say what happens to a staff one.
+  // Suspending and closing leave it alone; deleting takes it with the member,
+  // which is worth a louder warning.
   const staffCount = targets.filter((t) => t.isStaff).length;
   const staffNote =
-    staffCount > 0 && (kind === "suspend" || kind === "close" || kind === "delete") ? (
+    staffCount === 0 ? null : kind === "delete" ? (
+      <Note key="staff" tone="warning">
+        {one ? fill(copy.staffLoginErased, { name }) : pluralize(bulk.staffErased, staffCount)}
+      </Note>
+    ) : kind === "suspend" || kind === "close" ? (
       <Note key="staff">
         {one ? fill(copy.staffLoginKept, { name }) : pluralize(bulk.staffKept, staffCount)}
       </Note>

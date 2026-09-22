@@ -18,7 +18,7 @@ import {
 } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { allowedMemberActions } from "@/lib/member-actions";
-import { getMemberProfile, getMemberRemovalBlockers } from "@/lib/services/members";
+import { getMemberProfile, getMemberRemovalHistory } from "@/lib/services/members";
 import { getMemberTransactions } from "@/lib/services/member-queries";
 import { add, formatMoney, subtract } from "@/lib/money";
 import { getDashboardCopy } from "@/lib/i18n/server";
@@ -109,8 +109,8 @@ export default async function AdminMemberDetailPage({
   const allowed = allowedMemberActions(context.permissions);
   const canManage = allowed.length > 0;
   // Only worth the counting queries for someone who could act on the answer.
-  const blockers = allowed.includes("delete")
-    ? ((await getMemberRemovalBlockers(member.id)) ?? [])
+  const history = allowed.includes("delete")
+    ? ((await getMemberRemovalHistory(member.id)) ?? [])
     : [];
   const fullName = `${member.user.firstName} ${member.user.lastName}`.trim();
 
@@ -478,7 +478,7 @@ export default async function AdminMemberDetailPage({
             isStaff: member.user.role !== "MEMBER",
           }}
           allowed={allowed}
-          blockers={blockers}
+          history={history}
           isSelf={member.userId === context.user.id}
         />
       )}

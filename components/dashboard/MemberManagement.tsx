@@ -16,7 +16,7 @@ import {
 import { fill, pluralize } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
 import { API_ACTION, canTake, type MemberActionKind } from "@/lib/member-actions";
-import type { BlockerCount } from "@/lib/member-removal";
+import type { HistoryCount } from "@/lib/member-removal";
 import type { KycStatus, MemberStatus } from "@/lib/generated/prisma/enums";
 
 export interface ManagedMember extends MemberTarget {
@@ -59,24 +59,26 @@ export async function sendMemberAction(
  * Buttons appear only for the permissions the viewer holds and the states the
  * member is in, but that is presentation: every action is re-checked by the
  * API, which also refuses transitions that make no sense (suspending a closed
- * membership, deleting one with a ledger behind it).
+ * membership, say).
  *
- * Removal comes in two strengths on purpose. Deleting erases, and is only
- * offered for a record money never touched. Closing is how anyone else leaves:
- * the membership ends and every record stays. When deletion is not possible the
- * panel says exactly what is in the way, so the administrator is not left
- * wondering why the button is greyed out.
+ * Removal comes in two strengths on purpose. Deleting erases the member and
+ * everything recorded against them — it is for test accounts and records made
+ * in error. Closing is how a real member leaves: the membership ends and every
+ * record stays. When there is history to lose the panel lists it beside the
+ * delete button, so nobody erases a ledger without having been told it is
+ * there.
  */
 export function MemberManagement({
   member,
   allowed,
-  blockers,
+  history,
   isSelf,
 }: {
   member: ManagedMember;
   /// The actions the viewer's permissions allow; see allowedMemberActions.
   allowed: MemberActionKind[];
-  blockers: BlockerCount[];
+  /// What deleting this member would erase with them.
+  history: HistoryCount[];
   isSelf: boolean;
 }) {
   const router = useRouter();
@@ -103,7 +105,7 @@ export function MemberManagement({
     router.refresh();
   }
 
-  function actionButton(kind: MemberActionKind, disabled = false) {
+  function actionButton(kind: MemberActionKind) {
     const Icon = MEMBER_ACTION_ICON[kind];
     const solid = kind === "approve" || kind === "reactivate";
     return (
@@ -118,7 +120,6 @@ export function MemberManagement({
               ? dangerButtonClass
               : undefined
         }
-        disabled={disabled}
         onClick={() => setOpen(kind)}
       >
         <Icon className="size-3.5" aria-hidden="true" />
@@ -144,11 +145,11 @@ export function MemberManagement({
     REJECTED: copy.kycRejected,
   };
 
-  const blockerList = blockers
-    .map((blocker) =>
-      blocker.key === "savingsBalance"
-        ? copy.blockers.savingsBalance
-        : pluralize(copy.blockers[blocker.key], blocker.count)
+  const historyList = history
+    .map((entry) =>
+      entry.key === "savingsBalance"
+        ? copy.history.savingsBalance
+        : pluralize(copy.history[entry.key], entry.count)
     )
     .join(", ");
 
@@ -207,12 +208,12 @@ export function MemberManagement({
                 <ActionRow
                   label={copy.deleteTitle}
                   text={
-                    blockers.length > 0
-                      ? fill(copy.deleteBlocked, { items: blockerList })
+                    history.length > 0
+                      ? fill(copy.deleteWithHistory, { items: historyList })
                       : copy.deleteBody
                   }
                 >
-                  {[actionButton("delete", blockers.length > 0)]}
+                  {[actionButton("delete")]}
                 </ActionRow>
               )}
             </div>

@@ -1,5 +1,5 @@
 import type { Locale } from "@/types";
-import type { RemovalBlocker } from "@/lib/member-removal";
+import type { MemberHistoryKind } from "@/lib/member-removal";
 
 /**
  * The association administrator's screens: the register, payments, loans,
@@ -231,15 +231,18 @@ export interface AdminCopy {
     deleteTitle: string;
     deleteBody: string;
     deleteButton: string;
-    deleteBlocked: string;
+    /// Shown instead of deleteBody when the member has a history; {items} is
+    /// the list built from `history` below.
+    deleteWithHistory: string;
     deleteConfirmTitle: string;
     deleteConfirmBody: string;
     deleteConfirm: string;
     deleteReasonLabel: string;
     deleteReasonPlaceholder: string;
     staffLoginKept: string;
+    staffLoginErased: string;
     /// Each takes {count} except savingsBalance, which is a sum of money.
-    blockers: Record<RemovalBlocker, string>;
+    history: Record<MemberHistoryKind, string>;
 
     noteLabel: string;
     notePlaceholder: string;
@@ -277,6 +280,7 @@ export interface AdminCopy {
     deleteBody: string;
     sameReason: string;
     staffKept: string;
+    staffErased: string;
 
     done: string;
     skipped: string;
@@ -1286,22 +1290,24 @@ export const admin: Record<Locale, AdminCopy> = {
       closeReasonPlaceholder: "e.g. Left the association at the general assembly of 12 March",
       deleteTitle: "Delete permanently",
       deleteBody:
-        "For an application made in error or a record entered twice. Erases the member, their login and their empty savings account. This cannot be undone.",
+        "For a test account, an application made in error or a record entered twice. Erases the member, their login and their empty savings account. This cannot be undone.",
       deleteButton: "Delete member",
-      deleteBlocked:
-        "Cannot be deleted: money has moved through this membership ({items}). Those records are part of the association's accounts and must be kept. Close the membership instead.",
+      deleteWithHistory:
+        "For a test account or a record made in error. Erases the member and their login together with everything recorded against them: {items}. Goods they still hold go back into stock, and payments matched to them return to the unmatched queue. A real member who is leaving should be closed instead, which keeps the association's accounts intact. This cannot be undone.",
       deleteConfirmTitle: "Delete {name} permanently?",
       deleteConfirmBody:
-        "Member {number}, their login and their savings account will be erased. Only the audit log will record that they existed. This cannot be undone.",
+        "Member {number}, their login and every record against them — savings, loans, fines, service fees and warehouse issues — will be erased. Only the audit log will record that they existed. This cannot be undone.",
       deleteConfirm: "Delete permanently",
       deleteReasonLabel: "Why is this record being deleted?",
       deleteReasonPlaceholder:
         "e.g. Duplicate of member RTA-M000123, entered twice at enrolment",
       staffLoginKept:
         "{name} is also a member of staff. Only their membership is affected; their administrator sign-in is kept.",
-      blockers: {
+      staffLoginErased:
+        "{name} is also a member of staff. Their administrator sign-in is deleted too, and they will no longer be able to sign in at all.",
+      history: {
         savingsTransactions: "{count} savings transaction|{count} savings transactions",
-        savingsBalance: "money in their savings account",
+        savingsBalance: "the money in their savings account",
         withdrawals: "{count} withdrawal|{count} withdrawals",
         loanApplications: "{count} loan application|{count} loan applications",
         loans: "{count} loan|{count} loans",
@@ -1310,7 +1316,8 @@ export const admin: Record<Locale, AdminCopy> = {
         serviceFees: "{count} service fee charge|{count} service fee charges",
         interestShares: "{count} interest share|{count} interest shares",
         warehouse: "{count} warehouse record|{count} warehouse records",
-        guarantees: "{count} open guarantee|{count} open guarantees",
+        guarantees:
+          "{count} open guarantee on another member's loan|{count} open guarantees on other members' loans",
       },
 
       noteLabel: "Add a note",
@@ -1354,10 +1361,12 @@ export const admin: Record<Locale, AdminCopy> = {
       deleteTitle:
         "Delete {count} member permanently?|Delete {count} members permanently?",
       deleteBody:
-        "Only records that money never touched are erased, with their logins and empty savings accounts. Anyone with a financial history is skipped and listed afterwards — close their membership instead. This cannot be undone.",
+        "For test accounts and records made in error. Each member is erased with their login and every record against them — savings, loans, fines, service fees and warehouse issues. Goods they still hold go back into stock, and payments matched to them return to the unmatched queue. Real members who are leaving should be closed instead. This cannot be undone.",
       sameReason: "The same reason is recorded against each member.",
       staffKept:
         "{count} of them is also a member of staff and keeps their administrator sign-in.|{count} of them are also staff and keep their administrator sign-in.",
+      staffErased:
+        "{count} of them is also a member of staff, and their administrator sign-in is deleted too.|{count} of them are also staff, and their administrator sign-ins are deleted too.",
 
       done: "{count} member updated.|{count} members updated.",
       skipped: "{count} could not be:|{count} could not be:",
@@ -2478,20 +2487,22 @@ export const admin: Record<Locale, AdminCopy> = {
         "urugero: Yavuye mu ihuriro mu nteko rusange yo ku wa 12 Werurwe",
       deleteTitle: "Siba burundu",
       deleteBody:
-        "Ku busabe bwakozwe mu makosa cyangwa umunyamuryango wanditswe kabiri. Bisiba umunyamuryango, konti ye yo kwinjira n'iy'ubuzigame itarimo amafaranga. Ntibishobora gusubizwa inyuma.",
+        "Kuri konti y'igerageza, ubusabe bwakozwe mu makosa cyangwa umunyamuryango wanditswe kabiri. Bisiba umunyamuryango, konti ye yo kwinjira n'iy'ubuzigame itarimo amafaranga. Ntibishobora gusubizwa inyuma.",
       deleteButton: "Siba umunyamuryango",
-      deleteBlocked:
-        "Ntashobora gusibwa: amafaranga yanyuze muri ubu bunyamuryango ({items}). Izo nyandiko ni iz'imari y'ihuriro kandi zigomba kubikwa. Soza ubunyamuryango aho kubusiba.",
+      deleteWithHistory:
+        "Kuri konti y'igerageza cyangwa inyandiko yakozwe mu makosa. Bisiba umunyamuryango na konti ye yo kwinjira, hamwe n'ibyanditswe byose bimwerekeyeho: {items}. Ibikoresho agifite bisubizwa mu bubiko, kandi ubwishyu bwamuhujweho busubizwa ku rutonde rw'ubwishyu butahujwe. Umunyamuryango nyakuri uvuye mu ihuriro akwiye gusozerwa ubunyamuryango aho gusibwa, kugira ngo imari y'ihuriro igume uko iri. Ntibishobora gusubizwa inyuma.",
       deleteConfirmTitle: "Gusiba {name} burundu?",
       deleteConfirmBody:
-        "Umunyamuryango {number}, konti ye yo kwinjira n'iy'ubuzigame bizasibwa. Ibyakozwe byose ni byo byonyine bizagaragaza ko yabayeho. Ntibishobora gusubizwa inyuma.",
+        "Umunyamuryango {number}, konti ye yo kwinjira n'ibyanditswe byose bimwerekeyeho — ubuzigame, inguzanyo, amahazabu, amafaranga ya serivisi n'ibyo yahawe mu bubiko — bizasibwa. Ibyakozwe byose ni byo byonyine bizagaragaza ko yabayeho. Ntibishobora gusubizwa inyuma.",
       deleteConfirm: "Siba burundu",
       deleteReasonLabel: "Kuki iyi nyandiko isibwa?",
       deleteReasonPlaceholder:
         "urugero: Yanditswe kabiri — ni umwe na RTA-M000123",
       staffLoginKept:
         "{name} ni n'umukozi w'ihuriro. Ubunyamuryango bwe ni bwo bwonyine bukorwaho; konti ye y'umuyobozi iguma uko iri.",
-      blockers: {
+      staffLoginErased:
+        "{name} ni n'umukozi w'ihuriro. Konti ye y'umuyobozi na yo irasibwa, kandi ntazongera kwinjira na gato.",
+      history: {
         savingsTransactions:
           "igikorwa {count} cy'ubuzigame|ibikorwa {count} by'ubuzigame",
         savingsBalance: "amafaranga ari kuri konti ye y'ubuzigame",
@@ -2507,7 +2518,7 @@ export const admin: Record<Locale, AdminCopy> = {
           "umugabane {count} ku nyungu|imigabane {count} ku nyungu",
         warehouse: "inyandiko {count} y'ububiko|inyandiko {count} z'ububiko",
         guarantees:
-          "ubwishingizi {count} butararangira|ubwishingizi {count} butararangira",
+          "ubwishingizi {count} butararangira ku nguzanyo y'undi munyamuryango|ubwishingizi {count} butararangira ku nguzanyo z'abandi banyamuryango",
       },
 
       noteLabel: "Ongeraho icyitonderwa",
@@ -2562,10 +2573,12 @@ export const admin: Record<Locale, AdminCopy> = {
       deleteTitle:
         "Gusiba burundu umunyamuryango {count}?|Gusiba burundu abanyamuryango {count}?",
       deleteBody:
-        "Hasibwa gusa abo amafaranga atigeze anyura mu bunyamuryango bwabo, hamwe na konti zabo zo kwinjira n'iz'ubuzigame zitarimo amafaranga. Ufite amateka y'imari arasimbukwa kandi akagaragazwa nyuma — soza ubunyamuryango bwe aho kubusiba. Ntibishobora gusubizwa inyuma.",
+        "Ku makonti y'igerageza n'inyandiko zakozwe mu makosa. Buri munyamuryango asibwa hamwe na konti ye yo kwinjira n'ibyanditswe byose bimwerekeyeho — ubuzigame, inguzanyo, amahazabu, amafaranga ya serivisi n'ibyo yahawe mu bubiko. Ibikoresho bagifite bisubizwa mu bubiko, kandi ubwishyu bwabahujweho busubizwa ku rutonde rw'ubwishyu butahujwe. Abanyamuryango nyakuri bavuye mu ihuriro bakwiye gusozerwa ubunyamuryango aho gusibwa. Ntibishobora gusubizwa inyuma.",
       sameReason: "Impamvu imwe yandikwa kuri buri munyamuryango.",
       staffKept:
         "{count} muri bo ni n'umukozi w'ihuriro, kandi konti ye y'umuyobozi iguma uko iri.|{count} muri bo ni n'abakozi b'ihuriro, kandi konti zabo z'abayobozi ziguma uko ziri.",
+      staffErased:
+        "{count} muri bo ni n'umukozi w'ihuriro, kandi konti ye y'umuyobozi na yo irasibwa.|{count} muri bo ni n'abakozi b'ihuriro, kandi konti zabo z'abayobozi na zo zirasibwa.",
 
       done:
         "Umunyamuryango {count} yakorewe igikorwa.|Abanyamuryango {count} bakorewe igikorwa.",

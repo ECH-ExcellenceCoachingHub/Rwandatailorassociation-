@@ -6,19 +6,15 @@ import { loginSchema, registerSchema } from "@/lib/validation/auth";
 /**
  * The photographs and the questions that were added to the application form.
  *
- * TWO CLAIMS ARE PINNED HERE, because both fail quietly rather than loudly.
+ * The claim pinned hardest here is that a photograph is what it says it is.
+ * The browser sends a `data:` URL whose media type is a string the sender
+ * chose, so "image/png" in front of a JavaScript file is a claim with nothing
+ * behind it. If the magic bytes are not checked, that file is stored, served
+ * back with an image content type, and nothing goes wrong until it does.
  *
- * The first is that a photograph is what it says it is. The browser sends a
- * `data:` URL whose media type is a string the sender chose, so "image/png" in
- * front of a JavaScript file is a claim with nothing behind it. If the magic
- * bytes are not checked, that file is stored, served back with an image
- * content type, and nothing goes wrong until it does.
- *
- * The second is that a named successor comes with their ID number. The
- * warehouse counter settles who is who on it; a row carrying only a name looks
- * answered and answers nothing, and nobody finds out until somebody is
- * standing at the counter. The photographs themselves are optional, so an
- * applicant without one to hand is never stopped at the last step.
+ * The photographs themselves are optional, and so is the successor's ID
+ * number, so an applicant without either to hand is never stopped at the last
+ * step. An ID that is given still has to be a real one.
  */
 
 /**
@@ -224,11 +220,24 @@ describe("the application form", () => {
     expect(registerSchema.safeParse(application()).success).toBe(true);
   });
 
-  it("demands the ID, but not the photograph, once a successor is named", () => {
-    const paths = issuePaths(application({ successorName: "Alice Mukamana" }));
+  it("demands neither the ID nor the photograph once a successor is named", () => {
+    const parsed = registerSchema.safeParse(
+      application({ successorName: "Alice Mukamana" })
+    );
 
-    expect(paths).toContain("successorNationalId");
-    expect(paths).not.toContain("successorPhoto");
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.successorNationalId).toBeUndefined();
+  });
+
+  it("reads a blank successor ID as no ID", () => {
+    const parsed = registerSchema.safeParse(
+      application({ successorName: "Alice Mukamana", successorNationalId: "" })
+    );
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.successorNationalId).toBeUndefined();
   });
 
   it("accepts a named successor with no photograph", () => {

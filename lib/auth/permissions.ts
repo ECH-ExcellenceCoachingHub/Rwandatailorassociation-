@@ -164,7 +164,7 @@ export const PERMISSION_METADATA: Record<
   [PERMISSIONS.MEMBERS_SUSPEND]: { name: "Suspend members", category: "Members", description: "Suspend or reactivate a member account" },
   [PERMISSIONS.MEMBERS_VERIFY_KYC]: { name: "Verify identity", category: "Members", description: "Mark a member's identity documents as verified" },
   [PERMISSIONS.MEMBERS_EXPORT]: { name: "Export members", category: "Members", description: "Download the member register" },
-  [PERMISSIONS.MEMBERS_DELETE]: { name: "Remove members", category: "Members", description: "Close a membership, or permanently delete a member record that has never held money — always with a written reason" },
+  [PERMISSIONS.MEMBERS_DELETE]: { name: "Remove members", category: "Members", description: "Close a membership, or permanently delete a member with their login and every record against them — always with a written reason" },
 
   [PERMISSIONS.SAVINGS_VIEW_OWN]: { name: "View own savings", category: "Savings", description: "See your own balance and transactions" },
   [PERMISSIONS.SAVINGS_VIEW_ALL]: { name: "View all savings", category: "Savings", description: "See every member's savings in the association" },

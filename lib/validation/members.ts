@@ -143,37 +143,6 @@ function optionalPhotoDataUrl() {
 }
 
 /**
- * A successor recorded by name alone is a successor nobody can act on: the
- * warehouse counter settles who is who on the ID number, so a name without one
- * is a row that looks answered and answers nothing.
- *
- * The photograph is not insisted on. An applicant rarely has a usable picture
- * of somebody else to hand, and an administrator can add it at approval.
- *
- * Only the public form insists. The desk form does not — an administrator
- * transcribing a paper application may genuinely not have been given the
- * number, and refusing to save the rest of the file over it loses more than it
- * protects.
- */
-export function requireSuccessorIdentity(
-  data: {
-    successorName?: string;
-    successorNationalId?: string;
-  },
-  ctx: z.RefinementCtx
-) {
-  if (!data.successorName) return;
-
-  if (!data.successorNationalId) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["successorNationalId"],
-      message: "Enter the successor's national ID",
-    });
-  }
-}
-
-/**
  * The interns questions are only for someone with a company, and a capacity
  * only means something beside a yes. On the public form each answer is
  * required once the one before it says yes — the applicant is there to finish

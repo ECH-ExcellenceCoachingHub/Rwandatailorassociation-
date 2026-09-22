@@ -10,7 +10,6 @@ import {
   normaliseInternAnswers,
   memberFieldsSchema,
   requireInternAnswers,
-  requireSuccessorIdentity,
   wholeNumber,
 } from "@/lib/validation/members";
 import { MAX_APPLICATION_SHARES } from "@/lib/application-limits";
@@ -143,7 +142,6 @@ export const registerSchema = z
   })
   .superRefine(checkDistrictInProvince)
   .superRefine(requireInternAnswers)
-  .superRefine(requireSuccessorIdentity)
   .transform(normaliseInternAnswers);
 
 export const forgotPasswordSchema = z.object({

@@ -101,13 +101,14 @@ const deleteSchema = z.object({ reason: reasonFor("delete") });
 /**
  * DELETE /api/admin/members/[id]
  *
- * Permanently erases a member record that has never held money — an
- * application made in error, a duplicate. Requires `members.delete` and a
- * written reason.
+ * Permanently erases a member, their login and everything recorded against
+ * them — a test account, a record made in error. Requires `members.delete` and
+ * a written reason. Their history does not stop it; see `deleteMember` for
+ * what goes and what is put right so the rest of the books stay consistent.
  *
- * The service refuses anyone with a financial history; they are closed with
- * PATCH { action: "close" } instead, which keeps the ledger intact. The whole
- * file is copied into the audit log before anything is removed.
+ * A real member who is leaving is closed with PATCH { action: "close" }
+ * instead, which keeps the ledger intact. The whole file is copied into the
+ * audit log before anything is removed.
  */
 export const DELETE = withErrorHandling(
   async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {

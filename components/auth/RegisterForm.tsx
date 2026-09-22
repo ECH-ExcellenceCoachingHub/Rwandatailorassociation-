@@ -161,11 +161,10 @@ export default function RegisterForm({
     // Neither photograph is checked: both are optional, so an applicant with
     // no usable picture to hand can still send the application.
     //
-    // A successor recorded by name alone is one nobody can act on: the
-    // warehouse counter settles who is who on the number. Naming one is
-    // optional; naming one without their ID is not.
+    // The successor's ID is optional too — an applicant may not have it to
+    // hand — but one that is given has to be a real 16-digit number.
     if (
-      values.successorName.trim() &&
+      values.successorNationalId.trim() &&
       !/^\d{16}$/.test(values.successorNationalId.trim())
     ) {
       next.successorNationalId = [copy.error.successorNationalId];
@@ -629,7 +628,6 @@ export default function RegisterForm({
             id="successorNationalId"
             label={app.successorNationalId}
             error={errors.successorNationalId}
-            required={Boolean(values.successorName.trim())}
           >
             {(props) => (
               <Input

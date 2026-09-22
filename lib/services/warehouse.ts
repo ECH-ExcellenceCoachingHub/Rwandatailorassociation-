@@ -1451,6 +1451,78 @@ export async function cancelIssuance(params: {
   }, { id: params.actorId });
 }
 
+/**
+ * Puts back into stock everything a member who is being deleted never
+ * returned, ahead of their issues being erased. Returns how many movements it
+ * posted.
+ *
+ * Deleting a member is for a record that should never have existed — a test
+ * account above all — so their issues are unwound the way a cancelled one is:
+ * a RETURN for whatever is still out, and the on-loan count brought down with
+ * it. The movements stay, because the stock ledger is append-only and each
+ * row's before-and-after chains into the next; once the issue is gone they
+ * lose only the link to it, which is SetNull, and the note says where they
+ * came from.
+ *
+ * Runs inside the caller's transaction, so the stock is back if and only if
+ * the member is gone.
+ */
+export async function returnStockOfDeletedMember(
+  tx: TxClient,
+  params: { memberId: string; memberNumber: string; actorId: string; reason: string }
+): Promise<number> {
+  const issuances = await tx.warehouseIssuance.findMany({
+    where: {
+      memberId: params.memberId,
+      // A cancelled issue already returned everything. Nothing writes off an
+      // issue today, but one that is written off is never coming back, the
+      // same as recordReturn treats it.
+      status: { notIn: ["CANCELLED", "WRITTEN_OFF"] },
+    },
+    select: {
+      reference: true,
+      terms: true,
+      lines: {
+        select: { itemId: true, quantity: true, quantityReturned: true, unitValue: true },
+      },
+    },
+  });
+
+  let posted = 0;
+
+  for (const issuance of issuances) {
+    for (const line of issuance.lines) {
+      const outstanding = subtractQuantity(line.quantity, line.quantityReturned);
+      if (!isPositiveQuantity(outstanding)) continue;
+
+      await postStockMovement(tx, {
+        itemId: line.itemId,
+        type: "RETURN",
+        direction: "IN",
+        quantity: toQuantityString(outstanding),
+        unitValue: toMoneyString(line.unitValue),
+        reason: params.reason,
+        note: `Member ${params.memberNumber} deleted; issue ${issuance.reference} withdrawn`,
+        recordedById: params.actorId,
+      });
+      posted += 1;
+
+      if (RETURNABLE_TERMS.includes(issuance.terms)) {
+        await tx.warehouseItem.update({
+          where: { id: line.itemId },
+          data: {
+            quantityIssued: {
+              decrement: new Prisma.Decimal(toQuantityString(outstanding)),
+            },
+          },
+        });
+      }
+    }
+  }
+
+  return posted;
+}
+
 // ---------------------------------------------------------------------------
 // Reading issues back
 // ---------------------------------------------------------------------------

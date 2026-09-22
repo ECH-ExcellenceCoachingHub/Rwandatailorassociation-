@@ -1,16 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
   CLOSABLE_STATUSES,
-  removalBlockers,
+  historyToErase,
   type MemberHistory,
 } from "@/lib/member-removal";
 import { allowedMemberActions, canTake } from "@/lib/member-actions";
 
 /**
- * Who may be erased, and who may only be closed.
+ * What deleting a member takes with them, and when closing is the answer.
  *
- * The line is money: a record that never held any may go; anything the
- * association's accounts are built from must stay.
+ * Any member may be deleted — test accounts are exactly the ones with a few
+ * transactions on them — but the administrator is told everything that goes
+ * with them first, so a ledger is never erased by somebody who did not know
+ * it was there.
  */
 
 const untouched: MemberHistory = {
@@ -28,40 +30,38 @@ const untouched: MemberHistory = {
 };
 
 describe("deleting a member", () => {
-  it("is allowed for a record money never touched", () => {
-    expect(removalBlockers(untouched)).toEqual([]);
+  it("has nothing to warn about for a record money never touched", () => {
+    expect(historyToErase(untouched)).toEqual([]);
   });
 
-  it("is refused once a single savings transaction exists", () => {
-    expect(removalBlockers({ ...untouched, savingsTransactions: 1 })).toEqual([
+  it("names a single savings transaction", () => {
+    expect(historyToErase({ ...untouched, savingsTransactions: 1 })).toEqual([
       { key: "savingsTransactions", count: 1 },
     ]);
   });
 
-  it("is refused when the cached balance is not zero, even with no transactions", () => {
-    // The cache and the ledger disagreeing is a reason to stop and look,
-    // not to erase the evidence.
-    expect(removalBlockers({ ...untouched, savingsBalance: "0.01" })).toEqual([
+  it("names a balance even with no transactions behind it", () => {
+    // The cache and the ledger disagreeing is exactly what the administrator
+    // should hear about before erasing both.
+    expect(historyToErase({ ...untouched, savingsBalance: "0.01" })).toEqual([
       { key: "savingsBalance", count: 0 },
     ]);
   });
 
-  it("is refused for money that was matched to them but never posted", () => {
-    // Payment links are SetNull: deleting would quietly turn attributed
-    // money back into unattributed money.
-    expect(removalBlockers({ ...untouched, payments: 2 })).toEqual([
+  it("names payments matched to them, which go back to the unmatched queue", () => {
+    expect(historyToErase({ ...untouched, payments: 2 })).toEqual([
       { key: "payments", count: 2 },
     ]);
   });
 
-  it("is refused while they stand guarantor for somebody else's loan", () => {
-    expect(removalBlockers({ ...untouched, guarantees: 1 })).toEqual([
+  it("names guarantees they gave on somebody else's loan", () => {
+    expect(historyToErase({ ...untouched, guarantees: 1 })).toEqual([
       { key: "guarantees", count: 1 },
     ]);
   });
 
-  it("reports every obstacle, in a fixed order, so the screen can list them", () => {
-    const blockers = removalBlockers({
+  it("lists everything, in a fixed order, so the screen can show it", () => {
+    const history = historyToErase({
       ...untouched,
       guarantees: 1,
       loans: 2,
@@ -69,7 +69,7 @@ describe("deleting a member", () => {
       savingsBalance: "12000",
     });
 
-    expect(blockers.map((b) => b.key)).toEqual([
+    expect(history.map((entry) => entry.key)).toEqual([
       "savingsTransactions",
       "savingsBalance",
       "loans",

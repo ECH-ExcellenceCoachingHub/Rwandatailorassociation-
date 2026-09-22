@@ -1,6 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { prisma, Prisma } from "@/lib/db/prisma";
+import { prisma, Prisma, withFinancialTransaction, type TxClient } from "@/lib/db/prisma";
 import { recordAudit, diffFields, AUDIT_ACTIONS } from "@/lib/audit";
 import { notify, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { hashPassword } from "@/lib/auth/password";
@@ -8,11 +8,12 @@ import { abs, add, subtract, toMoneyString } from "@/lib/money";
 import { acceptPhotoDataUrl, type AcceptedPhoto } from "@/lib/images/photo";
 import {
   CLOSABLE_STATUSES,
-  removalBlockers,
-  type BlockerCount,
+  historyToErase,
+  type HistoryCount,
   type MemberHistory,
 } from "@/lib/member-removal";
 import type { BulkMemberResult } from "@/lib/member-actions";
+import { returnStockOfDeletedMember } from "@/lib/services/warehouse";
 import { logger, serialiseError } from "@/lib/logger";
 import type {
   CreateMemberInput,
@@ -1366,11 +1367,11 @@ export async function closeMembership(params: {
 }
 
 /**
- * Loads a member with the counts that decide whether they can be erased.
+ * Loads a member with the counts of everything deleting them would erase.
  *
- * Shared by the member file, which shows the answer, and by `deleteMember`,
- * which acts on it, so the button on the screen and the refusal from the
- * server are always drawing on the same facts.
+ * Shared by the member file, which lists it in the warning, and by
+ * `deleteMember`, which copies it into the audit log, so what the
+ * administrator was told and what was recorded are the same facts.
  */
 async function loadForRemoval(memberId: string) {
   return prisma.member.findUnique({
@@ -1385,13 +1386,16 @@ async function loadForRemoval(memberId: string) {
           title: true,
           phone: true,
           email: true,
-          // MemberNote.author is Restrict: a login that wrote notes on other
-          // files cannot be removed without first removing what it wrote.
+          // MemberNote.author is Restrict: the notes this login wrote on other
+          // files have to go before it can.
           _count: { select: { memberNotes: true } },
         },
       },
       savingsAccounts: {
         select: { id: true, accountNumber: true, balance: true, lockedBalance: true },
+      },
+      loans: {
+        select: { reference: true, status: true, principal: true, totalPaid: true },
       },
       _count: {
         select: {
@@ -1440,32 +1444,48 @@ function historyOf(member: RemovalRecord): MemberHistory {
 }
 
 /**
- * What stands between this member and deletion, for the member file to show.
- * Null when there is no such member.
+ * Everything deleting this member would erase, for the member file to warn
+ * about. Null when there is no such member.
  */
-export async function getMemberRemovalBlockers(
+export async function getMemberRemovalHistory(
   memberId: string
-): Promise<BlockerCount[] | null> {
+): Promise<HistoryCount[] | null> {
   const member = await loadForRemoval(memberId);
-  return member ? removalBlockers(historyOf(member)) : null;
+  return member ? historyToErase(historyOf(member)) : null;
 }
 
 /**
- * Permanently erases a member who never held money.
+ * Permanently erases a member, their login and everything recorded against
+ * them, whatever their history.
  *
- * For an application made in error or a record typed in twice — nothing else.
- * Anyone with a financial history is refused and must be closed instead; see
- * lib/member-removal.ts for what counts, and why the schema would refuse it
- * too.
+ * For test accounts and records made in error. A real member who is leaving
+ * is closed instead, which keeps the association's accounts intact; see
+ * lib/member-removal.ts.
  *
- * WHAT GOES: the member, their (empty) savings account, their notes and
- * successor photograph, and — for a plain member — their login, along with its
- * sessions, sign-in codes, photograph and notifications.
+ * WHAT GOES: the member and their login, with every savings transaction,
+ * withdrawal, loan application, loan and its repayments, fine, service fee,
+ * interest share, warehouse issue and warehouse credit that is theirs; their
+ * notes, documents and photographs; the notes their login wrote on other files;
+ * and the login's sessions, sign-in codes and notifications.
  *
- * WHAT STAYS: a member of staff's login. Somebody who runs the office and also
- * saves loses the savings file, not their job. The audit log also stays, and
- * gains a full copy of the file, because afterwards it is the only place the
- * member exists.
+ * WHAT IS PUT RIGHT, SO NOTHING ELSE IS LEFT INCONSISTENT:
+ *  - Goods they never returned go back into stock with a RETURN movement,
+ *    because the stock ledger is append-only and cannot lose rows.
+ *  - Payments and bank lines matched to them are not erased — they are the
+ *    bank's record of money that arrived, and a re-sync would bring them
+ *    straight back. They return to the unmatched queue, where they can be
+ *    matched to the right member or deleted there.
+ *  - Guarantees they gave on other members' loans lose the link and keep the
+ *    guarantor's name, which is what the schema does anyway.
+ * No other member's balance changes: interest shares are paid into the
+ * borrower's own savings, so theirs go with them.
+ *
+ * WHAT STAYS: the audit log, which gains a full copy of the file first,
+ * because afterwards it is the only place the member exists.
+ *
+ * Two refusals only, neither about history: nobody deletes themselves, and a
+ * super administrator's account is only deleted by another super
+ * administrator.
  */
 export async function deleteMember(params: {
   memberId: string;
@@ -1487,79 +1507,208 @@ export async function deleteMember(params: {
     };
   }
 
-  const blockers = removalBlockers(historyOf(member));
-  if (blockers.length > 0) {
-    return {
-      ok: false,
-      message:
-        `This member has financial history (${blockers.map((b) => b.key).join(", ")}) ` +
-        `and cannot be deleted. Close the membership instead: every record is kept ` +
-        `and their login is disabled.`,
-    };
+  if (member.user.role === "SUPER_ADMIN") {
+    const actor = await prisma.user.findUnique({
+      where: { id: params.actorId },
+      select: { role: true },
+    });
+    if (actor?.role !== "SUPER_ADMIN") {
+      return {
+        ok: false,
+        message: "Only a super administrator can delete a super administrator's account.",
+      };
+    }
   }
 
-  const isPlainMember = member.user.role === "MEMBER";
-  // A plain member's login goes with the record — unless it authored notes,
-  // which pin it in place. Then it is disabled instead, which leaves it unable
-  // to sign in just the same.
-  const eraseLogin = isPlainMember && member.user._count.memberNotes === 0;
+  const history = historyOf(member);
 
-  await prisma.$transaction(async (tx) => {
-    // Written first, inside the same transaction: if the delete fails the
-    // entry goes with it, and if the entry cannot be written nothing is erased.
-    await recordAudit(
-      {
-        action: AUDIT_ACTIONS.MEMBER_DELETED,
-        entityType: "Member",
-        entityId: member.id,
-        associationId: member.associationId,
-        oldValue: {
-          memberNumber: member.memberNumber,
-          paymentReference: member.paymentReference,
-          status: member.status,
-          kycStatus: member.kycStatus,
-          savingsAccounts: member.savingsAccounts.map((a) => a.accountNumber),
-          joinedAt: member.joinedAt?.toISOString() ?? null,
-          approvedAt: member.approvedAt?.toISOString() ?? null,
-          appliedAt: member.createdAt.toISOString(),
-          ...snapshotOf(member),
+  const outcome = await withFinancialTransaction(
+    async (tx) => {
+      // Written first, inside the same transaction: if the delete fails the
+      // entry goes with it, and if the entry cannot be written nothing is
+      // erased.
+      await recordAudit(
+        {
+          action: AUDIT_ACTIONS.MEMBER_DELETED,
+          entityType: "Member",
+          entityId: member.id,
+          associationId: member.associationId,
+          oldValue: {
+            memberNumber: member.memberNumber,
+            paymentReference: member.paymentReference,
+            status: member.status,
+            kycStatus: member.kycStatus,
+            savingsAccounts: member.savingsAccounts.map((a) => ({
+              accountNumber: a.accountNumber,
+              balance: toMoneyString(a.balance),
+              lockedBalance: toMoneyString(a.lockedBalance),
+            })),
+            loans: member.loans.map((loan) => ({
+              reference: loan.reference,
+              status: loan.status,
+              principal: toMoneyString(loan.principal),
+              totalPaid: toMoneyString(loan.totalPaid),
+            })),
+            joinedAt: member.joinedAt?.toISOString() ?? null,
+            approvedAt: member.approvedAt?.toISOString() ?? null,
+            appliedAt: member.createdAt.toISOString(),
+            ...snapshotOf(member),
+          },
+          reason,
+          metadata: {
+            userId: member.userId,
+            role: member.user.role,
+            login: "erased",
+            erased: { ...history, savingsBalance: toMoneyString(history.savingsBalance) },
+            notesWrittenOnOtherFiles: member.user._count.memberNotes,
+          },
+          severity: "CRITICAL",
         },
-        reason,
-        metadata: {
-          userId: member.userId,
-          role: member.user.role,
-          login: eraseLogin ? "erased" : isPlainMember ? "disabled" : "kept",
-        },
-        severity: "CRITICAL",
-      },
-      { id: params.actorId },
-      tx
-    );
+        { id: params.actorId },
+        tx
+      );
 
-    // The account points at the member with Restrict, so it goes first. It
-    // is empty — nothing above lets a funded one get this far — and the
-    // Restrict on its own transactions is the backstop if that ever changes.
-    await tx.savingsAccount.deleteMany({ where: { memberId: member.id } });
+      return eraseMemberWithin(tx, member, { actorId: params.actorId, reason });
+    },
+    // A test account used in earnest can carry thousands of rows, and every
+    // one of them goes in this single transaction.
+    { timeoutMs: 120_000 }
+  );
 
-    // Notes, documents, the successor's photograph and the contribution
-    // standing cascade with the member.
-    await tx.member.delete({ where: { id: member.id } });
-
-    if (eraseLogin) {
-      await tx.user.delete({ where: { id: member.userId } });
-    } else if (isPlainMember) {
-      await tx.user.update({
-        where: { id: member.userId },
-        data: { status: "DISABLED" },
-      });
-      await tx.session.updateMany({
-        where: { userId: member.userId, revokedAt: null },
-        data: { revokedAt: new Date(), revokedReason: "MEMBER_DELETED" },
-      });
-    }
-  });
+  logger.warn(
+    {
+      memberId: member.id,
+      memberNumber: member.memberNumber,
+      actorId: params.actorId,
+      ...outcome,
+    },
+    "member deleted with their history"
+  );
 
   return { ok: true };
+}
+
+/**
+ * The erasure itself, in the order the foreign keys allow.
+ *
+ * Every ledger table points at Member, and several at each other, with
+ * `onDelete: Restrict`, so each row goes only after whatever holds it in place.
+ * Runs inside `deleteMember`'s transaction: it all goes, or none of it does.
+ */
+async function eraseMemberWithin(
+  tx: TxClient,
+  member: RemovalRecord,
+  params: { actorId: string; reason: string }
+) {
+  const memberId = member.id;
+  const userId = member.userId;
+  const accountIds = member.savingsAccounts.map((account) => account.id);
+  const loanIds = (
+    await tx.loan.findMany({ where: { memberId }, select: { id: true } })
+  ).map((loan) => loan.id);
+
+  // Goods still out go back on the shelf while the issues that explain them
+  // can still be read.
+  const stockReturned = await returnStockOfDeletedMember(tx, {
+    memberId,
+    memberNumber: member.memberNumber,
+    actorId: params.actorId,
+    reason: params.reason,
+  });
+
+  // Warehouse credit. Payments first — they hold the instalments with
+  // Restrict, and their allocations cascade — then the credits, whose
+  // instalments and fines cascade, then the issues they were opened on, whose
+  // lines cascade. Stock movements keep their rows and lose only the link.
+  const credits: Prisma.WarehouseCreditWhereInput = {
+    OR: [{ memberId }, { issuance: { memberId } }],
+  };
+  await tx.warehouseCreditPayment.deleteMany({ where: { credit: credits } });
+  await tx.warehouseCreditFine.deleteMany({ where: { OR: [{ memberId }, { credit: credits }] } });
+  await tx.warehouseCredit.deleteMany({ where: credits });
+  await tx.warehouseIssuance.deleteMany({ where: { memberId } });
+
+  // What holds the loan and savings ledgers in place.
+  await tx.interestDistribution.deleteMany({
+    where: { OR: [{ memberId }, { loanId: { in: loanIds } }] },
+  });
+  await tx.contributionFine.deleteMany({ where: { memberId } });
+  await tx.platformFeeCharge.deleteMany({ where: { memberId } });
+
+  // Loans. A reversal points at the entry it reverses with Restrict, so the
+  // links are cut before the rows go. Instalments, allocations, guarantors
+  // and documents cascade.
+  await tx.loanTransaction.updateMany({
+    where: { reversalOf: { loanId: { in: loanIds } } },
+    data: { reversalOfId: null },
+  });
+  await tx.loanTransaction.deleteMany({ where: { loanId: { in: loanIds } } });
+  await tx.loan.deleteMany({ where: { id: { in: loanIds } } });
+  await tx.loanApplication.deleteMany({ where: { memberId } });
+
+  // Savings, by the same pattern: reversal links, then the ledger, then the
+  // withdrawals and accounts it pointed at.
+  const savings: Prisma.SavingsTransactionWhereInput = {
+    OR: [{ memberId }, { savingsAccountId: { in: accountIds } }],
+  };
+  await tx.savingsTransaction.updateMany({
+    where: { reversalOf: savings },
+    data: { reversalOfId: null },
+  });
+  await tx.savingsTransaction.deleteMany({ where: savings });
+  await tx.withdrawal.deleteMany({
+    where: { OR: [{ memberId }, { savingsAccountId: { in: accountIds } }] },
+  });
+  await tx.savingsAccount.deleteMany({ where: { memberId } });
+
+  // Money that came in through the bank goes back to the queue it came from.
+  // The schema would only clear the member link, leaving a payment marked as
+  // processed that credits nobody.
+  const payments = await tx.payment.updateMany({
+    where: { matchedMemberId: memberId },
+    data: {
+      status: "UNMATCHED",
+      matchedMemberId: null,
+      matchStrategy: "NONE",
+      matchConfidence: 0,
+      matchedById: null,
+      matchedAt: null,
+      processedAt: null,
+      failureReason: `Was matched to member ${member.memberNumber}, who has been deleted`,
+    },
+  });
+  const bankLines = await tx.bkTransaction.updateMany({
+    where: { matchedMemberId: memberId },
+    data: {
+      reconciliationStatus: "UNMATCHED",
+      matchedMemberId: null,
+      matchStrategy: "NONE",
+      matchConfidence: 0,
+      matchedById: null,
+      matchedAt: null,
+      matchReason: null,
+    },
+  });
+
+  // Notes, documents, the successor's photograph and the contribution
+  // standing cascade with the member.
+  await tx.member.delete({ where: { id: memberId } });
+
+  // The login. Notes it wrote on other files hold it with Restrict. The two
+  // tables that carry a user id without a foreign key are cleared by hand;
+  // sessions, sign-in codes, photograph, permissions and notifications
+  // cascade, and everything this user posted or approved elsewhere keeps its
+  // row and loses the name.
+  await tx.memberNote.deleteMany({ where: { authorId: userId } });
+  await tx.idempotencyKey.deleteMany({ where: { userId } });
+  await tx.notificationPreference.deleteMany({ where: { userId } });
+  await tx.user.delete({ where: { id: userId } });
+
+  return {
+    stockReturned,
+    paymentsReturnedToQueue: payments.count,
+    bankLinesReturnedToQueue: bankLines.count,
+  };
 }
 
 /**
@@ -1609,9 +1758,8 @@ export async function applyMemberAction(params: {
  * Applies one decision to several members, from the register.
  *
  * Partial by design, like the bulk payment delete: each member is judged on
- * their own, and one who cannot take the action — already suspended, a ledger
- * behind them that rules out deletion — is reported back by name while the
- * rest go ahead. Failing the whole batch for one member would leave the
+ * their own, and one who cannot take the action — already suspended, say — is
+ * reported back by name while the rest go ahead. Failing the whole batch for one member would leave the
  * administrator doing them one at a time anyway.
  *
  * Each member gets their own transaction and their own audit entry through
@@ -1699,8 +1847,9 @@ export async function getMemberProfile(memberId: string) {
           // The office printed on the membership card; the edit form needs the
           // current value to show it.
           title: true,
-          // Staff who also save keep their login through anything done to
-          // the membership, and the management panel says so.
+          // Staff who also save keep their login through suspension and
+          // closing, lose it with deletion, and the management panel says
+          // which.
           role: true,
           email: true,
           phone: true,
