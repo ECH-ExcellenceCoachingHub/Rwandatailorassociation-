@@ -45,6 +45,9 @@ export interface AuthCopy {
     submit: string;
     submitting: string;
     failed: string;
+    /// Shown when a guard signed them out — idle timeout, or a session ended
+    /// from elsewhere — so the login screen is not a mystery.
+    sessionExpired: string;
     notAMember: string;
     applyToJoin: string;
   };
@@ -144,6 +147,8 @@ export const auth: Record<Locale, AuthCopy> = {
       submit: "Sign in",
       submitting: "Signing in…",
       failed: "Unable to sign in. Please try again.",
+      sessionExpired:
+        "Your session has ended. Sign in again to continue where you left off.",
       notAMember: "Not yet a member?",
       applyToJoin: "Apply to join",
     },
@@ -254,6 +259,8 @@ export const auth: Record<Locale, AuthCopy> = {
       submit: "Injira",
       submitting: "Turinjira…",
       failed: "Ntibishoboye kwinjira. Ongera ugerageze.",
+      sessionExpired:
+        "Igihe cyawe cyo kwinjira cyarangiye. Ongera winjire ukomeze aho wari ugeze.",
       notAMember: "Ntiwaba umunyamuryango?",
       applyToJoin: "Saba kwinjira",
     },

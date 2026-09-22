@@ -71,7 +71,13 @@ export default function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
-      {error && <Alert variant="error">{error}</Alert>}
+      {error ? (
+        <Alert variant="error">{error}</Alert>
+      ) : (
+        searchParams.get("expired") && (
+          <Alert variant="info">{copy.sessionExpired}</Alert>
+        )
+      )}
 
       <Field
         id="identifier"

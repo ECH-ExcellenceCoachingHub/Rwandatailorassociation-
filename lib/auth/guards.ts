@@ -40,16 +40,25 @@ export class AuthorizationError extends Error {
 // Page / server component guards
 // ---------------------------------------------------------------------------
 
+/**
+ * Where a page sends someone it does not recognise as signed in.
+ *
+ * Not /login directly: the browser may still hold a JWT that middleware
+ * accepts, and middleware bounces a valid JWT away from /login — a redirect
+ * loop. The session-expired handler clears the cookie first. See
+ * app/api/auth/session-expired/route.ts.
+ */
+export function signInRedirectPath(returnTo?: string | null): string {
+  return returnTo
+    ? `/api/auth/session-expired?next=${encodeURIComponent(returnTo)}`
+    : "/api/auth/session-expired";
+}
+
 /** Requires any authenticated user. Redirects to login with a return path. */
 export async function requireAuth(returnTo?: string): Promise<AuthContext> {
   const context = await getAuthContext();
 
-  if (!context) {
-    const target = returnTo
-      ? `/login?next=${encodeURIComponent(returnTo)}`
-      : "/login";
-    redirect(target);
-  }
+  if (!context) redirect(signInRedirectPath(returnTo));
 
   return context;
 }

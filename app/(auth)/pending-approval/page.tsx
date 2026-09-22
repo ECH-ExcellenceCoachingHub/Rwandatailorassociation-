@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Clock, LogOut } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/session";
+import { signInRedirectPath } from "@/lib/auth/guards";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/fill";
 import { Alert } from "@/components/ui/alert";
@@ -34,7 +35,7 @@ export const dynamic = "force-dynamic";
 export default async function PendingApprovalPage() {
   const context = await getAuthContext();
 
-  if (!context) redirect("/login");
+  if (!context) redirect(signInRedirectPath());
 
   // Approved in the meantime — send them where they belong.
   if (context.member && context.member.status !== "PENDING_APPROVAL") {

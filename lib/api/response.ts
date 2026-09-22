@@ -2,6 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { AuthorizationError } from "@/lib/auth/guards";
+import { SESSION_COOKIE_NAME } from "@/lib/auth/jwt";
 import { apiLogger, serialiseError } from "@/lib/logger";
 import { Prisma } from "@/lib/db/prisma";
 
@@ -59,8 +60,19 @@ export function apiError(
 export const apiBadRequest = (message: string, details?: Record<string, string[]>) =>
   apiError("BAD_REQUEST", message, 400, details);
 
-export const apiUnauthorized = (message = "Authentication required") =>
-  apiError("UNAUTHENTICATED", message, 401);
+/**
+ * A 401 means the database no longer honours this browser's session cookie,
+ * though middleware — which checks only the JWT — still would. Clearing it
+ * here keeps the two in agreement, so the next page load goes to /login
+ * cleanly instead of being bounced back to the dashboard.
+ */
+export const apiUnauthorized = (
+  message = "Your session has ended. Please sign in again."
+) => {
+  const response = apiError("UNAUTHENTICATED", message, 401);
+  response.cookies.delete(SESSION_COOKIE_NAME);
+  return response;
+};
 
 export const apiForbidden = (message = "You do not have permission to do that") =>
   apiError("FORBIDDEN", message, 403);
@@ -136,6 +148,7 @@ export function withErrorHandling<TArgs extends unknown[]>(
 
 export function translateError(error: unknown): Response {
   if (error instanceof AuthorizationError) {
+    if (error.status === 401) return apiUnauthorized();
     return apiError(error.code, error.message, error.status);
   }
 

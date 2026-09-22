@@ -79,7 +79,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(ROLE_LANDING[claims.role], request.url));
   }
 
-  const response = NextResponse.next();
+  // Server components cannot see the request URL, and the dashboard layout
+  // needs it to return someone to this page after they sign in again. Always
+  // overwritten, so a client-supplied header never reaches the layout.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", pathname + request.nextUrl.search);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
 
   // Security headers. CSP is intentionally omitted here: Next.js inlines
   // hydration scripts, so a useful policy needs per-request nonces wired

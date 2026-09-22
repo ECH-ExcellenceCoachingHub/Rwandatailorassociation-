@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getAuthContext } from "@/lib/auth/session";
+import { signInRedirectPath } from "@/lib/auth/guards";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { getSidebarBadges, getUnreadNotificationCount } from "@/lib/services/dashboard-badges";
 
@@ -24,8 +25,7 @@ export default async function DashboardLayout({
 
   if (!context) {
     const headerList = await headers();
-    const pathname = headerList.get("x-pathname") ?? headerList.get("x-invoke-path");
-    redirect(pathname ? `/login?next=${encodeURIComponent(pathname)}` : "/login");
+    redirect(signInRedirectPath(headerList.get("x-pathname")));
   }
 
   // A member whose account exists but has not been approved has no savings

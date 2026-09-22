@@ -83,6 +83,39 @@ export function DashboardShell({
     };
   }, [mobileOpen]);
 
+  // A tab left open for hours can outlive its session: the server idle-times
+  // it out while the page still looks signed in, and the first sign would be
+  // a form that fails on submit. So when someone comes back to the tab, ask
+  // the server. A 401 from /api/auth/me also clears the stale cookie, which is
+  // what lets /login render instead of bouncing them straight back here.
+  useEffect(() => {
+    let lastChecked = Date.now();
+
+    async function checkSession() {
+      if (document.visibilityState !== "visible") return;
+      // A quick tab switch is not worth a database round trip.
+      if (Date.now() - lastChecked < 60_000) return;
+      lastChecked = Date.now();
+
+      const response = await fetch("/api/auth/me", { cache: "no-store" }).catch(
+        () => null
+      );
+      if (response?.status === 401) {
+        const here = window.location.pathname + window.location.search;
+        window.location.assign(
+          `/login?next=${encodeURIComponent(here)}&expired=1`
+        );
+      }
+    }
+
+    document.addEventListener("visibilitychange", checkSession);
+    window.addEventListener("focus", checkSession);
+    return () => {
+      document.removeEventListener("visibilitychange", checkSession);
+      window.removeEventListener("focus", checkSession);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       {/* Desktop sidebar */}
