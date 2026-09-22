@@ -19,6 +19,7 @@ import {
 import { requireMember } from "@/lib/auth/guards";
 import { getMemberDashboard, type MemberDashboardData } from "@/lib/services/member-dashboard";
 import { getPolicyEnsured } from "@/lib/services/rulebook";
+import { fineSum } from "@/lib/services/fines";
 import { formatMoney } from "@/lib/money";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { fill, pluralize } from "@/lib/i18n/fill";
@@ -543,12 +544,7 @@ function StandingSection({
                     <p className="text-sm font-semibold text-ink">{why}</p>
                     <p className="text-xs text-ink-muted">
                       {formatDate(fine.assessedAt, locale)} ·{" "}
-                      {fill(copy.fines.sum, {
-                        rate: fine.rate,
-                        arrears: formatMoney(fine.arrearsAmount, {
-                          currency: fine.currency,
-                        }),
-                      })}
+                      {fineSum(fine, copy.fines)}
                     </p>
                   </div>
 

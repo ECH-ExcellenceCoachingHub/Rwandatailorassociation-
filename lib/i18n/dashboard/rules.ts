@@ -297,8 +297,11 @@ export interface RulesCopy {
     /// Why a fine was raised, in the member's own terms.
     whyContribution: string;
     whyWarehouse: string;
-    /// The arithmetic behind the figure, so it is never a bare number.
+    /// The arithmetic behind the figure, so it is never a bare number. `sum`
+    /// is a rate applied to arrears; `sumPerShare` is the flat fine per share
+    /// that missed saving has been charged since, singular|plural on shares.
     sum: string;
+    sumPerShare: string;
     creditRef: string;
     waivedBecause: string;
 
@@ -552,7 +555,7 @@ export const rules: Record<Locale, RulesCopy> = {
       summaryFee: "Service fee",
       summaryFeeHint: "Per share, per day. Collected for the platform, not association income.",
       summaryFine: "Fine after {days} days",
-      summaryFineHint: "Of the unpaid saving. {example} on a missed week.",
+      summaryFineHint: "For each share held. Again for every further {repeat} days missed.",
       summaryBorrowing: "Borrow against savings",
       summaryBorrowingHint: "Above that, collateral is required",
       summaryInterest: "{rate}% a month",
@@ -687,6 +690,7 @@ export const rules: Record<Locale, RulesCopy> = {
       whyContribution: "{days} day behind on saving|{days} days behind on saving",
       whyWarehouse: "Instalment {number}, {days} day late|Instalment {number}, {days} days late",
       sum: "{rate}% of {arrears}",
+      sumPerShare: "{shares} share × {perShare}|{shares} shares × {perShare}",
       creditRef: "Credit {reference}",
       waivedBecause: "Waived: {reason}",
 
@@ -950,7 +954,7 @@ export const rules: Record<Locale, RulesCopy> = {
       summaryFee: "Amafaranga ya serivisi",
       summaryFeeHint: "Ku munsi. Akusanyirizwa urubuga, si inyungu z'ihuriro.",
       summaryFine: "Ihazabu nyuma y'iminsi {days}",
-      summaryFineHint: "Ku buzigame butarishyuwe. {example} ku cyumweru gisibye.",
+      summaryFineHint: "Kuri buri mugabane. Yongera kuri buri minsi {repeat} yindi isibwe.",
       summaryBorrowing: "Kuguza ushingiye ku buzigame",
       summaryBorrowingHint: "Hejuru y'ibyo, ingwate irasabwa",
       summaryInterest: "{rate}% ku kwezi",
@@ -1085,6 +1089,7 @@ export const rules: Record<Locale, RulesCopy> = {
       whyContribution: "Asigaye umunsi {days} mu kuzigama|Asigaye iminsi {days} mu kuzigama",
       whyWarehouse: "Kwishyura kwa {number}, gutinze umunsi {days}|Kwishyura kwa {number}, gutinze iminsi {days}",
       sum: "{rate}% bya {arrears}",
+      sumPerShare: "Umugabane {shares} × {perShare}|Imigabane {shares} × {perShare}",
       creditRef: "Ideni {reference}",
       waivedBecause: "Yarekewe: {reason}",
 

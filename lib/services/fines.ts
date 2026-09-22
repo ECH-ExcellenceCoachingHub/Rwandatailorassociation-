@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
-import { add, toMoneyString } from "@/lib/money";
+import { add, formatMoney, toMoneyString } from "@/lib/money";
+import { fill, pluralize } from "@/lib/i18n/fill";
 
 /**
  * THE FINES REGISTER.
@@ -51,10 +52,15 @@ export interface FineRow {
   memberNumber: string;
 
   /// The sum that produced the fine, kept together so the member can be shown
-  /// the arithmetic rather than a bare figure: rate applied to arrears.
+  /// the arithmetic rather than a bare figure. Either a rate applied to arrears
+  /// — every credit fine, and contribution fines from before the flat charge —
+  /// or a per-share fine times the shares held. `fineSum` renders whichever it
+  /// is.
   amount: string;
   arrearsAmount: string;
-  rate: string;
+  rate: string | null;
+  amountPerShare: string | null;
+  shares: number | null;
   currency: string;
 
   status: FineStatus;
@@ -139,6 +145,39 @@ function memberName(member: SelectedMember): string {
 }
 
 /**
+ * The arithmetic behind a fine, in the reader's language.
+ *
+ * One place for it because four screens show it, and a member who reads
+ * "3 shares × 500" on one page and "7% of 7,000" on another for the same fine
+ * has been given two explanations for one charge. Which sum is shown follows
+ * the fine's own record, never today's rule: a fine assessed under the old
+ * percentage keeps explaining itself as a percentage after the rule changed.
+ */
+export function fineSum(
+  fine: Pick<
+    FineRow,
+    "rate" | "arrearsAmount" | "amountPerShare" | "shares" | "currency"
+  >,
+  copy: { sum: string; sumPerShare: string }
+): string {
+  const money = (amount: string) =>
+    formatMoney(amount, { currency: fine.currency });
+
+  if (fine.amountPerShare !== null) {
+    const shares = fine.shares ?? 1;
+    return pluralize(copy.sumPerShare, shares, {
+      shares,
+      perShare: money(fine.amountPerShare),
+    });
+  }
+
+  return fill(copy.sum, {
+    rate: fine.rate ?? "0",
+    arrears: money(fine.arrearsAmount),
+  });
+}
+
+/**
  * Interleaves the two fine lists, newest first.
  *
  * Exported so the pagination property the register depends on can be asserted
@@ -204,6 +243,8 @@ export async function listFines(
               amount: true,
               arrearsAmount: true,
               rate: true,
+              amountPerShare: true,
+              shares: true,
               currency: true,
               status: true,
               missedDays: true,
@@ -257,7 +298,10 @@ export async function listFines(
       memberNumber: fine.member.memberNumber,
       amount: toMoneyString(fine.amount),
       arrearsAmount: toMoneyString(fine.arrearsAmount),
-      rate: fine.rate.toString(),
+      rate: fine.rate === null ? null : fine.rate.toString(),
+      amountPerShare:
+        fine.amountPerShare === null ? null : toMoneyString(fine.amountPerShare),
+      shares: fine.shares,
       currency: fine.currency,
       status: fine.status as FineStatus,
       assessedAt: fine.assessedAt,
@@ -280,6 +324,8 @@ export async function listFines(
       amount: toMoneyString(fine.amount),
       arrearsAmount: toMoneyString(fine.arrearsAmount),
       rate: fine.rate.toString(),
+      amountPerShare: null,
+      shares: null,
       currency: fine.currency,
       status: fine.status as FineStatus,
       assessedAt: fine.assessedAt,
@@ -418,6 +464,8 @@ export async function listMemberFines(memberId: string): Promise<MemberFines> {
         amount: true,
         arrearsAmount: true,
         rate: true,
+        amountPerShare: true,
+        shares: true,
         currency: true,
         status: true,
         missedDays: true,
@@ -461,7 +509,10 @@ export async function listMemberFines(memberId: string): Promise<MemberFines> {
       memberNumber: fine.member.memberNumber,
       amount: toMoneyString(fine.amount),
       arrearsAmount: toMoneyString(fine.arrearsAmount),
-      rate: fine.rate.toString(),
+      rate: fine.rate === null ? null : fine.rate.toString(),
+      amountPerShare:
+        fine.amountPerShare === null ? null : toMoneyString(fine.amountPerShare),
+      shares: fine.shares,
       currency: fine.currency,
       status: fine.status as FineStatus,
       assessedAt: fine.assessedAt,
@@ -484,6 +535,8 @@ export async function listMemberFines(memberId: string): Promise<MemberFines> {
       amount: toMoneyString(fine.amount),
       arrearsAmount: toMoneyString(fine.arrearsAmount),
       rate: fine.rate.toString(),
+      amountPerShare: null,
+      shares: null,
       currency: fine.currency,
       status: fine.status as FineStatus,
       assessedAt: fine.assessedAt,

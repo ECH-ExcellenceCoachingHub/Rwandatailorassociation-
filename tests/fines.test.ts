@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mergeFines, type FineRow } from "@/lib/services/fines";
+import { fineSum, mergeFines, type FineRow } from "@/lib/services/fines";
+import { formatMoney } from "@/lib/money";
 
 /**
  * The fines register interleaves two tables.
@@ -26,6 +27,8 @@ function fine(overrides: Partial<FineRow> & { reference: string; assessedAt: Dat
     amount: "500.00",
     arrearsAmount: "10000.00",
     rate: "5",
+    amountPerShare: null,
+    shares: null,
     currency: "RWF",
     status: "OUTSTANDING",
     settledAt: null,
@@ -124,5 +127,53 @@ describe("mergeFines", () => {
     expect(mergeFines([], credits.slice(0, 20)).slice(10, 20)).toEqual(
       mergeFines([], credits).slice(10, 20)
     );
+  });
+});
+
+describe("fineSum", () => {
+  const copy = {
+    sum: "{rate}% of {arrears}",
+    sumPerShare: "{shares} share × {perShare}|{shares} shares × {perShare}",
+  };
+  const rwf = (amount: string) => formatMoney(amount, { currency: "RWF" });
+
+  it("shows a per-share fine as shares times the fine per share", () => {
+    const row = fine({
+      reference: "C-500",
+      assessedAt: new Date(2026, 8, 22),
+      amount: "1500.00",
+      arrearsAmount: "21000.00",
+      rate: null,
+      amountPerShare: "500.00",
+      shares: 3,
+    });
+
+    expect(fineSum(row, copy)).toBe(`3 shares × ${rwf("500.00")}`);
+  });
+
+  it("uses the singular for a single share", () => {
+    const row = fine({
+      reference: "C-501",
+      assessedAt: new Date(2026, 8, 22),
+      rate: null,
+      amountPerShare: "500.00",
+      shares: 1,
+    });
+
+    expect(fineSum(row, copy)).toBe(`1 share × ${rwf("500.00")}`);
+  });
+
+  it("keeps explaining a fine from before the change as a percentage", () => {
+    // Assessed at 7% before the rule moved to a flat charge per share. It must
+    // still show the sum that actually produced it, not today's rule.
+    const row = fine({
+      reference: "C-007",
+      assessedAt: new Date(2026, 7, 1),
+      amount: "490.00",
+      arrearsAmount: "7000.00",
+      rate: "7",
+    });
+
+    expect(fineSum(row, copy)).toBe(`7% of ${rwf("7000.00")}`);
   });
 });

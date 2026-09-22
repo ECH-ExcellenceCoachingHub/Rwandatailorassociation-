@@ -4,7 +4,7 @@ import { requirePermission, resolveAssociationScope } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getPolicyEnsured, listRules } from "@/lib/services/rulebook";
 import { prisma } from "@/lib/db/prisma";
-import { add, formatMoney, percentageOf, toMoney, toMoneyString } from "@/lib/money";
+import { add, formatMoney, toMoney } from "@/lib/money";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/fill";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
@@ -72,14 +72,6 @@ export default async function AdminRulesPage() {
 
   const currency = association?.currency ?? "RWF";
 
-  // What a missed week actually costs, in this association's own money. A rate
-  // on its own tells an officer nothing about the size of the penalty they are
-  // setting.
-  const weekExample = percentageOf(
-    toMoney(policy.dailySavings).times(policy.graceDays),
-    policy.penaltyRate
-  );
-
   const interestSum = add(
     policy.interestMemberPoints,
     policy.interestAssociationPoints
@@ -142,9 +134,9 @@ export default async function AdminRulesPage() {
 
         <StatCard
           label={fill(copy.admin.summaryFine, { days: policy.graceDays })}
-          value={`${toMoney(policy.penaltyRate).toDecimalPlaces(2).toString()}%`}
+          value={formatMoney(policy.penaltyPerShare, { currency })}
           hint={fill(copy.admin.summaryFineHint, {
-            example: formatMoney(toMoneyString(weekExample), { currency }),
+            repeat: policy.penaltyRepeatDays,
           })}
           icon={TriangleAlert}
           tone="warning"

@@ -16,6 +16,7 @@ import {
   type AccountStatusSummary,
   type AccountTransactionRow,
 } from "@/lib/services/account-status";
+import { fineSum } from "@/lib/services/fines";
 import type { BorrowingBlocker } from "@/lib/rules/borrowing";
 import { formatMoney } from "@/lib/money";
 import { formatQuantity } from "@/lib/quantity";
@@ -593,10 +594,7 @@ function FinesGroup({
               <>
                 {/* The arithmetic, so the member can check it rather than take
                     the figure on trust. */}
-                {fill(finesCopy.sum, {
-                  rate: fine.rate,
-                  arrears: money(fine.arrearsAmount),
-                })}
+                {fineSum(fine, finesCopy)}
                 <span className="block">
                   {formatDate(fine.assessedAt, locale)} ·{" "}
                   <span className="font-mono">{fine.reference}</span>

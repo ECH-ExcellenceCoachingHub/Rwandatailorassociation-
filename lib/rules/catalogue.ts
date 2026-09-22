@@ -24,14 +24,15 @@ import type {
  *     what a rule *says* is a committee decision made in the UI.
  *
  * WHY EVERY RULE CARRIES ITS OWN PROSE. A settings page reading
- * "penalty.rate: 7" is not a rule anybody agreed to. The member-facing page
- * renders `body`, so the thing a member reads and the thing the software
- * applies are two faces of one record and cannot drift apart. Committees may
- * reword their own rules; the wording is stored per association for exactly
- * that reason, and these are only the defaults.
+ * "penalty.amount_per_share: 500" is not a rule anybody agreed to. The
+ * member-facing page renders `body`, so the thing a member reads and the thing
+ * the software applies are two faces of one record and cannot drift apart.
+ * Committees may reword their own rules; the wording is stored per association
+ * for exactly that reason, and these are only the defaults.
  *
 * THE DEFAULTS BELOW ARE RTA'S OWN RULES, as stated by the association:
-   * 1,000 saved daily plus 50 service fee per share, a 7% fine after 7 missed days,
+   * 1,000 saved daily plus 50 service fee per share, a fine of 500 per share
+   * after 7 missed days,
    * lending after six months, 80% of your own savings without collateral,
    * 2% a month over at most six months, and that 2% split half to the borrower's
    * savings and half to the association.
@@ -48,7 +49,7 @@ export const RULE_KEYS = {
 
   // Falling behind ---------------------------------------------------------
   PENALTY_GRACE_DAYS: "penalty.grace_days",
-  PENALTY_RATE: "penalty.rate",
+  PENALTY_PER_SHARE: "penalty.amount_per_share",
   PENALTY_BASIS: "penalty.basis",
   PENALTY_REPEAT_DAYS: "penalty.repeat_days",
   REMINDER_LEAD_DAYS: "penalty.reminder_lead_days",
@@ -201,19 +202,23 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
     },
   },
   {
-    key: RULE_KEYS.PENALTY_RATE,
+    // Was `penalty.rate`, a percentage of the unpaid saving, until the
+    // association moved to a flat charge per share. The migration that made the
+    // change amended each association's existing row in place, so the rule's
+    // history still shows the percentage it replaced.
+    key: RULE_KEYS.PENALTY_PER_SHARE,
     category: "PENALTIES",
-    valueType: "PERCENT",
+    valueType: "MONEY",
     enforcement: "AUTOMATIC",
-    defaultValue: "7.0000",
+    defaultValue: "500.00",
     displayOrder: 60,
     title: {
       en: "The fine",
       rw: "Ihazabu",
     },
     body: {
-      en: "The fine is this percentage of the savings you have not paid — not of everything you have saved. Missing seven days of 1,000 leaves 7,000 unpaid, and the fine on that is 490. Each further fine covers only the days the ones before it did not, so a second seven days adds another 490 rather than charging the first week again. The fine is owed to the association, not to the platform.",
-      rw: "Ihazabu ni iyi ijanisha ry'ubuzigame utarishyuye — si iry'ibyo wazigamye byose. Gusiba iminsi irindwi ya 1,000 bisiga 7,000 atarishyuwe, ihazabu kuri ayo ni 490. Buri hazabu ikurikira ireba gusa iminsi izayibanjirije zitarebye, bityo indi minsi irindwi yongeraho indi 490 aho kongera guhana icyumweru cya mbere. Ihazabu igenerwa ihuriro, si urubuga.",
+      en: "The fine is this amount for each share you hold — a member with three shares is fined three times it. It does not depend on how much you have saved or how much you owe: missing seven days with one share is fined 500, and with three shares 1,500. Each further fine covers only the days the ones before it did not, so a second seven days adds another fine of the same size rather than charging the first week again. The fine is owed to the association, not to the platform.",
+      rw: "Ihazabu ni aya mafaranga kuri buri mugabane ufite — umunyamuryango ufite imigabane itatu ahabwa ihazabu y'inshuro eshatu zayo. Ntishingira ku byo wazigamye cyangwa ku mwenda ufite: gusiba iminsi irindwi ufite umugabane umwe bihanishwa 500, naho ufite imigabane itatu 1,500. Buri hazabu ikurikira ireba gusa iminsi izayibanjirije zitarebye, bityo indi minsi irindwi yongeraho indi hazabu ingana n'iya mbere aho kongera guhana icyumweru cya mbere. Ihazabu igenerwa ihuriro, si urubuga.",
     },
   },
   {
@@ -228,8 +233,8 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
       rw: "Ihazabu ntabwo ikoraho ibyo wamaze kuzigama",
     },
     body: {
-      en: "The fine is worked out from the days you have missed, never from the savings you have built up, so a member who has saved for years is not fined more than a member who joined last month for the same missed week. The fine is recorded as owed and shown to you before anything is taken from your account, and an officer may waive it with a written reason.",
-      rw: "Ihazabu ibarwa hashingiwe ku minsi wasibye, ntabwo ibarwa ku buzigame wubatse, bityo umunyamuryango umaze imyaka azigama ntahabwa ihazabu iruta iy'uwinjiye ukwezi gushize ku cyumweru kimwe basibye. Ihazabu yandikwa nk'umwenda kandi ukayibona mbere y'uko hagira igikurwa muri konti yawe, kandi umuyobozi ashobora kuyireka atanze impamvu yanditse.",
+      en: "The fine depends only on the shares you hold and the days you have missed, never on the savings you have built up, so a member who has saved for years is not fined more than a member with the same shares who joined last month, for the same missed week. The fine is recorded as owed and shown to you before anything is taken from your account, and an officer may waive it with a written reason.",
+      rw: "Ihazabu ishingira gusa ku migabane ufite no ku minsi wasibye, ntabwo ibarwa ku buzigame wubatse, bityo umunyamuryango umaze imyaka azigama ntahabwa ihazabu iruta iy'ufite imigabane ingana n'iye winjiye ukwezi gushize, ku cyumweru kimwe basibye. Ihazabu yandikwa nk'umwenda kandi ukayibona mbere y'uko hagira igikurwa muri konti yawe, kandi umuyobozi ashobora kuyireka atanze impamvu yanditse.",
     },
   },
   {

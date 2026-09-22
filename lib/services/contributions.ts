@@ -6,7 +6,6 @@ import {
   add,
   gt,
   multiply,
-  percentageOf,
   toMoney,
   toMoneyString,
 } from "@/lib/money";
@@ -151,10 +150,17 @@ export interface ContributionStanding {
   fineDue: {
     missedDays: number;
     dueDayIndex: number;
+    /// The saving left unpaid by the days this fine covers. Recorded for the
+    /// member's reading; the fine itself does not depend on it.
     arrearsAmount: string;
-    rate: string;
+    amountPerShare: string;
+    shares: number;
     amount: string;
   } | null;
+
+  /// What the next fine will be for this member — the per-share fine times
+  /// their shares — so a warning can name the figure rather than the rule.
+  fineAmount: string;
 
   /// Contribution-days paid for whose service fee has not been taken yet.
   feeDaysOwed: number;
@@ -219,6 +225,10 @@ export function computeStanding(input: StandingInputs): ContributionStanding {
   const feeDaysOwed = Math.max(0, coveredDays - input.feeChargedThroughDay);
   const feeAmountOwed = multiply(dailyFee, feeDaysOwed);
 
+  // Per share, like the saving and the fee: a member with three shares is
+  // fined three times the rulebook's figure.
+  const fineAmount = multiply(policy.penaltyPerShare, shares);
+
   const fineDue = resolveFineDue({
     policy,
     priorFines: input.priorFines,
@@ -226,6 +236,7 @@ export function computeStanding(input: StandingInputs): ContributionStanding {
     missedDays,
     dueDays,
     dailySavings: dailySavings.toFixed(2),
+    shares,
   });
 
   const clearingAmount = add(arrearsTotal, input.outstandingFineAmount);
@@ -252,6 +263,7 @@ export function computeStanding(input: StandingInputs): ContributionStanding {
     clearingAmount: toMoneyString(clearingAmount),
     outstandingFineAmount: toMoneyString(input.outstandingFineAmount),
     fineDue: input.isExempt ? null : fineDue,
+    fineAmount: toMoneyString(fineAmount),
     feeDaysOwed: input.isExempt ? 0 : feeDaysOwed,
     feeAmountOwed: toMoneyString(input.isExempt ? 0 : feeAmountOwed),
     dailyTotal: toMoneyString(dailyTotal),
@@ -291,10 +303,11 @@ function resolveFineDue(input: {
   coveredDays: number;
   missedDays: number;
   dueDays: number;
-  /// One day's saving for this member, shares included. The fine is billed on
-  /// the days THIS fine covers, so the daily figure is what is needed here
-  /// rather than the running arrears total.
+  /// One day's saving for this member, shares included. Only to record what
+  /// the days THIS fine covers left unpaid; the fine is not worked out from it.
   dailySavings: string;
+  /// Shares held, which the fine is charged on.
+  shares: number;
 }): ContributionStanding["fineDue"] {
   const { policy, missedDays, dueDays } = input;
 
@@ -316,15 +329,14 @@ function resolveFineDue(input: {
 
   if (missedDays < threshold) return null;
 
-  // ONLY THE DAYS NO EARLIER FINE HAS ALREADY PUNISHED.
+  // ONE FLAT FINE PER STRETCH, FOR THE DAYS NO EARLIER FINE HAS PUNISHED.
   //
   // PENALTY_REPEAT_DAYS: "The same arrears are never fined twice: each fine
-  // covers days the earlier ones did not." This used to bill the WHOLE running
-  // arrears every time, so a member fined 490 at seven days was fined 980 at
-  // fourteen - 490 of it for days already punished - and 1,470 at twenty-one,
-  // ending up owing 2,940 where the rule says 1,470. Each stretch of missed
-  // days is now charged once, at the rate applied to what those days alone
-  // left unpaid.
+  // covers days the earlier ones did not." The fine is the per-share figure
+  // times the member's shares, whatever the stretch left unpaid — 500 for a
+  // one-share member at seven days, another 500 at fourteen, and 1,500 in all
+  // at twenty-one. The unpaid saving for the stretch is still recorded so the
+  // member can see what the days they were fined for amounted to.
   //
   // The missedDays RECORDED on the fine stays cumulative: the threshold above
   // is derived from it, and storing the stretch instead would peg the
@@ -332,18 +344,18 @@ function resolveFineDue(input: {
   const chargeableDays = missedDays - highestPrior;
   const arrears = multiply(input.dailySavings, chargeableDays);
 
-  const amount = percentageOf(arrears, policy.penaltyRate);
+  const amount = multiply(policy.penaltyPerShare, input.shares);
 
-  // A rate of zero, or arrears rounding to nothing, would otherwise mint a
-  // zero-value fine every night — a notification and an audit entry for
-  // nothing at all.
+  // A fine set to zero would otherwise mint a zero-value fine every night — a
+  // notification and an audit entry for nothing at all.
   if (!gt(amount, 0)) return null;
 
   return {
     missedDays,
     dueDayIndex: dueDays,
     arrearsAmount: toMoneyString(arrears),
-    rate: policy.penaltyRate,
+    amountPerShare: policy.penaltyPerShare,
+    shares: input.shares,
     amount: toMoneyString(amount),
   };
 }
@@ -369,7 +381,11 @@ export interface MemberStanding extends ContributionStanding {
     reference: string;
     amount: string;
     missedDays: number;
-    rate: string;
+    /// Set on fines assessed under the old percentage rule, null since. See
+    /// the note on ContributionFine in the schema.
+    rate: string | null;
+    amountPerShare: string | null;
+    shares: number | null;
     status: string;
     assessedAt: Date;
     waiverReason: string | null;
@@ -410,6 +426,8 @@ export async function getMemberStanding(
           missedDays: true,
           dueDayIndex: true,
           rate: true,
+          amountPerShare: true,
+          shares: true,
           status: true,
           assessedAt: true,
           waiverReason: true,
@@ -481,7 +499,10 @@ export async function getMemberStanding(
       reference: fine.reference,
       amount: toMoneyString(fine.amount),
       missedDays: fine.missedDays,
-      rate: toMoney(fine.rate).toFixed(2),
+      rate: fine.rate === null ? null : toMoney(fine.rate).toFixed(2),
+      amountPerShare:
+        fine.amountPerShare === null ? null : toMoneyString(fine.amountPerShare),
+      shares: fine.shares,
       status: fine.status,
       assessedAt: fine.assessedAt,
       waiverReason: fine.waiverReason,
@@ -1004,7 +1025,7 @@ export async function assessFines(
     totalAssessed: "0.00",
   };
 
-  if (!gt(policy.penaltyRate, 0)) return result;
+  if (!gt(policy.penaltyPerShare, 0)) return result;
 
   const association = await prisma.association.findUnique({
     where: { id: associationId },
@@ -1096,7 +1117,8 @@ export async function assessFines(
           missedDays: fine.missedDays,
           dueDayIndex: fine.dueDayIndex,
           arrearsAmount: fine.arrearsAmount,
-          rate: fine.rate,
+          amountPerShare: fine.amountPerShare,
+          shares: fine.shares,
           amount: fine.amount,
           currency: association?.currency ?? "RWF",
           assessedAt: asOf,
@@ -1116,7 +1138,8 @@ export async function assessFines(
             reference: created.reference,
             missedDays: fine.missedDays,
             arrears: fine.arrearsAmount,
-            rate: fine.rate,
+            amountPerShare: fine.amountPerShare,
+            shares: fine.shares,
             amount: fine.amount,
           },
           severity: "NOTICE",
@@ -1131,7 +1154,8 @@ export async function assessFines(
           amount: fine.amount,
           reference: created.reference,
           daysBehind: fine.missedDays,
-          fineRate: toMoney(fine.rate).toFixed(2),
+          finePerShare: fine.amountPerShare,
+          fineShares: fine.shares,
           // Arrears plus every fine still owed, INCLUDING the one just
           // assessed. Quoting only the new fine would name a figure that does
           // not clear the account, and a member who paid it exactly would be
@@ -1553,7 +1577,10 @@ export async function sendContributionReminders(
         daysBehind: standing.missedDays,
         daysUntilFine: standing.daysUntilFine,
         clearingAmount: standing.clearingAmount,
-        fineRate: toMoney(policy.penaltyRate).toFixed(2),
+        // The fine this member would actually be charged, shares included,
+        // rather than the rulebook's per-share figure they would have to
+        // multiply out themselves.
+        fineAmount: standing.fineAmount,
       },
       entityType: "Member",
       entityId: member.id,

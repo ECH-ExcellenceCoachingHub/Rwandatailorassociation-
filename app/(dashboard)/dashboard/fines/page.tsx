@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CheckCircle2, Gavel, Scale, Warehouse } from "lucide-react";
 import { requireMember } from "@/lib/auth/guards";
-import { listMemberFines, type FineRow } from "@/lib/services/fines";
+import { fineSum, listMemberFines, type FineRow } from "@/lib/services/fines";
 import { formatMoney } from "@/lib/money";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { fill, pluralize } from "@/lib/i18n/fill";
@@ -164,12 +164,7 @@ function FineCard({
           {/* The sum, so the member can check it rather than take it on
               trust. */}
           <p className="mt-0.5 text-sm text-ink-muted">
-            {fill(copy.sum, {
-              rate: fine.rate,
-              arrears: formatMoney(fine.arrearsAmount, {
-                currency: fine.currency,
-              }),
-            })}
+            {fineSum(fine, copy)}
           </p>
 
           <p className="mt-1 text-xs text-ink-muted">

@@ -37,7 +37,7 @@ const TZ = "Africa/Kigali";
 /** Midday, so a timezone slip of a couple of hours cannot change the day. */
 const at = (iso: string) => new Date(`${iso}T12:00:00.000Z`);
 
-/** RTA's own rules: 1,000 + 50 a day per share, 7% after 7 days, 2% a month split 1/1. */
+/** RTA's own rules: 1,000 + 50 a day per share, 500 per share after 7 days, 2% a month split 1/1. */
 const POLICY: AssociationPolicy = DEFAULT_POLICY;
 
 function standing(overrides: Partial<StandingInputs> = {}) {
@@ -206,19 +206,41 @@ describe("assessing the fine", () => {
     expect(standing({ asOf: at("2026-01-06") }).fineDue).toBeNull();
   });
 
-  it("fines 7% of the unpaid savings on the seventh missed day", () => {
+  it("fines 500 for the one share on the seventh missed day", () => {
     const result = standing({ asOf: at("2026-01-07") });
 
     expect(result.missedDays).toBe(7);
     expect(result.status).toBe("FINABLE");
-    // Seven days of 1,000 unpaid savings; 7% of 7,000. The service fee is NOT
-    // in the base — a member is fined for what they did not save, not for a
-    // service they did not receive.
+    // A flat 500 per share. The 7,000 of saving the week left unpaid is
+    // recorded beside it for the member to read, but the fine does not depend
+    // on it.
     expect(result.fineDue).toMatchObject({
       arrearsAmount: "7000.00",
-      rate: "7.0000",
-      amount: "490.00",
+      amountPerShare: "500.00",
+      shares: 1,
+      amount: "500.00",
     });
+  });
+
+  it("fines 500 for each share the member holds", () => {
+    const result = standing({ asOf: at("2026-01-07"), shares: 3 });
+
+    expect(result.missedDays).toBe(7);
+    expect(result.fineDue).toMatchObject({
+      arrearsAmount: "21000.00",
+      amountPerShare: "500.00",
+      shares: 3,
+      amount: "1500.00",
+    });
+  });
+
+  it("names the fine a warning is about, shares included", () => {
+    // Inside the grace period nothing is due yet, but the reminder must still
+    // be able to say what is coming.
+    const result = standing({ asOf: at("2026-01-06"), shares: 3 });
+
+    expect(result.fineDue).toBeNull();
+    expect(result.fineAmount).toBe("1500.00");
   });
 
   // The four cases from the doc comment on resolveFineDue, in order.
@@ -272,19 +294,18 @@ describe("assessing the fine", () => {
       expect(result.fineDue?.missedDays).toBe(21);
 
       // Seven NEW missed days since the fine at day 14 — not all twenty-one.
-      // Billing the running total would charge 1,470 here and punish the first
-      // fourteen days a second time.
+      // One more flat fine for the new stretch.
       expect(result.fineDue?.arrearsAmount).toBe("7000.00");
-      expect(result.fineDue?.amount).toBe("490.00");
+      expect(result.fineDue?.amount).toBe("500.00");
     });
 
-    it("adds a further 490 per stretch rather than re-fining the old days", () => {
+    it("adds a further 500 per stretch rather than re-fining the old days", () => {
       // A member who never pays is fined every seven days, each fine covering
-      // the seven days that one is for. Three stretches is 490 three times —
-      // 1,470 in total — not 490 + 980 + 1,470.
+      // the seven days that one is for. Three stretches is 500 three times —
+      // 1,500 in total.
       const day7 = standing({ obligationStart: start, asOf: at("2026-01-07") });
       expect(day7.missedDays).toBe(7);
-      expect(day7.fineDue?.amount).toBe("490.00");
+      expect(day7.fineDue?.amount).toBe("500.00");
 
       const day14 = standing({
         obligationStart: start,
@@ -293,7 +314,7 @@ describe("assessing the fine", () => {
       });
       expect(day14.missedDays).toBe(14);
       expect(day14.fineDue?.arrearsAmount).toBe("7000.00");
-      expect(day14.fineDue?.amount).toBe("490.00");
+      expect(day14.fineDue?.amount).toBe("500.00");
 
       const day21 = standing({
         obligationStart: start,
@@ -305,7 +326,7 @@ describe("assessing the fine", () => {
       });
       expect(day21.missedDays).toBe(21);
       expect(day21.fineDue?.arrearsAmount).toBe("7000.00");
-      expect(day21.fineDue?.amount).toBe("490.00");
+      expect(day21.fineDue?.amount).toBe("500.00");
     });
 
     it("starts afresh once the member has caught up past the old fine", () => {
@@ -325,8 +346,8 @@ describe("assessing the fine", () => {
     });
   });
 
-  it("never mints a fine of zero when the rate is zero", () => {
-    const free: AssociationPolicy = { ...POLICY, penaltyRate: "0.0000" };
+  it("never mints a fine of zero when the fine is set to zero", () => {
+    const free: AssociationPolicy = { ...POLICY, penaltyPerShare: "0.00" };
     const result = standing({ policy: free, asOf: at("2026-02-01") });
 
     expect(result.missedDays).toBeGreaterThan(POLICY.graceDays);

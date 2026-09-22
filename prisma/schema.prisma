@@ -2327,13 +2327,23 @@ model ContributionFine {
   missedDays  Int
   dueDayIndex Int
 
-  /// The unpaid contribution the percentage was applied to, and the rate in
-  /// force on the day. Stored rather than recomputed: the rule may change, and
-  /// a fine must remain explainable under the rule that produced it.
-  arrearsAmount Decimal @db.Decimal(18, 2)
-  rate          Decimal @db.Decimal(9, 4)
-  amount        Decimal @db.Decimal(18, 2)
-  currency      String  @default("RWF")
+  /// The unpaid saving for the days this fine covers, and the rule in force on
+  /// the day. Stored rather than recomputed: the rule may change, and a fine
+  /// must remain explainable under the rule that produced it.
+  ///
+  /// TWO RULES HAVE PRODUCED FINES. Fines assessed before the rulebook moved to
+  /// a flat charge per share carry `rate` — a percentage of `arrearsAmount` —
+  /// and nothing in the two per-share columns. Fines assessed since carry
+  /// `amountPerShare` and `shares` instead, with `rate` null. Exactly one of
+  /// the two shapes is populated, and that is how a screen knows which sum to
+  /// show the member.
+  arrearsAmount  Decimal  @db.Decimal(18, 2)
+  rate           Decimal? @db.Decimal(9, 4)
+  amountPerShare Decimal? @db.Decimal(18, 2)
+  /// Shares the member held when fined; `amount` is this times `amountPerShare`.
+  shares         Int?
+  amount         Decimal  @db.Decimal(18, 2)
+  currency       String   @default("RWF")
 
   status ContributionFineStatus @default(OUTSTANDING)
 

@@ -6,6 +6,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import {
   FINE_KINDS,
   FINE_STATUSES,
+  fineSum,
   getFinesOverview,
   listFines,
   type FineKind,
@@ -249,12 +250,7 @@ export default async function AdminFinesPage({
                         {/* The sum, never a bare figure: the rate that was in
                             force and the arrears it was applied to. */}
                         <p className="text-xs text-ink-muted">
-                          {fill(copy.sum, {
-                            rate: fine.rate,
-                            arrears: formatMoney(fine.arrearsAmount, {
-                              currency: fine.currency,
-                            }),
-                          })}
+                          {fineSum(fine, copy)}
                         </p>
                         {fine.waiverReason && (
                           <p className="mt-1 text-xs italic text-ink-muted">

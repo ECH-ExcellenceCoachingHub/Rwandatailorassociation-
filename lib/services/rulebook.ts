@@ -58,7 +58,8 @@ export interface AssociationPolicy {
 
   // Falling behind.
   graceDays: number;
-  penaltyRate: string;
+  /// The fine for each share a member holds, charged once per stretch missed.
+  penaltyPerShare: string;
   penaltyRepeatDays: number;
   reminderLeadDays: number;
 
@@ -176,7 +177,7 @@ function buildPolicy(values: Map<string, string | null>): AssociationPolicy {
     // repeat of zero would fine them again every night forever. Both are
     // floored at one rather than trusted, because either is a runaway.
     graceDays: Math.max(1, count(RULE_KEYS.PENALTY_GRACE_DAYS, 365)),
-    penaltyRate: percent(RULE_KEYS.PENALTY_RATE),
+    penaltyPerShare: money(RULE_KEYS.PENALTY_PER_SHARE),
     penaltyRepeatDays: Math.max(1, count(RULE_KEYS.PENALTY_REPEAT_DAYS, 365)),
     reminderLeadDays: count(RULE_KEYS.REMINDER_LEAD_DAYS, 90),
 

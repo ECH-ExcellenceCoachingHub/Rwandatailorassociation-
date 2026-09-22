@@ -34,7 +34,11 @@ export interface TemplateContext {
   daysUntilFine?: number;
   /// What the member must pay to be fully up to date, arrears plus any fine.
   clearingAmount?: string;
-  fineRate?: string;
+  /// The fine a warning is about: the per-share fine times the member's shares.
+  fineAmount?: string;
+  /// How an assessed fine was made up, so the member can check it.
+  finePerShare?: string;
+  fineShares?: number;
   /// The rule that changed, or that a warning is issued under.
   ruleTitle?: string;
   /// The other member in a guarantee: the borrower when telling a guarantor,
@@ -133,10 +137,10 @@ export function renderNotification(
           context.daysUntilFine === 0
             ? "today"
             : `within ${context.daysUntilFine} day(s)`
-        } to stay clear of the ${context.fineRate}% fine.`,
-        sms: `${associationName}: you are ${context.daysBehind} days behind on saving. Pay ${smsMoney(context.clearingAmount)} within ${context.daysUntilFine} days to avoid the ${context.fineRate}% fine. Ref ${context.paymentReference}.`,
+        } to stay clear of a fine of ${formatMoney(context.fineAmount)}.`,
+        sms: `${associationName}: you are ${context.daysBehind} days behind on saving. Pay ${smsMoney(context.clearingAmount)} within ${context.daysUntilFine} days to avoid a fine of ${smsMoney(context.fineAmount)}. Ref ${context.paymentReference}.`,
         emailSubject: `Action needed: ${context.daysBehind} days behind on your saving`,
-        emailText: `Dear ${firstName},\n\nYou are ${context.daysBehind} day(s) behind on your daily saving.\n\nTo be fully up to date, pay ${formatMoney(context.clearingAmount)} quoting your reference ${context.paymentReference}.\n\nIf you are still behind in ${context.daysUntilFine} day(s), a fine of ${context.fineRate}% of the unpaid saving is added automatically. Paying before then avoids it entirely.\n\nIf you cannot pay at the moment, speak to the association - a break can be agreed rather than a fine applied.\n\n${associationName}`,
+        emailText: `Dear ${firstName},\n\nYou are ${context.daysBehind} day(s) behind on your daily saving.\n\nTo be fully up to date, pay ${formatMoney(context.clearingAmount)} quoting your reference ${context.paymentReference}.\n\nIf you are still behind in ${context.daysUntilFine} day(s), a fine of ${formatMoney(context.fineAmount)} is added automatically. Paying before then avoids it entirely.\n\nIf you cannot pay at the moment, speak to the association - a break can be agreed rather than a fine applied.\n\n${associationName}`,
         severity: "WARNING",
         actionUrl: "/dashboard/savings/deposit",
       };
@@ -147,7 +151,7 @@ export function renderNotification(
         body: `You were ${context.daysBehind} days behind on your saving, so a fine of ${formatMoney(context.amount)} has been added. Pay ${formatMoney(context.clearingAmount)} to clear everything.`,
         sms: `${associationName}: fine of ${smsMoney(context.amount)} added after ${context.daysBehind} days behind. Total to clear ${smsMoney(context.clearingAmount)}. Ref ${context.paymentReference}.`,
         emailSubject: `A fine of ${formatMoney(context.amount)} has been added to your account`,
-        emailText: `Dear ${firstName},\n\nYou have been ${context.daysBehind} day(s) behind on your daily saving, and under the association's rules a fine of ${context.fineRate}% of the unpaid saving now applies.\n\nFine: ${formatMoney(context.amount)}\nReference: ${context.reference}\n\nTo clear your arrears and this fine together, pay ${formatMoney(context.clearingAmount)} quoting ${context.paymentReference}.\n\nYou can read the rule this was applied under, and your full standing, on the rules page of your dashboard. If you believe this is wrong, or you need a payment break, contact the association - a fine can be waived by an officer with a reason recorded.\n\n${associationName}`,
+        emailText: `Dear ${firstName},\n\nYou have been ${context.daysBehind} day(s) behind on your daily saving, and under the association's rules a fine of ${formatMoney(context.finePerShare)} for each share you hold now applies.\n\nFine: ${formatMoney(context.amount)} (${context.fineShares} share(s) x ${formatMoney(context.finePerShare)})\nReference: ${context.reference}\n\nTo clear your arrears and this fine together, pay ${formatMoney(context.clearingAmount)} quoting ${context.paymentReference}.\n\nYou can read the rule this was applied under, and your full standing, on the rules page of your dashboard. If you believe this is wrong, or you need a payment break, contact the association - a fine can be waived by an officer with a reason recorded.\n\n${associationName}`,
         severity: "WARNING",
         actionUrl: "/dashboard/rules",
       };
