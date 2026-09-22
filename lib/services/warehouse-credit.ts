@@ -1471,18 +1471,21 @@ export interface MemberCreditSummary {
 export async function getMemberCreditSummary(
   memberId: string
 ): Promise<MemberCreditSummary | null> {
-  const member = await prisma.member.findUnique({
-    where: { id: memberId },
-    select: { id: true, association: { select: { currency: true } } },
-  });
+  // Together: the credits are keyed by the member id already in hand, so
+  // fetching the member first only added a round trip.
+  const [member, rows] = await Promise.all([
+    prisma.member.findUnique({
+      where: { id: memberId },
+      select: { id: true, association: { select: { currency: true } } },
+    }),
+    prisma.warehouseCredit.findMany({
+      where: { memberId, status: { not: "CANCELLED" } },
+      orderBy: { startedAt: "desc" },
+      select: CREDIT_SELECT,
+    }),
+  ]);
 
   if (!member) return null;
-
-  const rows = await prisma.warehouseCredit.findMany({
-    where: { memberId, status: { not: "CANCELLED" } },
-    orderBy: { startedAt: "desc" },
-    select: CREDIT_SELECT,
-  });
 
   const asOf = new Date();
   const credits = rows.map((row) => toCreditDetail(row, asOf));

@@ -14,7 +14,7 @@ import {
   buildTransactionReference,
   postSavingsTransaction,
 } from "@/lib/services/ledger";
-import { getPolicy, type AssociationPolicy } from "@/lib/services/rulebook";
+import { getPolicy, policyFromRules, type AssociationPolicy } from "@/lib/services/rulebook";
 import { notify, NOTIFICATION_EVENTS } from "@/lib/notifications";
 
 /**
@@ -408,7 +408,19 @@ export async function getMemberStanding(
       approvedAt: true,
       createdAt: true,
       user: { select: { firstName: true, lastName: true, phone: true } },
-      association: { select: { timezone: true, currency: true } },
+      association: {
+        select: {
+          timezone: true,
+          currency: true,
+          // The rulebook rides along in the same statement — the same filter
+          // `getPolicy` applies — rather than costing a second round trip once
+          // the association id is known.
+          rules: {
+            where: { isSystem: true, isActive: true },
+            select: { key: true, value: true },
+          },
+        },
+      },
       savingsAccounts: {
         where: { isActive: true },
         select: { balance: true, totalDeposits: true },
@@ -444,7 +456,7 @@ export async function getMemberStanding(
 
   if (!member) return null;
 
-  const policy = await getPolicy(member.associationId);
+  const policy = policyFromRules(member.association.rules);
 
   const totalContributed = member.savingsAccounts.reduce(
     (total, account) => add(total, account.totalDeposits),

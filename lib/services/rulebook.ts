@@ -790,8 +790,34 @@ export async function getPolicyEnsured(
   actorId?: string | null
 ): Promise<AssociationPolicy> {
   if (!associationId) return DEFAULT_POLICY;
-  await ensureRulebook(associationId, actorId);
-  return getPolicy(associationId);
+
+  // One read answers both questions — which system rules exist, and what the
+  // active ones say — so the everyday case, a rulebook that is already
+  // complete, costs a single round trip instead of two. Only an association
+  // that is actually missing rules takes the longer seed-then-read path.
+  const rows = await prisma.associationRule.findMany({
+    where: { associationId, isSystem: true },
+    select: { key: true, value: true, isActive: true },
+  });
+
+  const have = new Set(rows.map((row) => row.key));
+  if (RULE_CATALOGUE.some((rule) => !have.has(rule.key))) {
+    await ensureRulebook(associationId, actorId);
+    return getPolicy(associationId);
+  }
+
+  return policyFromRules(rows.filter((row) => row.isActive));
+}
+
+/**
+ * Builds the policy from an association's active system rules that the caller
+ * has already loaded — for a query that fetches them alongside other data
+ * instead of paying a separate round trip in `getPolicy`.
+ */
+export function policyFromRules(
+  rules: { key: string; value: string | null }[]
+): AssociationPolicy {
+  return buildPolicy(new Map(rules.map((row) => [row.key, row.value])));
 }
 
 /** Used by the contribution service inside an open transaction. */

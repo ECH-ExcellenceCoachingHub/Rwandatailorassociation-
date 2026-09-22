@@ -1,164 +1,47 @@
 "use client";
 
-import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import { formatMoney, formatMoneyCompact } from "@/lib/money";
+import dynamic from "next/dynamic";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/components/LanguageProvider";
-import { formatMonthLabel } from "@/lib/i18n/dates";
 import { fill } from "@/lib/i18n/fill";
 
 /**
- * Dashboard charts.
+ * Dashboard charts, as the pages import them.
  *
- * Two rules applied throughout:
+ * The charting library is by far the heaviest dependency in the dashboard —
+ * it added well over 100 kB to every page that drew a chart, and every one of
+ * those pages waited for it before becoming usable. The charts themselves live
+ * in ./plots and are fetched on demand here: the page's figures and tables
+ * render at once, and each chart fills its reserved space a moment later.
  *
- *  • Amounts arrive as strings and are converted to numbers ONLY here, for
- *    pixel positions. A chart coordinate does not need exact decimal
- *    arithmetic; a balance does, which is why the conversion happens at the
- *    very edge and never flows back into anything that gets stored.
- *
- *  • Colours come from the site's existing palette — teal for savings, amber
- *    for withdrawals, red for arrears — so a figure means the same thing here
- *    as it does in a status badge elsewhere.
+ * Not rendered on the server either. A ResponsiveContainer cannot measure its
+ * width there, so server output was an empty box anyway.
  */
 
-const TEAL = "#20b2aa";
-const TEAL_DARK = "#17948e";
-const AMBER = "#d4a94c";
-const RED = "#ef4444";
-const GRID = "#e5e7eb";
-const MUTED = "#6b7280";
-
-/** Chart-only conversion. Never feed the result back into a stored value. */
-const toPlot = (value: string): number => Number.parseFloat(value) || 0;
-
-const axisProps = {
-  stroke: MUTED,
-  fontSize: 11,
-  tickLine: false,
-  axisLine: false,
-} as const;
-
-function ChartTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean;
-  payload?: { name: string; value: number; color: string }[];
-  label?: string;
-}) {
-  if (!active || !payload?.length) return null;
-
-  return (
-    <div className="rounded-xl border border-border bg-white px-3 py-2.5 shadow-lift">
-      <p className="mb-1.5 text-xs font-semibold text-ink">{label}</p>
-      {payload.map((entry) => (
-        <p key={entry.name} className="flex items-center gap-2 text-xs text-ink-muted">
-          <span
-            className="size-2 rounded-full"
-            style={{ backgroundColor: entry.color }}
-            aria-hidden="true"
-          />
-          {entry.name}:{" "}
-          <span className="font-semibold tabular-nums text-ink">
-            {formatMoney(String(entry.value))}
-          </span>
-        </p>
-      ))}
-    </div>
-  );
+function ChartPlaceholder({ height }: { height: number }) {
+  return <Skeleton className="w-full" style={{ height }} />;
 }
 
-export function SavingsGrowthChart({
-  data,
-}: {
-  data: { month: string; balance: string }[];
-}) {
-  const { d: copy, locale } = useLanguage();
+export const SavingsGrowthChart = dynamic(
+  () => import("./plots").then((m) => m.SavingsGrowthChart),
+  { ssr: false, loading: () => <ChartPlaceholder height={240} /> }
+);
 
-  // The series key doubles as its legend and tooltip label, so it is the
-  // translated word rather than a fixed English one.
-  const series = copy.views.charts.balance;
-  const plotted = data.map((point) => ({
-    month: formatMonthLabel(point.month, locale),
-    [series]: toPlot(point.balance),
-  }));
+export const ContributionsChart = dynamic(
+  () => import("./plots").then((m) => m.ContributionsChart),
+  { ssr: false, loading: () => <ChartPlaceholder height={240} /> }
+);
 
-  return (
-    <ResponsiveContainer width="100%" height={240}>
-      <AreaChart data={plotted} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-        <defs>
-          <linearGradient id="savingsFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={TEAL} stopOpacity={0.28} />
-            <stop offset="100%" stopColor={TEAL} stopOpacity={0.02} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-        <XAxis dataKey="month" {...axisProps} />
-        <YAxis {...axisProps} tickFormatter={(v) => formatMoneyCompact(String(v)).replace("RWF ", "")} />
-        <Tooltip content={<ChartTooltip />} />
-        <Area
-          type="monotone"
-          dataKey={series}
-          stroke={TEAL_DARK}
-          strokeWidth={2.5}
-          fill="url(#savingsFill)"
-        />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
+export const MonthlyBarChart = dynamic(
+  () => import("./plots").then((m) => m.MonthlyBarChart),
+  { ssr: false, loading: () => <ChartPlaceholder height={240} /> }
+);
 
-export function ContributionsChart({
-  data,
-}: {
-  data: { month: string; deposits: string; withdrawals: string }[];
-}) {
-  const { d: copy, locale } = useLanguage();
-  const depositsKey = copy.views.charts.deposits;
-  const withdrawalsKey = copy.views.charts.withdrawals;
-
-  const plotted = data.map((point) => ({
-    month: formatMonthLabel(point.month, locale),
-    [depositsKey]: toPlot(point.deposits),
-    [withdrawalsKey]: toPlot(point.withdrawals),
-  }));
-
-  return (
-    <ResponsiveContainer width="100%" height={240}>
-      <BarChart data={plotted} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-        <XAxis dataKey="month" {...axisProps} />
-        <YAxis {...axisProps} tickFormatter={(v) => formatMoneyCompact(String(v)).replace("RWF ", "")} />
-        <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(32,178,170,0.06)" }} />
-        <Legend
-          iconType="circle"
-          iconSize={8}
-          wrapperStyle={{ fontSize: 12, color: MUTED, paddingTop: 8 }}
-        />
-        <Bar dataKey={depositsKey} fill={TEAL} radius={[4, 4, 0, 0]} maxBarSize={28} />
-        <Bar
-          dataKey={withdrawalsKey}
-          fill={AMBER}
-          radius={[4, 4, 0, 0]}
-          maxBarSize={28}
-        />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
+export const FundsFlowChart = dynamic(
+  () => import("./plots").then((m) => m.FundsFlowChart),
+  { ssr: false, loading: () => <ChartPlaceholder height={260} /> }
+);
 
 /** Horizontal progress bar for loan repayment. Not a chart library job. */
 export function RepaymentProgress({
@@ -205,114 +88,5 @@ export function RepaymentProgress({
         />
       </div>
     </div>
-  );
-}
-
-/**
- * Generic monthly bar chart used by the admin dashboards.
- *
- * `label` is a "YYYY-MM" key rather than a month name, so the axis can be
- * drawn in the reader's language. Anything that does not parse as a month is
- * passed through unchanged.
- */
-export function MonthlyBarChart({
-  data,
-  series,
-  colour = TEAL,
-  highlightNegative = false,
-}: {
-  data: { label: string; value: string }[];
-  series: string;
-  colour?: string;
-  highlightNegative?: boolean;
-}) {
-  const { locale } = useLanguage();
-  const plotted = data.map((d) => ({
-    label: formatMonthLabel(d.label, locale),
-    [series]: toPlot(d.value),
-  }));
-
-  return (
-    <ResponsiveContainer width="100%" height={240}>
-      <BarChart data={plotted} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-        <XAxis dataKey="label" {...axisProps} />
-        <YAxis {...axisProps} tickFormatter={(v) => formatMoneyCompact(String(v)).replace("RWF ", "")} />
-        <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(32,178,170,0.06)" }} />
-        <Bar dataKey={series} radius={[4, 4, 0, 0]} maxBarSize={32}>
-          {plotted.map((entry, index) => (
-            <Cell
-              key={index}
-              fill={
-                highlightNegative && (entry[series] as number) < 0 ? RED : colour
-              }
-            />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-/**
- * THE THREE FLOWS THAT MUST NOT BE CONFUSED.
- *
- * The platform's service fee, the association's half of the loan interest, and
- * the members' half. Drawn as grouped bars rather than stacked, deliberately:
- * stacking implies a meaningful total, and these three have three different
- * owners. A column whose height was "fee + association + member" would be a
- * number nobody could spend.
- *
- * Amber for the fee — the same amber this file uses for money leaving a
- * member — teal for the association's own income, and a lighter teal for the
- * share returned to members, so the two halves of one interest payment read as
- * related without reading as the same thing.
- */
-export function FundsFlowChart({
-  data,
-  labels,
-}: {
-  data: {
-    label: string;
-    platformFee: string;
-    associationInterest: string;
-    memberInterest: string;
-  }[];
-  labels: { fee: string; association: string; member: string };
-}) {
-  const { locale } = useLanguage();
-
-  const plotted = data.map((row) => ({
-    label: formatMonthLabel(row.label, locale),
-    [labels.fee]: toPlot(row.platformFee),
-    [labels.association]: toPlot(row.associationInterest),
-    [labels.member]: toPlot(row.memberInterest),
-  }));
-
-  return (
-    <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={plotted} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
-        <XAxis dataKey="label" {...axisProps} />
-        <YAxis
-          {...axisProps}
-          tickFormatter={(v) => formatMoneyCompact(String(v)).replace("RWF ", "")}
-        />
-        <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(32,178,170,0.06)" }} />
-        <Legend
-          wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-          iconType="circle"
-          iconSize={8}
-        />
-        <Bar dataKey={labels.fee} fill={AMBER} radius={[4, 4, 0, 0]} maxBarSize={18} />
-        <Bar
-          dataKey={labels.association}
-          fill={TEAL_DARK}
-          radius={[4, 4, 0, 0]}
-          maxBarSize={18}
-        />
-        <Bar dataKey={labels.member} fill={TEAL} radius={[4, 4, 0, 0]} maxBarSize={18} />
-      </BarChart>
-    </ResponsiveContainer>
   );
 }

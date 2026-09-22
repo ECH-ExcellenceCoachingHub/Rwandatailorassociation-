@@ -26,6 +26,12 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: starter
+    # Same region as the database (Neon, eu-central-1 = Frankfurt). Left unset,
+    # Render places the service in Oregon, and every query then crosses the
+    # Atlantic — a page making a handful of them spends most of its time on
+    # the wire. Render fixes a service's region at creation: an existing
+    # service in another region has to be recreated to move.
+    region: frankfurt
     healthCheckPath: /login
     # Applies pending migrations once per deploy, before any instance starts
     # serving. Running them from the app's startup instead would race across
@@ -101,6 +107,8 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: starter
+    # Next to the database, for the same reason as the web service.
+    region: frankfurt
     dockerCommand: npm run worker
     envVars:
       - key: NODE_ENV

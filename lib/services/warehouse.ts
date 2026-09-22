@@ -2035,18 +2035,22 @@ export interface MemberWarehouseSummary {
 export async function getMemberWarehouseSummary(
   memberId: string
 ): Promise<MemberWarehouseSummary | null> {
-  const member = await prisma.member.findUnique({
-    where: { id: memberId },
-    select: { id: true, association: { select: { currency: true } } },
-  });
+  // Together, not one after the other: the issues are keyed by the member id
+  // already in hand, so waiting for the member row first only added a round
+  // trip to the hosted database.
+  const [member, rows] = await Promise.all([
+    prisma.member.findUnique({
+      where: { id: memberId },
+      select: { id: true, association: { select: { currency: true } } },
+    }),
+    prisma.warehouseIssuance.findMany({
+      where: { memberId, status: { not: "CANCELLED" } },
+      orderBy: { issuedAt: "desc" },
+      select: ISSUANCE_SELECT,
+    }),
+  ]);
 
   if (!member) return null;
-
-  const rows = await prisma.warehouseIssuance.findMany({
-    where: { memberId, status: { not: "CANCELLED" } },
-    orderBy: { issuedAt: "desc" },
-    select: ISSUANCE_SELECT,
-  });
 
   const asOf = new Date();
   return summariseIssuances(

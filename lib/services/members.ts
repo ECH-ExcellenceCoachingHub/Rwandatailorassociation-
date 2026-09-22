@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { randomBytes } from "node:crypto";
 import { prisma, Prisma, withFinancialTransaction, type TxClient } from "@/lib/db/prisma";
 import { recordAudit, diffFields, AUDIT_ACTIONS } from "@/lib/audit";
@@ -1835,8 +1836,14 @@ export async function applyMemberActionToMany(params: {
   return result;
 }
 
-/** Full financial picture for one member, for the admin member file. */
-export async function getMemberProfile(memberId: string) {
+/**
+ * Full financial picture for one member, for the admin member file.
+ *
+ * Wrapped in React `cache` because the member file asks for it twice per
+ * request — once for the browser-tab title, once for the page — and the second
+ * ask should not be a second trip to the database.
+ */
+export const getMemberProfile = cache(async (memberId: string) => {
   const member = await prisma.member.findUnique({
     where: { id: memberId },
     include: {
@@ -1894,4 +1901,4 @@ export async function getMemberProfile(memberId: string) {
   });
 
   return member;
-}
+});

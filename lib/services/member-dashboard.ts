@@ -103,33 +103,43 @@ export async function getMemberDashboard(
   memberId: string,
   userId: string
 ): Promise<MemberDashboardData | null> {
-  const member = await prisma.member.findUnique({
-    where: { id: memberId },
-    select: {
-      id: true,
-      paymentReference: true,
-      associationId: true,
-      savingsAccounts: {
-        where: { isActive: true },
-        orderBy: { openedAt: "asc" },
-        take: 1,
+  // The member row gates only the two queries keyed by the savings account.
+  // Everything else is keyed by the member id already in hand, so it all starts
+  // at once instead of queueing behind this lookup — against a database a
+  // network hop away, each hop saved is a quarter of a second off the page.
+  const accountActivity = prisma.member
+    .findUnique({
+      where: { id: memberId },
+      select: {
+        id: true,
+        paymentReference: true,
+        associationId: true,
+        savingsAccounts: {
+          where: { isActive: true },
+          orderBy: { openedAt: "asc" },
+          take: 1,
+        },
       },
-    },
-  });
-
-  if (!member || member.savingsAccounts.length === 0) return null;
-
-  const account = member.savingsAccounts[0];
+    })
+    .then(async (member) => {
+      if (!member || member.savingsAccounts.length === 0) return null;
+      const account = member.savingsAccounts[0];
+      const [recentTransactions, history] = await Promise.all([
+        loadRecentTransactions(account.id),
+        loadMonthlyHistory(account.id),
+      ]);
+      return { member, account, recentTransactions, history };
+    });
 
   const [
+    activity,
     activeLoan,
     pendingApplication,
-    recentTransactions,
     unread,
-    history,
     standing,
     fines,
   ] = await Promise.all([
+      accountActivity,
       prisma.loan.findFirst({
         where: {
           memberId,
@@ -178,55 +188,16 @@ export async function getMemberDashboard(
         },
       }),
 
-      prisma.savingsTransaction.findMany({
-        where: { savingsAccountId: account.id },
-        orderBy: { sequence: "desc" },
-        take: 8,
-        select: {
-          id: true,
-          reference: true,
-          type: true,
-          direction: true,
-          amount: true,
-          balanceAfter: true,
-          description: true,
-          channel: true,
-          status: true,
-          createdAt: true,
-        },
-      }),
-
       prisma.notification.count({ where: { userId, readAt: null } }),
-
-      // Twelve months of movement for the growth chart, aggregated in the
-      // database rather than by pulling every transaction into memory.
-      prisma.$queryRaw<
-        { month: string; deposits: string; withdrawals: string; closing: string }[]
-      >`
-        SELECT
-          to_char(date_trunc('month', "createdAt"), 'YYYY-MM') AS month,
-          COALESCE(SUM(amount) FILTER (WHERE direction = 'CREDIT'), 0)::text AS deposits,
-          COALESCE(SUM(amount) FILTER (WHERE direction = 'DEBIT'), 0)::text  AS withdrawals,
-          (
-            SELECT "balanceAfter"::text
-            FROM savings_transactions inner_t
-            WHERE inner_t."savingsAccountId" = outer_t."savingsAccountId"
-              AND date_trunc('month', inner_t."createdAt") = date_trunc('month', outer_t."createdAt")
-            ORDER BY inner_t.sequence DESC
-            LIMIT 1
-          ) AS closing
-        FROM savings_transactions outer_t
-        WHERE "savingsAccountId" = ${account.id}
-          AND "createdAt" >= date_trunc('month', now()) - interval '11 months'
-        GROUP BY date_trunc('month', "createdAt"), "savingsAccountId", "createdAt"
-        ORDER BY month ASC
-      `,
 
       // Both scope themselves to this member and are safe for somebody with no
       // fines and no standing record — an empty position, not a failure.
       getMemberStanding(memberId),
       listMemberFines(memberId),
     ]);
+
+  if (!activity) return null;
+  const { member, account, recentTransactions, history } = activity;
 
   const outstanding = activeLoan
     ? add(
@@ -319,6 +290,54 @@ export async function getMemberDashboard(
     unreadNotifications: unread,
     paymentReference: member.paymentReference,
   };
+}
+
+function loadRecentTransactions(savingsAccountId: string) {
+  return prisma.savingsTransaction.findMany({
+    where: { savingsAccountId },
+    orderBy: { sequence: "desc" },
+    take: 8,
+    select: {
+      id: true,
+      reference: true,
+      type: true,
+      direction: true,
+      amount: true,
+      balanceAfter: true,
+      description: true,
+      channel: true,
+      status: true,
+      createdAt: true,
+    },
+  });
+}
+
+/**
+ * Twelve months of movement for the growth chart, aggregated in the database
+ * rather than by pulling every transaction into memory.
+ */
+function loadMonthlyHistory(savingsAccountId: string) {
+  return prisma.$queryRaw<
+    { month: string; deposits: string; withdrawals: string; closing: string }[]
+  >`
+    SELECT
+      to_char(date_trunc('month', "createdAt"), 'YYYY-MM') AS month,
+      COALESCE(SUM(amount) FILTER (WHERE direction = 'CREDIT'), 0)::text AS deposits,
+      COALESCE(SUM(amount) FILTER (WHERE direction = 'DEBIT'), 0)::text  AS withdrawals,
+      (
+        SELECT "balanceAfter"::text
+        FROM savings_transactions inner_t
+        WHERE inner_t."savingsAccountId" = outer_t."savingsAccountId"
+          AND date_trunc('month', inner_t."createdAt") = date_trunc('month', outer_t."createdAt")
+        ORDER BY inner_t.sequence DESC
+        LIMIT 1
+      ) AS closing
+    FROM savings_transactions outer_t
+    WHERE "savingsAccountId" = ${savingsAccountId}
+      AND "createdAt" >= date_trunc('month', now()) - interval '11 months'
+    GROUP BY date_trunc('month', "createdAt"), "savingsAccountId", "createdAt"
+    ORDER BY month ASC
+  `;
 }
 
 /**

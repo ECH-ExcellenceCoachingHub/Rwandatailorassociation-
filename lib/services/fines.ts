@@ -438,23 +438,14 @@ export interface MemberFines {
  * asked to clear.
  */
 export async function listMemberFines(memberId: string): Promise<MemberFines> {
-  const member = await prisma.member.findUnique({
-    where: { id: memberId },
-    select: { association: { select: { currency: true } } },
-  });
-
-  if (!member) {
-    return {
-      rows: [],
-      outstandingAmount: "0.00",
-      outstandingCount: 0,
-      settledAmount: "0.00",
-      waivedCount: 0,
-      currency: "RWF",
-    };
-  }
-
-  const [contributionRows, creditRows] = await Promise.all([
+  // All three at once. The fines are keyed by the member id already in hand;
+  // the member row only supplies the currency, so waiting for it first was a
+  // wasted round trip on every dashboard and fines page.
+  const [member, contributionRows, creditRows] = await Promise.all([
+    prisma.member.findUnique({
+      where: { id: memberId },
+      select: { association: { select: { currency: true } } },
+    }),
     prisma.contributionFine.findMany({
       where: { memberId },
       orderBy: { assessedAt: "desc" },
@@ -498,6 +489,17 @@ export async function listMemberFines(memberId: string): Promise<MemberFines> {
       },
     }),
   ]);
+
+  if (!member) {
+    return {
+      rows: [],
+      outstandingAmount: "0.00",
+      outstandingCount: 0,
+      settledAmount: "0.00",
+      waivedCount: 0,
+      currency: "RWF",
+    };
+  }
 
   const rows = mergeFines(
     contributionRows.map((fine) => ({

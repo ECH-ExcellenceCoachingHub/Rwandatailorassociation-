@@ -29,6 +29,12 @@
 generator client {
   provider = "prisma-client"
   output   = "../lib/generated/prisma"
+  // Loads nested relations (include / nested select) in ONE SQL statement
+  // using LATERAL joins, instead of one query per relation level. The database
+  // is a network hop away (~250ms from Kigali to eu-central-1), so the old
+  // strategy made the session lookup alone six sequential round trips — well
+  // over a second before a page could even start fetching its own data.
+  previewFeatures = ["relationJoins"]
 }
 
 // Prisma 7 moved the connection URL out of the schema. It now lives in

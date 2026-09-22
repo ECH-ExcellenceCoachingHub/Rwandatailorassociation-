@@ -68,7 +68,17 @@ export default async function AdminMemberDetailPage({
     `/admin/members/${id}`
   );
 
-  const member = await getMemberProfile(id);
+  const allowed = allowedMemberActions(context.permissions);
+
+  // The file, its recent ledger and — only for someone who could act on the
+  // answer — the removal counts, all at once rather than one after another.
+  // Fetching the latter two before the tenant check below is safe: nothing is
+  // rendered until that check passes, and it throws when it fails.
+  const [member, recent, removalHistory] = await Promise.all([
+    getMemberProfile(id),
+    getMemberTransactions(id, { pageSize: 15 }),
+    allowed.includes("delete") ? getMemberRemovalHistory(id) : Promise.resolve(null),
+  ]);
   if (!member) notFound();
 
   // The id came from the URL, so tenant isolation is asserted after loading
@@ -98,7 +108,6 @@ export default async function AdminMemberDetailPage({
         : d.common.no;
 
   const account = member.savingsAccounts[0] ?? null;
-  const recent = await getMemberTransactions(member.id, { pageSize: 15 });
 
   const outstanding = member.loans.reduce(
     (total, loan) => add(total, subtract(loan.totalPayable, loan.totalPaid)),
@@ -106,12 +115,8 @@ export default async function AdminMemberDetailPage({
   );
   const overdueLoans = member.loans.filter((loan) => loan.daysOverdue > 0);
 
-  const allowed = allowedMemberActions(context.permissions);
   const canManage = allowed.length > 0;
-  // Only worth the counting queries for someone who could act on the answer.
-  const history = allowed.includes("delete")
-    ? ((await getMemberRemovalHistory(member.id)) ?? [])
-    : [];
+  const history = removalHistory ?? [];
   const fullName = `${member.user.firstName} ${member.user.lastName}`.trim();
 
   return (

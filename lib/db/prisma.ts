@@ -31,7 +31,7 @@ declare global {
  * WHY THESE ARE RETRIED. The database is hosted (Neon, eu-central-1) and the
  * people using this reach it over home and mobile connections where a DNS
  * lookup fails outright for a second at a time. The pool closes idle
- * connections after 30s, so the first query after any pause opens a fresh one —
+ * connections after a few minutes, so the first query after any pause opens a fresh one —
  * and a single failed lookup then surfaced as P1001, "Can't reach database
  * server", which killed the whole page while the next click worked fine.
  *
@@ -141,7 +141,19 @@ function createClient(): PrismaClient {
     // acquire a connection surfaces to a member as a failed deposit, so it is
     // better to wait than to give up quickly.
     connectionTimeoutMillis: 30_000,
-    idleTimeoutMillis: 30_000,
+    // Opening a connection to the hosted database costs ~1.7s from Kigali
+    // (TCP + TLS + SCRAM, each a full round trip to eu-central-1), against
+    // ~0.25s for a query on a connection that is already open. At 30s, anyone
+    // who read a page for half a minute paid that again on their next click,
+    // once per connection a page's parallel queries needed. Five minutes
+    // covers ordinary reading time and stays within Neon's default
+    // scale-to-zero window, so it does not keep an idle compute awake.
+    idleTimeoutMillis: 5 * 60_000,
+    // Idle sockets across home and mobile networks are silently dropped by
+    // NAT gateways; keepalive probes keep the path open so a warm connection
+    // is still usable when the next request arrives.
+    keepAlive: true,
+    keepAliveInitialDelayMillis: 30_000,
   });
 
   // The adapter would otherwise build its own plain Pool. `disposeExternalPool`

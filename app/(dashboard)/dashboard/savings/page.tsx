@@ -55,7 +55,11 @@ export default async function MemberSavingsPage() {
   const { d, locale } = await getDashboardCopy();
   const copy = d.member.savings;
 
-  const account = await getMemberSavingsAccount(context.member!.id);
+  // Both keyed by the member, so neither waits for the other.
+  const [account, recent] = await Promise.all([
+    getMemberSavingsAccount(context.member!.id),
+    getMemberTransactions(context.member!.id, { pageSize: 10 }),
+  ]);
 
   if (!account) {
     return (
@@ -66,8 +70,6 @@ export default async function MemberSavingsPage() {
       />
     );
   }
-
-  const recent = await getMemberTransactions(context.member!.id, { pageSize: 10 });
 
   return (
     <div className="space-y-7">

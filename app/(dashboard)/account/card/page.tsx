@@ -42,12 +42,13 @@ export default async function AccountCardPage() {
 
   // Only whether one exists — the bytes belong in the <img> the browser
   // fetches from the avatar route, not in this page's payload.
-  const photo = await prisma.userAvatar.findUnique({
-    where: { userId: context.user.id },
-    select: { userId: true },
-  });
-
-  const card = await getMembershipCardData(context.user.id);
+  const [photo, card] = await Promise.all([
+    prisma.userAvatar.findUnique({
+      where: { userId: context.user.id },
+      select: { userId: true },
+    }),
+    getMembershipCardData(context.user.id),
+  ]);
   const sizes = await getCardTextSizes(card);
 
   // The QR is drawn here, on the server, and handed to the preview as finished
