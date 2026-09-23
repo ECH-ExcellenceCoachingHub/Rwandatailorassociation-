@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { FileText, MoreHorizontal, Pencil } from "lucide-react";
+import { FileText, Link2, MoreHorizontal, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -60,6 +60,9 @@ export interface RegisterMember {
   outstandingLoan: string;
   hasOverdueLoan: boolean;
   joinedAt: Date | string | null;
+  /// Encrypted phone number for the /in/:token sign-in link; null when the
+  /// member has no usable phone.
+  signInToken: string | null;
 }
 
 /**
@@ -111,6 +114,23 @@ export function MembersRegister({
     null
   );
   const [result, setResult] = useState<BulkMemberResult | null>(null);
+  const [copiedFor, setCopiedFor] = useState<string | null>(null);
+
+  /** Copies the member's /in/:token link — sign-in with the number filled in. */
+  async function copySignInLink(member: RegisterMember) {
+    if (!member.signInToken) return;
+    const url = `${window.location.origin}/in/${member.signInToken}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      // Clipboard blocked (insecure origin, denied permission): let the admin
+      // copy it by hand instead.
+      window.prompt(bulk.copySignInLink, url);
+      return;
+    }
+    setCopiedFor(member.fullName);
+    window.setTimeout(() => setCopiedFor(null), 3000);
+  }
 
   const selectable = allowed.length > 0;
   // Derived from the rows on screen, so a selection never outlives a refresh
@@ -199,6 +219,10 @@ export function MembersRegister({
 
   return (
     <div className="mt-5 space-y-4">
+      {copiedFor && (
+        <Alert variant="success">{fill(bulk.signInLinkCopied, { name: copiedFor })}</Alert>
+      )}
+
       {result && result.done > 0 && (
         <Alert variant="success">{pluralize(bulk.done, result.done)}</Alert>
       )}
@@ -392,6 +416,15 @@ export function MembersRegister({
                                 <Pencil className="size-4" aria-hidden="true" />
                                 {bulk.editDetails}
                               </Link>
+                            </DropdownMenu.Item>
+                          )}
+                          {member.signInToken && (
+                            <DropdownMenu.Item
+                              onSelect={() => void copySignInLink(member)}
+                              className={menuItemClass}
+                            >
+                              <Link2 className="size-4" aria-hidden="true" />
+                              {bulk.copySignInLink}
                             </DropdownMenu.Item>
                           )}
 

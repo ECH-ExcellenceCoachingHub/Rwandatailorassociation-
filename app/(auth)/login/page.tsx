@@ -24,11 +24,10 @@ export default async function LoginPage() {
 
   return (
     <div>
-      <h1 className="font-heading text-3xl font-bold text-ink">{copy.title}</h1>
-      <p className="mt-2 text-[15px] text-ink-muted">{copy.subtitle}</p>
+      <h1 className="sr-only">{copy.title}</h1>
 
       {/* useSearchParams needs a Suspense boundary to keep the shell static. */}
-      <Suspense fallback={<div className="mt-8 h-72" />}>
+      <Suspense fallback={<div className="h-72" />}>
         <LoginForm />
       </Suspense>
 

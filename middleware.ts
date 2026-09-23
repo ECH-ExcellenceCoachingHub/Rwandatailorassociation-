@@ -45,7 +45,7 @@ const PROTECTED_PREFIXES: { prefix: string; roles: string[] }[] = [
 ];
 
 /** Auth pages a signed-in user should be bounced away from. */
-const AUTH_ROUTES = ["/login", "/forgot-password", "/reset-password"];
+const AUTH_ROUTES = ["/login", "/forgot-password", "/reset-password", "/in/"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft, PiggyBank, ShieldCheck, TrendingUp } from "lucide-react";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 
@@ -21,7 +20,7 @@ import { LanguageToggle } from "@/components/ui/language-toggle";
  * The brand panel is hidden below `lg`, where the form deserves the full
  * width; the logo moves inline above the form so branding is never lost.
  *
- * The language switch sits in the header, next to the way back to the website.
+ * The language switch sits alone in the header.
  * It has to be here rather than only on the marketing site: a member who
  * arrives straight at a sign-in link would otherwise have no way to reach
  * Kinyarwanda, and reading the cookie means the page renders in their language
@@ -33,12 +32,6 @@ export default async function AuthLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   const { d } = await getDashboardCopy();
   const copy = d.auth.layout;
-
-  const highlights = [
-    { icon: PiggyBank, title: copy.saveTitle, body: copy.saveBody },
-    { icon: TrendingUp, title: copy.borrowTitle, body: copy.borrowBody },
-    { icon: ShieldCheck, title: copy.accountedTitle, body: copy.accountedBody },
-  ];
 
   return (
     <div className="flex min-h-screen">
@@ -79,48 +72,16 @@ export default async function AuthLayout({
           <h1 className="text-balance font-heading text-[34px] font-bold leading-tight text-white xl:text-[40px]">
             {copy.headline}
           </h1>
-          <p className="mt-4 max-w-md text-[15px] leading-relaxed text-white/70">
-            {copy.subhead}
-          </p>
-
-          <ul className="mt-10 space-y-6">
-            {highlights.map((item) => (
-              <li key={item.title} className="flex gap-4">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary">
-                  <item.icon className="size-5" aria-hidden="true" />
-                </span>
-                <span>
-                  <span className="block font-heading text-[15px] font-semibold text-white">
-                    {item.title}
-                  </span>
-                  <span className="mt-0.5 block text-sm leading-relaxed text-white/60">
-                    {item.body}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
         </div>
 
         <div className="relative text-xs leading-relaxed text-white/40">
-          <p>{copy.brandProgramme}</p>
-          <p className="mt-1">
-            © {new Date().getFullYear()} Rwanda Tailors Association
-          </p>
+          <p>© {new Date().getFullYear()} Rwanda Tailors Association</p>
         </div>
       </aside>
 
       {/* Form panel */}
       <main className="flex flex-1 flex-col bg-background">
-        <div className="flex items-center justify-between gap-4 px-6 py-6 lg:px-10">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-muted transition-colors hover:text-primary"
-          >
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            {copy.backToWebsite}
-          </Link>
-
+        <div className="flex items-center justify-end gap-4 px-6 py-6 lg:px-10">
           {/* Shown at every width here — on this page it is the only way in. */}
           <LanguageToggle className="flex" />
         </div>
@@ -129,21 +90,21 @@ export default async function AuthLayout({
           <div className="w-full max-w-[440px]">
             <Link
               href="/"
-              className="mb-8 flex items-center gap-3 lg:hidden"
+              className="mb-10 flex items-center gap-4 lg:hidden"
               aria-label={copy.homeLabel}
             >
               <Image
                 src="/images/rtalogo.jpg"
                 alt=""
-                width={44}
-                height={44}
-                className="size-11 shrink-0 rounded-full object-cover"
+                width={80}
+                height={80}
+                className="size-20 shrink-0 rounded-full object-cover"
               />
               <span className="leading-tight">
-                <span className="block font-heading text-[17px] font-bold tracking-[0.06em] text-ink">
+                <span className="block font-heading text-[32px] font-bold tracking-[0.06em] text-ink">
                   STGT
                 </span>
-                <span className="block font-heading text-[9.5px] font-semibold uppercase tracking-[0.12em] text-primary">
+                <span className="mt-1 block font-heading text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
                   {copy.brandTagline}
                 </span>
               </span>

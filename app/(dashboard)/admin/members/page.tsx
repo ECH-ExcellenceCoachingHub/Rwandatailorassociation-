@@ -6,6 +6,7 @@ import { requirePermission, resolveAssociationScope } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listMembers } from "@/lib/services/members";
 import { allowedMemberActions } from "@/lib/member-actions";
+import { signInLinkToken } from "@/lib/auth/sign-in-link";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { pluralize } from "@/lib/i18n/fill";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
@@ -128,7 +129,10 @@ export default async function AdminMembersPage({
         />
       ) : (
         <MembersRegister
-          members={data.members}
+          members={data.members.map((m) => ({
+            ...m,
+            signInToken: signInLinkToken(m.phone),
+          }))}
           allowed={allowedMemberActions(context.permissions)}
           canEdit={context.permissions.has(PERMISSIONS.MEMBERS_UPDATE)}
           viewerId={context.user.id}

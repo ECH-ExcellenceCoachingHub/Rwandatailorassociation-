@@ -15,14 +15,6 @@ export interface AuthCopy {
   /// The two-panel shell around every auth page.
   layout: {
     headline: string;
-    subhead: string;
-    saveTitle: string;
-    saveBody: string;
-    borrowTitle: string;
-    borrowBody: string;
-    accountedTitle: string;
-    accountedBody: string;
-    backToWebsite: string;
     homeLabel: string;
     /// The brand this side of the sign-in belongs to. The public website is
     /// the association; everything behind this door is STGT, its savings
@@ -37,6 +29,14 @@ export interface AuthCopy {
     identifier: string;
     identifierHint: string;
     identifierPlaceholder: string;
+    /// Phone is the default way in; email is offered behind a link for the
+    /// few who prefer it.
+    phone: string;
+    phonePlaceholder: string;
+    email: string;
+    emailPlaceholder: string;
+    useEmail: string;
+    usePhone: string;
     password: string;
     passwordPlaceholder: string;
     showPassword: string;
@@ -115,19 +115,7 @@ export interface AuthCopy {
 export const auth: Record<Locale, AuthCopy> = {
   en: {
     layout: {
-      headline: "Savings and loans for every RTA member.",
-      subhead:
-        "Track your contributions, apply for loans and follow your repayments — all in one place.",
-      saveTitle: "Save with confidence",
-      saveBody:
-        "Every contribution is recorded, receipted and visible in your statement.",
-      borrowTitle: "Borrow against your savings",
-      borrowBody:
-        "Apply for a loan, track approval and follow your repayment schedule.",
-      accountedTitle: "Your money, accounted for",
-      accountedBody:
-        "Every transaction carries a reference and a running balance you can verify.",
-      backToWebsite: "Back to website",
+      headline: "Your savings and loans, in one place.",
       homeLabel: "Rwanda Tailors Association — home",
       brandTagline: "Save today, grow tomorrow",
       brandProgramme: "The savings programme of the Rwanda Tailors Association",
@@ -139,6 +127,12 @@ export const auth: Record<Locale, AuthCopy> = {
       identifierHint:
         "Use the email or phone number registered with the association",
       identifierPlaceholder: "you@example.com or 0788123456",
+      phone: "Phone number",
+      phonePlaceholder: "0788123456",
+      email: "Email",
+      emailPlaceholder: "you@example.com",
+      useEmail: "Use email instead",
+      usePhone: "Use phone number instead",
       password: "Password",
       passwordPlaceholder: "Enter your password",
       showPassword: "Show password",
@@ -226,19 +220,7 @@ export const auth: Record<Locale, AuthCopy> = {
 
   rw: {
     layout: {
-      headline: "Kuzigama no kuguza ku banyamuryango bose ba RTA.",
-      subhead:
-        "Kurikirana imisanzu yawe, saba inguzanyo kandi ukurikirane ubwishyu bwawe — byose ahantu hamwe.",
-      saveTitle: "Zigama utekanye",
-      saveBody:
-        "Buri musanzu wandikwa, uhabwa inyemezabwishyu kandi ugaragara ku nyandiko ya konti yawe.",
-      borrowTitle: "Guza ushingiye ku buzigame bwawe",
-      borrowBody:
-        "Saba inguzanyo, ukurikirane uko yemezwa kandi ukurikize gahunda y'ubwishyu.",
-      accountedTitle: "Amafaranga yawe, abitswe neza",
-      accountedBody:
-        "Buri gikorwa gifite nimero yacyo n'amafaranga asigaye ushobora kugenzura.",
-      backToWebsite: "Subira ku rubuga",
+      headline: "Ubuzigame n'inguzanyo byawe, ahantu hamwe.",
       homeLabel: "Ihuriro ry'Abadozi mu Rwanda — ahabanza",
       brandTagline: "Zigama uyu munsi, ukure ejo",
       brandProgramme: "Gahunda yo kuzigama y'Ihuriro ry'Abadozi mu Rwanda",
@@ -251,6 +233,12 @@ export const auth: Record<Locale, AuthCopy> = {
       identifierHint:
         "Koresha imeyili cyangwa nimero ya telefone wanditse mu ihuriro",
       identifierPlaceholder: "wowe@urugero.com cyangwa 0788123456",
+      phone: "Nimero ya telefone",
+      phonePlaceholder: "0788123456",
+      email: "Imeyili",
+      emailPlaceholder: "wowe@urugero.com",
+      useEmail: "Koresha imeyili",
+      usePhone: "Koresha nimero ya telefone",
       password: "Ijambobanga",
       passwordPlaceholder: "Andika ijambobanga ryawe",
       showPassword: "Erekana ijambobanga",

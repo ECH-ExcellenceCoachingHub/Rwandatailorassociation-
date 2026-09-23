@@ -298,6 +298,10 @@ export interface AdminCopy {
     rowActions: string;
     openFile: string;
     editDetails: string;
+    /// A link that opens a bare sign-in screen with the member's phone number
+    /// already filled in, for the admin to send them.
+    copySignInLink: string;
+    signInLinkCopied: string;
     withCount: string;
 
     approveTitle: string;
@@ -1413,6 +1417,8 @@ export const admin: Record<Locale, AdminCopy> = {
       rowActions: "Actions for {name}",
       openFile: "Open file",
       editDetails: "Edit details",
+      copySignInLink: "Copy sign-in link",
+      signInLinkCopied: "Sign-in link for {name} copied",
       withCount: "{label} ({count})",
 
       approveTitle: "Approve {count} membership?|Approve {count} memberships?",
@@ -2655,6 +2661,8 @@ export const admin: Record<Locale, AdminCopy> = {
       rowActions: "Ibikorwa kuri {name}",
       openFile: "Fungura dosiye",
       editDetails: "Hindura amakuru",
+      copySignInLink: "Koporora umuhora wo kwinjira",
+      signInLinkCopied: "Umuhora wo kwinjira wa {name} wakoporowe",
       withCount: "{label} ({count})",
 
       approveTitle:

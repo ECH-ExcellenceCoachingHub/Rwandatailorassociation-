@@ -17,14 +17,24 @@ interface LoginResponse {
   redirectTo: string;
 }
 
-export default function LoginForm() {
+/**
+ * The sign-in form. Phone number first — it is what every member has — with
+ * email one tap away for those who registered with it.
+ *
+ * With `presetPhone` (the admin-shared link at /in/:token) the number is
+ * filled in and fixed, and everything but the password is left out, so the
+ * member has exactly one thing to do.
+ */
+export default function LoginForm({ presetPhone }: { presetPhone?: string } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const { d } = useLanguage();
   const copy = d.auth.login;
 
-  const [identifier, setIdentifier] = useState("");
+  const minimal = presetPhone !== undefined;
+  const [mode, setMode] = useState<"phone" | "email">("phone");
+  const [identifier, setIdentifier] = useState(presetPhone ?? "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +80,7 @@ export default function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
+    <form onSubmit={handleSubmit} className="space-y-5" noValidate>
       {error ? (
         <Alert variant="error">{error}</Alert>
       ) : (
@@ -79,25 +89,46 @@ export default function LoginForm() {
         )
       )}
 
-      <Field
-        id="identifier"
-        label={copy.identifier}
-        hint={copy.identifierHint}
-      >
+      <Field id="identifier" label={mode === "phone" ? copy.phone : copy.email}>
         {(props) => (
           <Input
             {...props}
             name="identifier"
-            type="text"
+            type={mode === "phone" ? "tel" : "email"}
+            inputMode={mode === "phone" ? "tel" : "email"}
             autoComplete="username"
-            placeholder={copy.identifierPlaceholder}
+            placeholder={mode === "phone" ? copy.phonePlaceholder : copy.emailPlaceholder}
             value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setIdentifier(value);
+              // A password manager fills whatever it saved — often an email —
+              // into this field. Follow it rather than show an email under a
+              // "Phone number" label.
+              if (mode === "phone" && value.includes("@")) setMode("email");
+            }}
+            readOnly={minimal}
             required
-            autoFocus
+            autoFocus={!minimal}
           />
         )}
       </Field>
+
+      {!minimal && (
+        <div className="-mt-2">
+          <button
+            type="button"
+            onClick={() => {
+              setMode((m) => (m === "phone" ? "email" : "phone"));
+              setIdentifier("");
+              setError(null);
+            }}
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {mode === "phone" ? copy.useEmail : copy.usePhone}
+          </button>
+        </div>
+      )}
 
       <Field id="password" label={copy.password}>
         {(props) => (
@@ -112,6 +143,7 @@ export default function LoginForm() {
               onChange={(e) => setPassword(e.target.value)}
               className="pr-12"
               required
+              autoFocus={minimal}
             />
             <button
               type="button"
@@ -129,14 +161,16 @@ export default function LoginForm() {
         )}
       </Field>
 
-      <div className="flex justify-end">
-        <Link
-          href="/forgot-password"
-          className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-        >
-          {copy.forgotPassword}
-        </Link>
-      </div>
+      {!minimal && (
+        <div className="flex justify-end">
+          <Link
+            href="/forgot-password"
+            className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {copy.forgotPassword}
+          </Link>
+        </div>
+      )}
 
       <Button type="submit" size="lg" className="w-full" disabled={submitting}>
         {submitting ? (
