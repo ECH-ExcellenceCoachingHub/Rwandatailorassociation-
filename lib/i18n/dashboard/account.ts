@@ -170,6 +170,7 @@ export interface AccountCopy {
     showingRecent: string;
     viewFullStatement: string;
     balanceColumn: string;
+    recentActivity: string;
   };
   qr: {
     title: string;
@@ -435,6 +436,7 @@ export const account: Record<Locale, AccountCopy> = {
       showingRecent: "Showing the most recent {shown} of {total}",
       viewFullStatement: "See the full statement",
       balanceColumn: "Balance",
+      recentActivity: "Recent activity",
     },
     qr: {
       title: "My sign-in QR code",
@@ -719,6 +721,7 @@ export const account: Record<Locale, AccountCopy> = {
       showingRecent: "Hagaragara {shown} biheruka kuri {total}",
       viewFullStatement: "Reba icyemezo cyuzuye",
       balanceColumn: "Asigaye",
+      recentActivity: "Ibikorwa biheruka",
     },
     qr: {
       title: "Kode yanjye ya QR yo kwinjira",

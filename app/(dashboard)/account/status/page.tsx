@@ -1,13 +1,18 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import type { ComponentType, ReactNode } from "react";
 import Link from "next/link";
 import {
   ArrowDownLeft,
   ArrowRight,
   ArrowUpRight,
-  CheckCircle2,
+  Ban,
+  CircleCheck,
+  Coins,
+  Landmark,
+  Package,
   PiggyBank,
-  QrCode,
+  ScanLine,
+  TriangleAlert,
 } from "lucide-react";
 import { requireAuth } from "@/lib/auth/guards";
 import { PERMISSIONS, ROLE_HOME } from "@/lib/auth/permissions";
@@ -16,17 +21,14 @@ import {
   type AccountStatusSummary,
   type AccountTransactionRow,
 } from "@/lib/services/account-status";
-import { fineSum } from "@/lib/services/fines";
 import type { BorrowingBlocker } from "@/lib/rules/borrowing";
 import { formatMoney } from "@/lib/money";
-import { formatQuantity } from "@/lib/quantity";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { fill, pluralize } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
 import { statusLabel } from "@/lib/i18n/dashboard/status";
 import { cn } from "@/lib/utils";
 import type { Locale } from "@/types";
-import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -37,26 +39,21 @@ import { GuaranteeResponse } from "@/components/account/GuaranteeResponse";
  * Account status — the first screen after a QR sign-in, and a page in its own
  * right the rest of the time.
  *
- * WHY THIS SCREEN CARRIES EVERYTHING. Someone who has just held a card up to a
- * camera has one question, and it is not "how have my contributions trended".
- * It is "where do I stand". This page answers that completely and in one
- * place, for a member at a pay point, on a cheap phone, over a slow connection.
+ * WHY IT IS A SUMMARY. Someone who has just held a card up to a camera has one
+ * question: "where do I stand". The page answers it in the order it is asked
+ * and stops there — the full ledger, every fine and every warehouse issue have
+ * their own pages, linked from here.
  *
- * WHY IT READS AS A STATEMENT, NOT A DASHBOARD. Every figure is one row: what it
- * is on the left, the amount on the right, a short line under the name saying
- * what it means. Tiles of numbers make the reader work out which one answers
- * their question; a list read top to bottom answers them in order. The order
- * is the order a member asks in: what do I have, what can I spend, what can I
- * borrow — then shares, fines, the loan and who guarantees it, the loans I
- * guarantee, what I have paid in, the warehouse, my details, and every
- * movement on the account.
+ *   1. The hero card: who you are, whether all is well, what you can spend,
+ *      what you hold, what you can borrow, and the reference to pay with.
+ *   2. Anything waiting on you — a guarantee request, a fine about to land.
+ *   3. One tile each for the loan and the shares; fines and warehouse debt
+ *      get a tile only when something is actually owed.
+ *   4. Guarantees, when there are any.
+ *   5. The last few movements on the account.
  *
- * The one exception to that order is a request to guarantee somebody's loan.
- * It is the only thing here that waits on the reader, so it sits first, right
- * under their name, with its Accept and Decline on the row.
- *
- * The same two columns hold at 360px. Nothing scrolls sideways, because
- * sideways-scrolling money is how people misread a balance.
+ * Every figure keeps its label next to it, and nothing scrolls sideways at
+ * 360px, because sideways-scrolling money is how people misread a balance.
  *
  * It is written for every role. Staff in a savings association usually save
  * with it as well, so an administrator sees their own position here exactly as
@@ -73,6 +70,10 @@ export async function generateMetadata(): Promise<Metadata> {
 
 // Balances must never come from a cache — this page exists to be trusted.
 export const dynamic = "force-dynamic";
+
+/// How many movements the summary shows before sending the reader to the
+/// full statement.
+const RECENT_SHOWN = 5;
 
 export default async function AccountStatusPage({
   searchParams,
@@ -105,65 +106,54 @@ export default async function AccountStatusPage({
     Boolean(context.user.associationId) &&
     context.permissions.has(PERMISSIONS.MEMBERS_CREATE);
 
+  const standing: Standing = suspended
+    ? "suspended"
+    : overdueDays > 0
+      ? "overdue"
+      : summary
+        ? "good"
+        : null;
+
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      <PageHeader title={copy.title} description={copy.description} className="mb-0" />
+    <div className="mx-auto max-w-3xl space-y-6">
+      <Hero
+        name={summary?.fullName ?? context.user.fullName}
+        memberNumber={summary?.memberNumber ?? null}
+        association={context.association?.name ?? null}
+        role={context.user.role}
+        memberStatus={summary?.status ?? null}
+        standing={standing}
+        viaQr={params.via === "qr"}
+        summary={summary}
+        copy={copy}
+        money={money}
+      />
 
-      {params.via === "qr" && (
-        <Alert variant="success">{copy.signedInWithQr}</Alert>
-      )}
-
-      {/* WHO, AND WHETHER ANYTHING NEEDS DOING. A member in good standing gets
-          one quiet line; only a problem earns a coloured box. */}
-      <section className="space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="break-words font-heading text-xl font-bold text-ink">
-              {summary?.fullName ?? context.user.fullName}
-            </p>
-            <p className="mt-0.5 text-sm text-ink-muted">
-              {summary && (
-                <span className="font-mono tracking-wide">{summary.memberNumber}</span>
-              )}
-              {summary && context.association && " · "}
-              {context.association?.name}
-            </p>
-          </div>
-
-          {/* An administrator who also saves wears both labels: the role says
-              what they may do to other people's records, the membership what
-              is happening to their own. */}
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {context.user.role !== "MEMBER" && (
-              <StatusBadge status={context.user.role} />
-            )}
-            {summary && <StatusBadge status={summary.status} />}
-          </div>
-        </div>
-
-        {suspended ? (
-          <Alert variant="error" title={copy.suspendedTitle}>
-            {copy.suspendedBody}
-          </Alert>
-        ) : overdueDays > 0 ? (
-          <Alert variant="warning" title={copy.overdueTitle}>
-            {fill(copy.overdueBody, { days: overdueDays })}
-          </Alert>
-        ) : summary ? (
-          <p className="flex items-center gap-2 text-sm font-medium text-emerald-700">
-            <CheckCircle2 className="size-4 shrink-0" aria-hidden="true" />
-            {copy.goodStandingTitle}
-          </p>
-        ) : (
+      {/* THE ONLY BOXES WITH COLOUR are the ones asking for something. A
+          member in good standing gets the green line in the hero and no more. */}
+      {suspended ? (
+        <Alert variant="error" title={copy.suspendedTitle}>
+          {copy.suspendedBody}
+        </Alert>
+      ) : overdueDays > 0 ? (
+        <Alert variant="warning" title={copy.overdueTitle}>
+          {fill(copy.overdueBody, { days: overdueDays })}
+        </Alert>
+      ) : (
+        !summary && (
           <Alert variant="info" title={copy.staffTitle}>
             {copy.staffBody}
             {canOpenSavings && <EnrolAsMemberButton />}
           </Alert>
-        )}
-      </section>
+        )
+      )}
 
       {summary && (
         <>
+          {summary.shareholding && (
+            <FineWarning shareholding={summary.shareholding} copy={copy} money={money} />
+          )}
+
           {summary.guarantees.requests.length > 0 && (
             <GuaranteeRequestsGroup
               requests={summary.guarantees.requests}
@@ -173,30 +163,40 @@ export default async function AccountStatusPage({
             />
           )}
 
-          <MoneyGroup
-            savings={summary.savings}
-            borrowing={summary.borrowing}
-            heldForOthers={summary.guarantees.heldForOthers}
-            copy={copy}
-            blockersCopy={d.rules.blockers}
-            money={money}
-          />
-
-          {summary.shareholding && (
-            <SharesGroup shareholding={summary.shareholding} copy={copy} money={money} />
-          )}
-
-          {/* Straight after the shares, because a fine is a deduction from the
-              position the group above just reported. */}
-          <FinesGroup
-            fines={summary.fines}
-            copy={copy}
-            finesCopy={d.rules.fines}
-            money={money}
-            locale={locale}
-          />
-
-          <LoanGroup loan={summary.loan} copy={copy} money={money} locale={locale} />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <LoanTile
+              loan={summary.loan}
+              borrowing={summary.borrowing}
+              copy={copy}
+              blockersCopy={d.rules.blockers}
+              money={money}
+              locale={locale}
+            />
+            <SharesTile shareholding={summary.shareholding} copy={copy} money={money} />
+            {summary.fines.outstandingCount > 0 && (
+              <Tile
+                icon={TriangleAlert}
+                accent="danger"
+                title={copy.finesOwed}
+                value={money(summary.fines.outstandingAmount)}
+                valueTone="danger"
+                link={{ href: "/dashboard/fines", label: copy.finesSeeAll }}
+              />
+            )}
+            {summary.warehouse && Number(summary.warehouse.totalDueToStore) > 0 && (
+              <Tile
+                icon={Package}
+                accent={summary.warehouse.overdueCreditCount > 0 ? "danger" : "warning"}
+                title={copy.warehouseTitle}
+                value={money(summary.warehouse.totalDueToStore)}
+                valueTone={summary.warehouse.overdueCreditCount > 0 ? "danger" : "warning"}
+              >
+                {copy.goodsOwed}
+                {summary.warehouse.openCount > 0 &&
+                  ` · ${pluralize(copy.openIssues, summary.warehouse.openCount)}`}
+              </Tile>
+            )}
+          </div>
 
           {summary.guarantees.mine.length > 0 && (
             <MyGuarantorsGroup guarantors={summary.guarantees.mine} copy={copy} money={money} />
@@ -212,74 +212,8 @@ export default async function AccountStatusPage({
             />
           )}
 
-          {summary.savings && (
-            <PaidInGroup savings={summary.savings} copy={copy} money={money} />
-          )}
-
-          <WarehouseGroup
-            warehouse={summary.warehouse}
-            copy={copy}
-            statusCopy={d.status}
-            money={money}
-            locale={locale}
-          />
-
-          <Group title={copy.yourDetails}>
-            <Row label={copy.fullName} value={summary.fullName} />
-            <Row label={copy.memberNumber} value={summary.memberNumber} mono />
-            {summary.savings && (
-              <Row label={copy.accountNumber} value={summary.savings.accountNumber} mono />
-            )}
-            {/* Coloured because it is the one detail a member reads out at a pay
-                point, and this is the screen they reach by scanning a card. */}
-            <Row
-              label={copy.paymentReference}
-              hint={copy.paymentReferenceHint}
-              value={summary.paymentReference}
-              mono
-              tone="primary"
-            />
-            <Row
-              label={copy.telephone}
-              value={
-                summary.phone ? (
-                  <a
-                    href={`tel:${summary.phone}`}
-                    className="underline underline-offset-4 hover:text-primary"
-                  >
-                    {summary.phone}
-                  </a>
-                ) : (
-                  copy.notProvided
-                )
-              }
-              tone={summary.phone ? "default" : "muted"}
-            />
-            <Row
-              label={copy.emailAddress}
-              value={summary.email ?? copy.notProvided}
-              tone={summary.email ? "default" : "muted"}
-            />
-            <Row
-              label={copy.memberSince}
-              value={
-                summary.joinedAt ? formatDate(summary.joinedAt, locale) : copy.notRecorded
-              }
-              tone={summary.joinedAt ? "default" : "muted"}
-            />
-            <Row
-              label={copy.identityCheck}
-              value={<StatusBadge status={summary.kycStatus} size="sm" />}
-            />
-            <Row
-              label={copy.accountState}
-              value={<StatusBadge status={context.user.status} size="sm" />}
-            />
-          </Group>
-
-          <ActivityGroup
-            transactions={summary.transactions}
-            total={summary.transactionCount}
+          <RecentActivity
+            transactions={summary.transactions.slice(0, RECENT_SHOWN)}
             copy={copy}
             statusCopy={d.status}
             money={money}
@@ -309,141 +243,217 @@ export default async function AccountStatusPage({
             </Link>
           </Button>
         )}
-
-        <Button asChild variant="outline">
-          <Link href="/account/qr">
-            <QrCode className="size-4" aria-hidden="true" />
-            {copy.myQrCode}
-          </Link>
-        </Button>
       </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Groups, in the order the page reads
+// The summary, in the order the page reads
 // ---------------------------------------------------------------------------
 
 type Copy = Awaited<ReturnType<typeof getDashboardCopy>>["d"];
 type StatusCopy = Copy["account"]["status"];
-/// The fines vocabulary is shared with the register and the member's own fines
-/// page, so a member reads the same words for the same penalty wherever they
-/// meet it. See lib/i18n/dashboard/rules.ts.
-type FinesCopy = Copy["rules"]["fines"];
 type MoneyFormatter = (value: string | null | undefined) => string;
+type Standing = "good" | "overdue" | "suspended" | null;
 
-/// How many fines are listed before the reader is sent to the fines page.
-const FINES_SHOWN = 5;
+const STANDING = {
+  good: { icon: CircleCheck, className: "bg-emerald-400/15 text-emerald-100 ring-emerald-300/40" },
+  overdue: { icon: TriangleAlert, className: "bg-amber-400/20 text-amber-100 ring-amber-300/50" },
+  suspended: { icon: Ban, className: "bg-red-500/25 text-red-100 ring-red-300/50" },
+} as const;
 
 /**
- * Balance, available balance, and what that lets them borrow — the three
- * figures a member most often came for, in that order.
+ * WHO, WHETHER ALL IS WELL, AND THE FIGURES THEY CAME FOR — in one card.
  *
- * The loan limit is the rulebook's own-savings share of the AVAILABLE balance
- * (see AccountBorrowingLimit). When a rule stops them borrowing today the
- * figure is still shown, with the reason under it: "you could have 80,000
- * once your two missed days are paid" is something to act on, and a bare zero
- * is not.
+ * The available balance is the headline because it is what a member can
+ * actually use; the full balance and the loan limit sit under it at half the
+ * size. The payment reference closes the card because it is the one detail a
+ * member reads out at a pay point, and this is the screen they reach by
+ * scanning a card.
  */
-function MoneyGroup({
-  savings,
-  borrowing,
-  heldForOthers,
+function Hero({
+  name,
+  memberNumber,
+  association,
+  role,
+  memberStatus,
+  standing,
+  viaQr,
+  summary,
   copy,
-  blockersCopy,
   money,
 }: {
-  savings: AccountStatusSummary["savings"];
-  borrowing: AccountStatusSummary["borrowing"];
-  heldForOthers: string;
+  name: string;
+  memberNumber: string | null;
+  association: string | null;
+  role: string;
+  memberStatus: string | null;
+  standing: Standing;
+  viaQr: boolean;
+  summary: AccountStatusSummary | null;
   copy: StatusCopy;
-  blockersCopy: Copy["rules"]["blockers"];
   money: MoneyFormatter;
 }) {
-  if (!savings) {
-    return (
-      <Group title={copy.moneyTitle}>
-        <Row
-          label={copy.balance}
-          hint={copy.noSavingsAccount}
-          value={copy.none}
-          tone="muted"
-        />
-      </Group>
-    );
-  }
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+  const standingLabel =
+    standing === "good"
+      ? copy.goodStandingTitle
+      : standing === "overdue"
+        ? copy.overdueTitle
+        : standing === "suspended"
+          ? copy.suspendedTitle
+          : null;
+  const StandingIcon = standing ? STANDING[standing].icon : null;
+
+  const savings = summary?.savings ?? null;
 
   return (
-    <Group title={copy.moneyTitle}>
-      <Row
-        label={copy.balance}
-        hint={copy.balanceHint}
-        value={money(savings.balance)}
-        size="lg"
+    <section className="relative overflow-hidden rounded-3xl bg-linear-to-br from-primary via-primary-hover to-footer p-5 text-white shadow-lift sm:p-7">
+      {/* Two soft discs for depth; purely decorative. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-16 -top-20 size-64 rounded-full bg-primary-light/20 blur-2xl"
       />
-      <Row
-        label={copy.availableBalance}
-        hint={copy.availableBalanceHint}
-        value={money(savings.available)}
-        size="lg"
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-24 -left-10 size-56 rounded-full bg-white/5 blur-2xl"
       />
-      {Number(savings.locked) > 0 && (
-        <Row
-          label={copy.lockedFunds}
-          hint={copy.lockedFundsHint}
-          value={money(savings.locked)}
-          tone="muted"
-          sub={
-            Number(heldForOthers) > 0
-              ? `${copy.guaranteeHeldTotal}: ${money(heldForOthers)}`
-              : undefined
-          }
-        />
-      )}
-      <Row
-        highlight
-        label={copy.loanLimit}
-        hint={
+
+      <div className="relative">
+        <h1 className="sr-only">{copy.title}</h1>
+
+        <div className="flex items-center gap-4">
+          <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-white/15 font-heading text-xl font-bold ring-1 ring-white/25 sm:size-16 sm:text-2xl">
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="break-words font-heading text-xl font-bold leading-tight sm:text-2xl">
+              {name}
+            </p>
+            <p className="mt-1 text-sm text-white/75">
+              {memberNumber && (
+                <span className="font-mono tracking-wide text-white">{memberNumber}</span>
+              )}
+              {memberNumber && association && " · "}
+              {association}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {standingLabel && StandingIcon && standing && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold ring-1",
+                STANDING[standing].className
+              )}
+            >
+              <StandingIcon className="size-4" aria-hidden="true" />
+              {standingLabel}
+            </span>
+          )}
+          {/* An administrator who also saves wears their role as well: it says
+              what they may do to other people's records. The membership state
+              is shown only when it is something other than active, since
+              "active" is what the standing line already says. */}
+          {role !== "MEMBER" && <StatusBadge status={role} />}
+          {memberStatus && memberStatus !== "ACTIVE" && memberStatus !== "SUSPENDED" && (
+            <StatusBadge status={memberStatus} />
+          )}
+          {viaQr && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-sm font-medium text-white/90 ring-1 ring-white/20">
+              <ScanLine className="size-4" aria-hidden="true" />
+              {copy.signedInWithQr}
+            </span>
+          )}
+        </div>
+
+        {summary && (
           <>
-            {fill(copy.loanLimitHint, {
-              percent: borrowing.percent,
-              basis: money(borrowing.basis),
-            })}
-            {!borrowing.canBorrow && (
-              <span className="mt-2 block font-medium text-amber-800">
-                {copy.loanLimitBlocked}:
-                {borrowing.blockers.map((blocker) => (
-                  <span key={blocker.rule} className="mt-0.5 block font-normal">
-                    {blockerSentence(blocker, blockersCopy, money)}
+            <div className="mt-7">
+              <p className="text-sm font-medium text-white/75">{copy.availableBalance}</p>
+              <p className="mt-1 break-words font-heading text-4xl font-bold tabular-nums tracking-tight sm:text-5xl">
+                {savings ? money(savings.available) : copy.none}
+              </p>
+              {savings && Number(savings.locked) > 0 && (
+                <p className="mt-1.5 text-sm text-white/75">
+                  {copy.lockedFunds}:{" "}
+                  <span className="font-semibold tabular-nums text-white">
+                    {money(savings.locked)}
                   </span>
-                ))}
-              </span>
-            )}
+                </p>
+              )}
+              {!savings && (
+                <p className="mt-1.5 text-sm text-white/75">{copy.noSavingsAccount}</p>
+              )}
+            </div>
+
+            <dl className="mt-5 grid grid-cols-2 gap-3">
+              <HeroFigure
+                label={copy.balance}
+                value={savings ? money(savings.balance) : copy.none}
+              />
+              <HeroFigure
+                label={copy.loanLimit}
+                value={money(summary.borrowing.limit)}
+                highlight={summary.borrowing.canBorrow}
+              />
+            </dl>
+
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold">{copy.paymentReference}</p>
+                <p className="text-xs text-white/70">{copy.paymentReferenceHint}</p>
+              </div>
+              <p className="break-all font-mono text-lg font-bold tracking-wider text-primary-light">
+                {summary.paymentReference}
+              </p>
+            </div>
           </>
-        }
-        value={money(borrowing.limit)}
-        tone="primary"
-        size="lg"
-        sub={
-          borrowing.canBorrow ? (
-            <FooterLink href="/dashboard/loans/apply">{copy.applyForLoan}</FooterLink>
-          ) : undefined
-        }
-      />
-    </Group>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function HeroFigure({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div className="min-w-0 rounded-2xl bg-white/10 px-4 py-3 ring-1 ring-white/15">
+      <dt className="text-xs font-medium text-white/75 sm:text-sm">{label}</dt>
+      <dd
+        className={cn(
+          "mt-1 break-words font-heading text-lg font-bold tabular-nums sm:text-xl",
+          highlight && "text-emerald-200"
+        )}
+      >
+        {value}
+      </dd>
+    </div>
   );
 }
 
 /**
- * IMIGABANE. The shareholding, and the arithmetic behind it.
- *
- * The working is shown in the line under each figure, because "why is my share
- * 28,000 when I paid 30,000?" is the question this group exists to pre-empt.
- * The daily cost is the FULL cost — savings plus service fee — because a member
- * shown only the savings half pays exactly that and falls behind by the fee.
+ * THE FINE, WHILE IT IS STILL AVOIDABLE. A member told only that they are
+ * "behind" has no reason to pay today rather than next week — which is exactly
+ * how the fine arrives. The countdown and the amount that stops it are shown
+ * together, so there is one thing to do.
  */
-function SharesGroup({
+function FineWarning({
   shareholding,
   copy,
   money,
@@ -452,242 +462,227 @@ function SharesGroup({
   copy: StatusCopy;
   money: MoneyFormatter;
 }) {
-  const isAhead = shareholding.advanceDays > 0;
-  const isBehind = shareholding.behindDays > 0;
+  if (
+    shareholding.behindDays <= 0 ||
+    (shareholding.status !== "AT_RISK" && shareholding.status !== "FINABLE")
+  ) {
+    return null;
+  }
 
-  // THE WARNING, WHILE IT IS STILL ACTIONABLE. A member told only that they
-  // are "behind" has no reason to pay today rather than next week — which is
-  // exactly how the fine arrives. The countdown and the amount that stops it
-  // are shown together, so there is one thing to do.
-  const fineWarning =
-    isBehind &&
-    (shareholding.status === "AT_RISK" || shareholding.status === "FINABLE") ? (
-      <Alert
-        variant={shareholding.daysUntilFine === 0 ? "error" : "warning"}
-        title={
-          shareholding.daysUntilFine === 0
-            ? copy.fineTonightTitle
-            : pluralize(copy.fineRiskTitle, shareholding.daysUntilFine, {
-                days: shareholding.daysUntilFine,
-              })
-        }
-      >
-        {fill(
-          shareholding.daysUntilFine === 0 ? copy.fineTonightBody : copy.fineRiskBody,
-          {
-            behind: shareholding.behindDays,
-            amount: money(shareholding.behindAmount),
-          }
-        )}
-      </Alert>
-    ) : null;
-
+  const tonight = shareholding.daysUntilFine === 0;
   return (
-    <Group
-      title={copy.shareholdingTitle}
-      description={copy.shareholdingHint}
-      note={fineWarning}
-    >
-      <Row
-        label={copy.sharesHeld}
-        hint={fill(copy.sharesDaysHint, {
-          days: shareholding.daysCredited,
-          rate: money(shareholding.dailyRate),
-        })}
-        value={money(shareholding.sharesHeld)}
-        size="lg"
-      />
-      <Row
-        label={copy.dailyCost}
-        hint={fill(copy.dailyCostHint, {
-          savings: money(shareholding.dailyRate),
-          fee: money(shareholding.dailyFee),
-        })}
-        value={money(shareholding.dailyTotal)}
-      />
-      <Row
-        label={copy.contributionStatus}
-        value={<StatusBadge status={shareholding.status} size="sm" />}
-      />
-      {isAhead && (
-        <Row
-          label={copy.paidAhead}
-          hint={fill(copy.paidAheadHint, { days: shareholding.advanceDays })}
-          value={money(shareholding.advanceAmount)}
-          tone="success"
-        />
-      )}
-      {isBehind && (
-        <Row
-          label={copy.behindBy}
-          hint={fill(copy.behindByHint, { days: shareholding.behindDays })}
-          value={money(shareholding.behindAmount)}
-          tone="danger"
-        />
-      )}
-    </Group>
-  );
-}
-
-/**
- * WHAT DISCIPLINE HAS COST THEM.
- *
- * The total owed first, then each fine with what it was raised for and the sum
- * that produced it — a penalty nobody can check is one the association will
- * eventually be accused of inventing. Settled and waived fines stay listed: a
- * member needs to be able to show that a fine was forgiven, and why.
- */
-function FinesGroup({
-  fines,
-  copy,
-  finesCopy,
-  money,
-  locale,
-}: {
-  fines: AccountStatusSummary["fines"];
-  copy: StatusCopy;
-  finesCopy: FinesCopy;
-  money: MoneyFormatter;
-  locale: Locale;
-}) {
-  const hasOutstanding = fines.outstandingCount > 0;
-
-  return (
-    <Group
-      title={copy.finesTitle}
-      footer={
-        fines.rows.length > 0 ? (
-          <FooterLink href="/dashboard/fines">{copy.finesSeeAll}</FooterLink>
-        ) : undefined
+    <Alert
+      variant={tonight ? "error" : "warning"}
+      title={
+        tonight
+          ? copy.fineTonightTitle
+          : pluralize(copy.fineRiskTitle, shareholding.daysUntilFine, {
+              days: shareholding.daysUntilFine,
+            })
       }
     >
-      <Row
-        label={copy.finesOwed}
-        hint={hasOutstanding ? undefined : copy.finesCleared}
-        value={money(fines.outstandingAmount)}
-        tone={hasOutstanding ? "danger" : "default"}
-        size="lg"
-      />
-      {Number(fines.settledAmount) > 0 && (
-        <Row label={copy.finesPaid} value={money(fines.settledAmount)} />
-      )}
-
-      {fines.rows.slice(0, FINES_SHOWN).map((fine) => {
-        const outstanding = fine.status === "OUTSTANDING";
-
-        const why =
-          fine.kind === "CONTRIBUTION"
-            ? pluralize(finesCopy.whyContribution, fine.missedDays ?? 0, {
-                days: fine.missedDays ?? 0,
-              })
-            : pluralize(finesCopy.whyWarehouse, fine.daysLate ?? 0, {
-                number: fine.installmentNumber ?? 0,
-                days: fine.daysLate ?? 0,
-              });
-
-        return (
-          <Row
-            key={`${fine.kind}-${fine.id}`}
-            item
-            label={why}
-            hint={
-              <>
-                {/* The arithmetic, so the member can check it rather than take
-                    the figure on trust. */}
-                {fineSum(fine, finesCopy)}
-                <span className="block">
-                  {formatDate(fine.assessedAt, locale)} ·{" "}
-                  <span className="font-mono">{fine.reference}</span>
-                </span>
-                {fine.waiverReason && (
-                  <span className="block italic">
-                    {fill(finesCopy.waivedBecause, { reason: fine.waiverReason })}
-                  </span>
-                )}
-              </>
-            }
-            value={money(fine.amount)}
-            tone={outstanding ? "danger" : "default"}
-            sub={finesCopy.state[fine.status]}
-          />
-        );
+      {fill(tonight ? copy.fineTonightBody : copy.fineRiskBody, {
+        behind: shareholding.behindDays,
+        amount: money(shareholding.behindAmount),
       })}
-    </Group>
+    </Alert>
   );
 }
 
 /**
- * The current loan first — what is still owed and when the next payment falls —
- * then lifetime totals, because a member on their fourth loan means all four
- * when they ask what they have borrowed.
+ * The current loan: what is still owed and when the next payment falls. With
+ * no loan running, the tile turns into the way to get one — or, when a rule
+ * stops them, the reason, because "you could borrow once your missed days are
+ * paid" is something to act on and a bare zero is not.
  */
-function LoanGroup({
+function LoanTile({
   loan,
+  borrowing,
   copy,
+  blockersCopy,
   money,
   locale,
 }: {
   loan: AccountStatusSummary["loan"];
+  borrowing: AccountStatusSummary["borrowing"];
   copy: StatusCopy;
+  blockersCopy: Copy["rules"]["blockers"];
   money: MoneyFormatter;
   locale: Locale;
 }) {
-  if (!loan) {
+  const running = Boolean(loan?.reference);
+  const overdue = (loan?.daysOverdue ?? 0) > 0;
+
+  const blocked = !borrowing.canBorrow && borrowing.blockers.length > 0 && (
+    <p className="font-medium text-amber-800">
+      {copy.loanLimitBlocked}:{" "}
+      <span className="font-normal">
+        {blockerSentence(borrowing.blockers[0], blockersCopy, money)}
+      </span>
+    </p>
+  );
+
+  if (!running) {
     return (
-      <Group title={copy.borrowingTitle}>
-        <Row
-          label={copy.currentLoan}
-          hint={copy.neverBorrowed}
-          value={copy.none}
-          tone="muted"
-        />
-      </Group>
+      <Tile
+        icon={Landmark}
+        title={copy.borrowingTitle}
+        value={copy.none}
+        valueTone="muted"
+        link={
+          borrowing.canBorrow
+            ? { href: "/dashboard/loans/apply", label: copy.applyForLoan }
+            : undefined
+        }
+      >
+        <p>{loan && loan.loanCount > 0 ? copy.nothingOwed : copy.neverBorrowed}</p>
+        {blocked}
+      </Tile>
     );
   }
 
   return (
-    <Group title={copy.borrowingTitle}>
-      <Row
-        label={copy.currentLoan}
-        value={loan.reference ?? copy.none}
-        mono={Boolean(loan.reference)}
-        tone={loan.reference ? "default" : "muted"}
-        sub={loan.status ? <StatusBadge status={loan.status} size="sm" /> : undefined}
-      />
-      <Row
-        label={copy.amountRemaining}
-        value={money(loan.outstanding)}
-        tone={loan.daysOverdue > 0 ? "danger" : "default"}
-        size="lg"
-      />
-      {loan.reference && (
-        <Row
-          label={copy.nextRepayment}
-          value={
-            loan.nextInstalment
-              ? money(loan.nextInstalment.amount)
-              : copy.noRepaymentScheduled
-          }
-          sub={
-            loan.nextInstalment
-              ? formatDate(loan.nextInstalment.dueDate, locale)
-              : undefined
-          }
-          tone={loan.nextInstalment ? "default" : "muted"}
-        />
+    <Tile
+      icon={Landmark}
+      accent={overdue ? "danger" : "primary"}
+      title={copy.amountRemaining}
+      value={money(loan!.outstanding)}
+      valueTone={overdue ? "danger" : "default"}
+      badge={loan!.status ? <StatusBadge status={loan!.status} size="sm" /> : undefined}
+    >
+      <p>
+        {copy.nextRepayment}:{" "}
+        {loan!.nextInstalment ? (
+          <span className="font-semibold text-ink">
+            {money(loan!.nextInstalment.amount)} ·{" "}
+            {formatDate(loan!.nextInstalment.dueDate, locale)}
+          </span>
+        ) : (
+          copy.noRepaymentScheduled
+        )}
+      </p>
+      <p className="font-mono text-xs">{loan!.reference}</p>
+    </Tile>
+  );
+}
+
+/**
+ * IMIGABANE. The shares held, and whether contributions are up to date — ahead
+ * or behind, in days and money, since "behind" alone does not say what to pay.
+ */
+function SharesTile({
+  shareholding,
+  copy,
+  money,
+}: {
+  shareholding: AccountStatusSummary["shareholding"];
+  copy: StatusCopy;
+  money: MoneyFormatter;
+}) {
+  if (!shareholding) {
+    return (
+      <Tile icon={Coins} accent="success" title={copy.sharesHeld} value={copy.none} valueTone="muted" />
+    );
+  }
+
+  return (
+    <Tile
+      icon={Coins}
+      accent="success"
+      title={copy.sharesHeld}
+      value={money(shareholding.sharesHeld)}
+      badge={<StatusBadge status={shareholding.status} size="sm" />}
+    >
+      <p>
+        {copy.dailyCost}:{" "}
+        <span className="font-semibold text-ink">{money(shareholding.dailyTotal)}</span>
+      </p>
+      {shareholding.behindDays > 0 ? (
+        <p className="font-semibold text-red-700">
+          {copy.behindBy} {money(shareholding.behindAmount)} ·{" "}
+          {fill(copy.behindByHint, { days: shareholding.behindDays })}
+        </p>
+      ) : shareholding.advanceDays > 0 ? (
+        <p className="font-semibold text-emerald-700">
+          {copy.paidAhead} {money(shareholding.advanceAmount)} ·{" "}
+          {fill(copy.paidAheadHint, { days: shareholding.advanceDays })}
+        </p>
+      ) : null}
+    </Tile>
+  );
+}
+
+const TILE_ACCENTS = {
+  primary: "bg-primary-50 text-primary",
+  success: "bg-emerald-50 text-emerald-700",
+  warning: "bg-amber-50 text-amber-700",
+  danger: "bg-red-50 text-red-700",
+} as const;
+
+const TILE_VALUE_TONES = {
+  default: "text-ink",
+  warning: "text-amber-700",
+  danger: "text-red-700",
+  muted: "text-ink-muted",
+} as const;
+
+/**
+ * One headline figure with its name and an icon, and at most a couple of
+ * short lines under it. A tile never holds a list; lists live on their own
+ * pages, linked from the tile.
+ */
+function Tile({
+  icon: Icon,
+  accent = "primary",
+  title,
+  value,
+  valueTone = "default",
+  badge,
+  link,
+  children,
+}: {
+  icon: ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" }>;
+  accent?: keyof typeof TILE_ACCENTS;
+  title: string;
+  value: string;
+  valueTone?: keyof typeof TILE_VALUE_TONES;
+  badge?: ReactNode;
+  link?: { href: string; label: string };
+  children?: ReactNode;
+}) {
+  return (
+    <section className="flex flex-col rounded-2xl border border-border bg-surface p-5 shadow-card">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span
+            className={cn(
+              "grid size-9 shrink-0 place-items-center rounded-xl",
+              TILE_ACCENTS[accent]
+            )}
+          >
+            <Icon className="size-[18px]" aria-hidden="true" />
+          </span>
+          <h2 className="text-[15px] font-semibold text-ink">{title}</h2>
+        </div>
+        {badge}
+      </div>
+      <p
+        className={cn(
+          "mt-4 break-words font-heading text-2xl font-bold tabular-nums",
+          TILE_VALUE_TONES[valueTone]
+        )}
+      >
+        {value}
+      </p>
+      {children && (
+        <div className="mt-2 space-y-1 text-sm leading-relaxed text-ink-muted">{children}</div>
       )}
-      <Row
-        label={copy.amountBorrowed}
-        hint={pluralize(copy.loanCount, loan.loanCount)}
-        value={money(loan.lifetimeBorrowed)}
-      />
-      <Row
-        label={copy.amountRepaid}
-        hint={copy.acrossAllLoans}
-        value={money(loan.lifetimeRepaid)}
-        tone="success"
-      />
-    </Group>
+      {link && (
+        <div className="mt-auto pt-4">
+          <FooterLink href={link.href}>{link.label}</FooterLink>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -841,196 +836,6 @@ function GuaranteesGivenGroup({
           value={money(g.amount)}
           tone={g.status === "ACCEPTED" ? "default" : "muted"}
           sub={<StatusBadge status={g.status} size="sm" />}
-        />
-      ))}
-    </Group>
-  );
-}
-
-/** What has been paid in, and what has come back out. */
-function PaidInGroup({
-  savings,
-  copy,
-  money,
-}: {
-  savings: NonNullable<AccountStatusSummary["savings"]>;
-  copy: StatusCopy;
-  money: MoneyFormatter;
-}) {
-  return (
-    <Group title={copy.contributionsTitle}>
-      <Row
-        label={copy.totalContributed}
-        hint={copy.totalContributedHint}
-        value={money(savings.totalDeposits)}
-        size="lg"
-      />
-      <Row label={copy.totalWithdrawn} value={money(savings.totalWithdrawals)} />
-      <Row label={copy.interestEarned} value={money(savings.totalInterest)} />
-      <Row label={copy.feesCharged} value={money(savings.totalFees)} />
-    </Group>
-  );
-}
-
-/**
- * IBIKORESHO MURI WAREHOUSE. What the member took out of the store.
- *
- * `totalDueToStore`, not `totalOwed`, leads: the latter counts only outright
- * purchases, so a member whose whole warehouse debt sits on a credit
- * arrangement would be shown zero owed. Each issue is then one row naming what
- * was in it — "a machine and four rolls of fabric" is the answer, not "five
- * items".
- */
-function WarehouseGroup({
-  warehouse,
-  copy,
-  statusCopy,
-  money,
-  locale,
-}: {
-  warehouse: AccountStatusSummary["warehouse"];
-  copy: StatusCopy;
-  statusCopy: Copy["status"];
-  money: MoneyFormatter;
-  locale: Locale;
-}) {
-  if (!warehouse || warehouse.issuances.length === 0) {
-    return (
-      <Group title={copy.warehouseTitle}>
-        <Row
-          label={copy.goodsOwed}
-          hint={copy.warehouseEmpty}
-          value={copy.none}
-          tone="muted"
-        />
-      </Group>
-    );
-  }
-
-  const owed = Number(warehouse.totalDueToStore) > 0;
-
-  return (
-    <Group title={copy.warehouseTitle} description={copy.warehouseHint}>
-      <Row
-        label={copy.goodsOwed}
-        hint={
-          warehouse.openCount > 0
-            ? pluralize(copy.openIssues, warehouse.openCount)
-            : undefined
-        }
-        value={money(warehouse.totalDueToStore)}
-        tone={
-          warehouse.overdueCreditCount > 0 ? "danger" : owed ? "warning" : "default"
-        }
-        size="lg"
-      />
-      <Row label={copy.goodsTaken} value={money(warehouse.totalIssuedValue)} />
-      <Row label={copy.goodsPaid} value={money(warehouse.totalSettled)} tone="success" />
-      {Number(warehouse.outstandingValue) > 0 && (
-        <Row label={copy.goodsStillHeld} value={money(warehouse.outstandingValue)} />
-      )}
-
-      {warehouse.issuances.map((issuance) => (
-        <Row
-          key={issuance.id}
-          item
-          label={issuance.lines
-            .map((line) => `${line.itemName} × ${formatQuantity(line.quantity, line.unit)}`)
-            .join(", ")}
-          hint={
-            <>
-              {copy.issuedOn} {formatDate(issuance.issuedAt, locale)} ·{" "}
-              {statusLabel(issuance.terms, statusCopy)} ·{" "}
-              <span className="font-mono">{issuance.reference}</span>
-              {issuance.loanReference && (
-                <span className="block">
-                  {fill(copy.againstLoan, { reference: issuance.loanReference })}
-                </span>
-              )}
-              {issuance.isOverdueBack ? (
-                <span className="block font-medium text-red-700">
-                  {copy.returnOverdue}
-                </span>
-              ) : (
-                issuance.dueBackAt && (
-                  <span className="block">
-                    {copy.dueBack} {formatDate(issuance.dueBackAt, locale)}
-                  </span>
-                )
-              )}
-            </>
-          }
-          value={money(issuance.totalValue)}
-          sub={
-            Number(issuance.amountOwed) > 0 ? (
-              <span className="font-semibold text-red-700">
-                {copy.goodsOwed}: {money(issuance.amountOwed)}
-              </span>
-            ) : (
-              <StatusBadge status={issuance.status} size="sm" />
-            )
-          }
-        />
-      ))}
-    </Group>
-  );
-}
-
-/**
- * Every movement on the account, newest first. The amount carries its own sign
- * and arrow so that direction survives both a colour-blind reader and a printed
- * page; the balance it left sits under it, as on a bank statement.
- */
-function ActivityGroup({
-  transactions,
-  total,
-  copy,
-  statusCopy,
-  money,
-  locale,
-}: {
-  transactions: AccountTransactionRow[];
-  total: number;
-  copy: StatusCopy;
-  statusCopy: Copy["status"];
-  money: MoneyFormatter;
-  locale: Locale;
-}) {
-  return (
-    <Group
-      title={copy.transactionsTitle}
-      note={
-        transactions.length === 0 ? (
-          <p className="text-sm text-ink-muted">{copy.transactionsEmpty}</p>
-        ) : undefined
-      }
-      footer={
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <FooterLink href="/dashboard/statements">{copy.viewFullStatement}</FooterLink>
-          {total > transactions.length && (
-            <span className="text-xs text-ink-muted">
-              {fill(copy.showingRecent, { shown: transactions.length, total })}
-            </span>
-          )}
-        </div>
-      }
-    >
-      {transactions.map((transaction) => (
-        <Row
-          key={transaction.id}
-          item
-          label={statusLabel(transaction.type, statusCopy)}
-          hint={
-            <>
-              {transaction.description && (
-                <span className="block">{transaction.description}</span>
-              )}
-              {formatDate(transaction.createdAt, locale)} ·{" "}
-              <span className="font-mono">{transaction.reference}</span>
-            </>
-          }
-          value={<SignedAmount transaction={transaction} money={money} />}
-          sub={`${copy.balanceColumn}: ${money(transaction.balanceAfter)}`}
         />
       ))}
     </Group>
@@ -1192,30 +997,79 @@ function blockerSentence(
 }
 
 /**
- * An amount with its direction shown three ways at once — arrow, sign and
- * colour. Colour alone fails a colour-blind reader and fails again on a
- * printed statement, and on a ledger row the direction is the whole meaning.
+ * The last few movements, newest first. The amount carries its own sign and
+ * arrow so that direction survives both a colour-blind reader and a printed
+ * page; everything older is one tap away on the full statement.
  */
-function SignedAmount({
-  transaction,
+function RecentActivity({
+  transactions,
+  copy,
+  statusCopy,
   money,
+  locale,
 }: {
-  transaction: AccountTransactionRow;
+  transactions: AccountTransactionRow[];
+  copy: StatusCopy;
+  statusCopy: Copy["status"];
   money: MoneyFormatter;
+  locale: Locale;
 }) {
-  const isCredit = transaction.direction === "CREDIT";
-  const Icon = isCredit ? ArrowDownLeft : ArrowUpRight;
-
   return (
-    <span
-      className={cn(
-        "inline-flex items-center justify-end gap-1 whitespace-nowrap",
-        isCredit ? "text-emerald-700" : "text-ink"
+    <section className="overflow-hidden rounded-2xl border border-border bg-surface shadow-card">
+      <div className="flex items-center justify-between gap-3 px-5 pt-5">
+        <h2 className="font-heading text-base font-semibold text-ink">
+          {copy.recentActivity}
+        </h2>
+        {transactions.length > 0 && (
+          <FooterLink href="/dashboard/statements">{copy.viewFullStatement}</FooterLink>
+        )}
+      </div>
+
+      {transactions.length === 0 ? (
+        <p className="px-5 pb-5 pt-3 text-sm text-ink-muted">{copy.transactionsEmpty}</p>
+      ) : (
+        <ul className="mt-2 divide-y divide-border">
+          {transactions.map((transaction) => {
+            const isCredit = transaction.direction === "CREDIT";
+            const Icon = isCredit ? ArrowDownLeft : ArrowUpRight;
+            return (
+              <li key={transaction.id} className="flex items-center gap-3 px-5 py-3.5">
+                <span
+                  className={cn(
+                    "grid size-10 shrink-0 place-items-center rounded-full",
+                    isCredit ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"
+                  )}
+                >
+                  <Icon className="size-[18px]" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-semibold text-ink">
+                    {statusLabel(transaction.type, statusCopy)}
+                  </p>
+                  <p className="truncate text-xs text-ink-muted">
+                    {formatDate(transaction.createdAt, locale)}
+                    {transaction.description && ` · ${transaction.description}`}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p
+                    className={cn(
+                      "whitespace-nowrap text-[15px] font-bold tabular-nums",
+                      isCredit ? "text-emerald-700" : "text-ink"
+                    )}
+                  >
+                    {isCredit ? "+" : "−"}
+                    {money(transaction.amount)}
+                  </p>
+                  <p className="whitespace-nowrap text-xs tabular-nums text-ink-muted">
+                    {copy.balanceColumn}: {money(transaction.balanceAfter)}
+                  </p>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
-    >
-      <Icon className="size-3.5 shrink-0" aria-hidden="true" />
-      {isCredit ? "+" : "−"}
-      {money(transaction.amount)}
-    </span>
+    </section>
   );
 }
