@@ -55,6 +55,9 @@ export const PERMISSIONS = {
   LOANS_WRITE_OFF: "loans.write_off",
   LOANS_RECORD_REPAYMENT: "loans.record_repayment",
   LOANS_WAIVE: "loans.waive",
+  /// Correct a loan's outstanding figures by hand when the automatic
+  /// bookkeeping got them wrong. Always with a written reason, always audited.
+  LOANS_ADJUST: "loans.adjust",
   LOAN_PRODUCTS_MANAGE: "loan_products.manage",
 
   // Payments ---------------------------------------------------------------
@@ -192,6 +195,7 @@ export const PERMISSION_METADATA: Record<
   [PERMISSIONS.LOANS_WRITE_OFF]: { name: "Write off loans", category: "Loans", description: "Write off an unrecoverable loan" },
   [PERMISSIONS.LOANS_RECORD_REPAYMENT]: { name: "Record repayments", category: "Loans", description: "Post a repayment against a loan" },
   [PERMISSIONS.LOANS_WAIVE]: { name: "Waive charges", category: "Loans", description: "Waive penalties or interest" },
+  [PERMISSIONS.LOANS_ADJUST]: { name: "Correct loan balances", category: "Loans", description: "Correct a loan's outstanding principal, interest, fees or penalty — requires a written reason and is always audited" },
   [PERMISSIONS.LOAN_PRODUCTS_MANAGE]: { name: "Manage loan products", category: "Loans", description: "Configure loan rules, rates and limits" },
 
   [PERMISSIONS.PAYMENTS_VIEW]: { name: "View payments", category: "Payments", description: "See inbound payment records" },
@@ -303,6 +307,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionCode[]> = {
     PERMISSIONS.LOANS_REJECT,
     PERMISSIONS.LOANS_DISBURSE,
     PERMISSIONS.LOANS_RECORD_REPAYMENT,
+    // LOANS_ADJUST is withheld for the same reason as SAVINGS_ADJUST.
     PERMISSIONS.LOAN_PRODUCTS_MANAGE,
 
     PERMISSIONS.PAYMENTS_VIEW,

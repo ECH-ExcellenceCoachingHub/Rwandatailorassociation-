@@ -31,7 +31,12 @@ import {
   type ReleasedGuarantee,
 } from "@/lib/services/guarantors";
 import { getMemberStanding } from "@/lib/services/contributions";
-import { getPolicy, getPolicyWithin, type AssociationPolicy } from "@/lib/services/rulebook";
+import {
+  DEFAULT_POLICY,
+  getPolicy,
+  getPolicyWithin,
+  type AssociationPolicy,
+} from "@/lib/services/rulebook";
 import { notify, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import type { LoanApplicationStatus, RepaymentFrequency } from "@/lib/generated/prisma/enums";
 
@@ -620,6 +625,18 @@ export async function approvalCeiling(
     collateralValue: collateral,
     collateralRequiredAboveShare: policy.collateralRequiredAboveShare,
     collateralCoveragePercent: policy.collateralCoveragePercent,
+    // Art. 34. Snapshots taken before the cap existed have no figure for it,
+    // so the catalogue default applies to them.
+    maximumLoan:
+      application.savingsAtApplication !== null
+        ? toMoneyString(
+            percentageOf(
+              application.savingsAtApplication,
+              policy.loanMaxSavingsMultiplePercent ??
+                DEFAULT_POLICY.loanMaxSavingsMultiplePercent
+            )
+          )
+        : null,
   });
 
   if (amount === null) return null;

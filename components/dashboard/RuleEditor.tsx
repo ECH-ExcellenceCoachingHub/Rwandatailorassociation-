@@ -680,15 +680,24 @@ export function RuleHistoryButton({
   );
 }
 
-export function DeleteRuleButton({ ruleId }: { ruleId: string }) {
+export function DeleteRuleButton({ ruleId, isSystem }: { ruleId: string; isSystem: boolean }) {
   const { d } = useLanguage();
   const copy = d.rules.admin;
 
   const [open, setOpen] = useState(false);
-  const { submit, submitting, error } = useRuleSubmit(() => setOpen(false));
+  const [reason, setReason] = useState("");
+  const { submit, submitting, error, fieldErrors } = useRuleSubmit(() => setOpen(false));
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        // A fresh reason every time: the last deletion's wording must not be
+        // submitted again by mistake.
+        if (next) setReason("");
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="text-red-600 hover:bg-red-50">
           <Trash2 className="size-3.5" aria-hidden="true" />
@@ -697,7 +706,29 @@ export function DeleteRuleButton({ ruleId }: { ruleId: string }) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogTitle>{copy.deleteRule}</DialogTitle>
-        <DialogDescription>{copy.deleteConfirm}</DialogDescription>
+        <DialogDescription>
+          {isSystem ? copy.deleteConfirmSystem : copy.deleteConfirm}
+        </DialogDescription>
+
+        <Field
+          id={`delete-reason-${ruleId}`}
+          label={copy.deleteReasonLabel}
+          error={fieldErrors.reason}
+          required
+          className="mt-4"
+        >
+          {(props) => (
+            <Textarea
+              {...props}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={copy.deleteReasonPlaceholder}
+              rows={3}
+              maxLength={500}
+              disabled={submitting}
+            />
+          )}
+        </Field>
 
         {error && (
           <Alert variant="error" className="mt-3">
@@ -714,9 +745,10 @@ export function DeleteRuleButton({ ruleId }: { ruleId: string }) {
           <Button
             variant="outline"
             className="border-red-300 text-red-600 hover:border-red-500 hover:text-red-700"
-            disabled={submitting}
+            // Matches the ten characters the endpoint requires.
+            disabled={submitting || reason.trim().length < 10}
             onClick={() =>
-              void submit(`/api/admin/rules/${ruleId}`, "DELETE", undefined, copy.removed)
+              void submit(`/api/admin/rules/${ruleId}`, "DELETE", { reason }, copy.removed)
             }
           >
             {submitting && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}

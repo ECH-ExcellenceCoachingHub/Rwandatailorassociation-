@@ -67,6 +67,8 @@ export interface AssociationPolicy {
   lendingUnlockMonths: number;
   memberMinimumMonths: number;
   ownSavingsPercent: string;
+  /// The largest loan as a percentage of the member's savings (Art. 34).
+  loanMaxSavingsMultiplePercent: string;
   collateralRequiredAboveShare: boolean;
   collateralCoveragePercent: string;
   arrearsBlockBorrowing: boolean;
@@ -85,6 +87,8 @@ export interface AssociationPolicy {
   warehouseCreditTermMonths: number;
   warehouseCreditFineRate: string;
   warehouseCreditFineGraceDays: number;
+  /// Months a member must have been saving before goods go out on credit.
+  warehouseCreditMinimumMonths: number;
 
   /// Keys whose stored value could not be read and fell back to the default.
   /// Surfaced on the admin rulebook so a typo is visible rather than silent.
@@ -184,6 +188,7 @@ function buildPolicy(values: Map<string, string | null>): AssociationPolicy {
     lendingUnlockMonths: count(RULE_KEYS.LENDING_UNLOCK_MONTHS, 240),
     memberMinimumMonths: count(RULE_KEYS.MEMBER_MINIMUM_MONTHS, 240),
     ownSavingsPercent: percent(RULE_KEYS.OWN_SAVINGS_PERCENT),
+    loanMaxSavingsMultiplePercent: percent(RULE_KEYS.LOAN_MAX_SAVINGS_MULTIPLE),
     collateralRequiredAboveShare: boolean(RULE_KEYS.COLLATERAL_REQUIRED_ABOVE_SHARE),
     collateralCoveragePercent: percent(RULE_KEYS.COLLATERAL_COVERAGE_PERCENT),
     arrearsBlockBorrowing: boolean(RULE_KEYS.ARREARS_BLOCK_BORROWING),
@@ -209,6 +214,10 @@ function buildPolicy(values: Map<string, string | null>): AssociationPolicy {
     warehouseCreditFineGraceDays: count(
       RULE_KEYS.WAREHOUSE_CREDIT_FINE_GRACE_DAYS,
       90
+    ),
+    warehouseCreditMinimumMonths: count(
+      RULE_KEYS.WAREHOUSE_CREDIT_MINIMUM_MONTHS,
+      240
     ),
 
     invalidKeys,
@@ -268,6 +277,7 @@ export async function listRules(
   const rows = await prisma.associationRule.findMany({
     where: {
       associationId,
+      deletedAt: null,
       ...(options.includeInactive ? {} : { isActive: true }),
     },
     orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
@@ -473,7 +483,7 @@ export interface UpdateRuleInput {
  */
 export async function updateRule(input: UpdateRuleInput): Promise<RuleRecord> {
   const rule = await prisma.associationRule.findFirst({
-    where: { id: input.ruleId, associationId: input.associationId },
+    where: { id: input.ruleId, associationId: input.associationId, deletedAt: null },
   });
 
   if (!rule) throw new RuleError("That rule does not exist", "NOT_FOUND");
@@ -680,47 +690,95 @@ export async function createCustomRule(
 }
 
 /**
- * Removes a rule the committee wrote.
+ * Deletes a rule from the rulebook, with a written reason.
  *
- * System rules are never deletable — see the note on `AssociationRule.isSystem`.
- * A custom rule that members have been living under is withdrawn rather than
- * deleted, which is what `updateRule({ isActive: false })` is for; deletion is
- * for the one typed in error five minutes ago.
+ *  - A CUSTOM rule is removed outright; the audit entry keeps what it said.
+ *  - A SYSTEM rule the code never reads (INFORMATIONAL in the catalogue) is
+ *    marked deleted and switched off, not removed: `ensureRulebook` re-seeds
+ *    any catalogue key it cannot find, so a removed row would reappear the
+ *    next time the rules screen opened. Its revisions survive with it.
+ *  - A system rule the code enforces cannot be deleted at all. Without its row
+ *    the policy reader falls back to the catalogue default, so "deleting" a
+ *    fine would quietly keep charging the default fine. Changing its value is
+ *    the honest way to retire it.
+ *
+ * The row change and its audit entry are one transaction, so a rule is never
+ * gone without a record of who removed it and why.
  */
-export async function deleteCustomRule(
-  associationId: string,
-  ruleId: string,
-  actorId: string
-): Promise<void> {
+export async function deleteRule(input: {
+  associationId: string;
+  ruleId: string;
+  actorId: string;
+  reason: string;
+}): Promise<void> {
+  const reason = input.reason?.trim();
+  if (!reason) throw new RuleError("Say why this rule is being deleted", "INVALID_VALUE");
+
   const rule = await prisma.associationRule.findFirst({
-    where: { id: ruleId, associationId },
-    select: { id: true, key: true, isSystem: true, titleEn: true, value: true },
+    where: { id: input.ruleId, associationId: input.associationId, deletedAt: null },
   });
 
   if (!rule) throw new RuleError("That rule does not exist", "NOT_FOUND");
 
-  if (rule.isSystem) {
+  if (rule.isSystem && RULE_BY_KEY.get(rule.key)?.enforcement !== "INFORMATIONAL") {
     throw new RuleError(
-      "This rule is part of the system rulebook and cannot be deleted. Switch it off or change its value instead.",
+      "The system applies this rule automatically, so it cannot be deleted. Change its value instead.",
       "IMMUTABLE"
     );
   }
 
-  await prisma.associationRule.delete({ where: { id: rule.id } });
+  await prisma.$transaction(async (tx) => {
+    if (rule.isSystem) {
+      // The state being left behind, as every amendment records it.
+      await tx.associationRuleRevision.create({
+        data: {
+          ruleId: rule.id,
+          version: rule.version,
+          value: rule.value,
+          titleEn: rule.titleEn,
+          titleRw: rule.titleRw,
+          bodyEn: rule.bodyEn,
+          bodyRw: rule.bodyRw,
+          isActive: rule.isActive,
+          changedById: input.actorId,
+          changeReason: reason,
+        },
+      });
+      await tx.associationRule.update({
+        where: { id: rule.id },
+        data: {
+          deletedAt: new Date(),
+          isActive: false,
+          version: { increment: 1 },
+          updatedById: input.actorId,
+        },
+      });
+    } else {
+      await tx.associationRule.delete({ where: { id: rule.id } });
+    }
 
-  await recordAudit(
-    {
-      action: AUDIT_ACTIONS.RULE_REMOVED,
-      entityType: "AssociationRule",
-      entityId: rule.id,
-      associationId,
-      // The row is gone, so the audit entry is the only surviving record of
-      // what it said.
-      oldValue: { key: rule.key, titleEn: rule.titleEn, value: rule.value },
-      severity: "WARNING",
-    },
-    { id: actorId }
-  );
+    await recordAudit(
+      {
+        action: AUDIT_ACTIONS.RULE_REMOVED,
+        entityType: "AssociationRule",
+        entityId: rule.id,
+        associationId: input.associationId,
+        // For a custom rule the row is gone, so the audit entry is the only
+        // surviving record of what it said.
+        oldValue: {
+          key: rule.key,
+          titleEn: rule.titleEn,
+          bodyEn: rule.bodyEn,
+          value: rule.value,
+          isSystem: rule.isSystem,
+        },
+        reason,
+        severity: "WARNING",
+      },
+      { id: input.actorId },
+      tx
+    );
+  });
 }
 
 /**

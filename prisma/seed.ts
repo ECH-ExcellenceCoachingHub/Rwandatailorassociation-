@@ -156,11 +156,12 @@ async function seedAssociation() {
    */
   const rulebookTerms = {
     description:
-      "Borrow against your own savings. Interest is 2% a month on the amount " +
-      "borrowed, half of which is credited back into your savings as you " +
-      "repay. No processing fee, no insurance fee. Repaid monthly within six " +
-      "months. Up to 80% of your savings needs nothing pledged; above that " +
-      "the committee records collateral of equal value.",
+      "Borrow against your own savings, up to three times what you have " +
+      "saved. Interest is 2% a month on the amount borrowed, half of which " +
+      "is credited back into your savings as you repay. No processing fee, " +
+      "no insurance fee. Repaid within three months; whatever is still owed " +
+      "after that is charged 7% a month. Up to 80% of your savings needs " +
+      "nothing pledged; above that, guarantors or collateral.",
 
     // LOAN_MONTHLY_INTEREST — "2% a month, worked out on the amount borrowed".
     //
@@ -181,11 +182,11 @@ async function seedAssociation() {
     insuranceFeeType: "FIXED" as const,
     insuranceFeeValue: "0",
 
-    // LOAN_MAX_TERM_MONTHS — "Every loan is repaid within this many months.
-    // There is no extension." The rulebook value binds in assessBorrowing;
-    // this keeps the product from advertising a longer one.
+    // LOAN_MAX_TERM_MONTHS — three months (STGT Art. 33). The rulebook value
+    // binds in assessBorrowing; this keeps the product from advertising a
+    // longer one.
     minTermMonths: 1,
-    maxTermMonths: 6,
+    maxTermMonths: 3,
 
     // LOAN_REPAYMENT_FREQUENCY — "Repayment is monthly, on the same date each
     // month."

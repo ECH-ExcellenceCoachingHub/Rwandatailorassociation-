@@ -30,7 +30,9 @@ import { abs, subtract } from "@/lib/money";
  */
 
 const WHOLE_FRANC_PRINCIPALS = ["100000", "240000", "400000", "33333", "7"];
-const TERMS = [1, 2, 3, 6];
+// Up to the rulebook's three-month term (STGT Art. 33); illustrateLoan clamps
+// anything longer, so a longer term would compare two different loans.
+const TERMS = [1, 2, 3];
 
 describe("24% flat a year is exactly 2% a month", () => {
   for (const principal of WHOLE_FRANC_PRINCIPALS) {

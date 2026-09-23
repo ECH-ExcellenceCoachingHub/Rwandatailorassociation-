@@ -35,15 +35,11 @@ import { RULE_CATALOGUE } from "../lib/rules/catalogue";
 const APPLY = process.argv.includes("--apply");
 
 const REASON =
-  "Platform correction: rule wording realigned with what the system enforces. " +
-  "penalty.rate and penalty.basis now say that each fine covers only the days " +
-  "earlier fines did not; governance.rules_are_published no longer claims a " +
-  "completeness it could not keep; contribution.catch_up_allowed is stated as a " +
-  "description rather than a switch that nothing read. " +
-  "lending.collateral_required_above_share and lending.collateral_coverage_percent " +
-  "now describe " +
-  "guarantors: members who pledge their own savings for the part of a loan " +
-  "above the borrower's share, held until the loan is repaid.";
+  "Aligned with the STGT by-laws (Amategeko Ngengamikorere, 13/09/2026): " +
+  "the service fee is described as funding STGT's running and technology (Art. 6); " +
+  "loans are repaid within three months (Art. 33); the association's half of " +
+  "loan interest is divided at year end (Art. 39); rules are amended by the " +
+  "members by absolute majority and then recorded here (Art. 48).";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -51,7 +47,8 @@ const prisma = new PrismaClient({
 
 async function main() {
   const rows = await prisma.associationRule.findMany({
-    where: { isSystem: true },
+    // A rule an officer deleted stays deleted; its wording is not refreshed.
+    where: { isSystem: true, deletedAt: null },
     select: {
       id: true, associationId: true, key: true, valueType: true, value: true,
       titleEn: true, titleRw: true, bodyEn: true, bodyRw: true,

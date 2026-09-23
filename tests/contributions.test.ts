@@ -9,6 +9,7 @@ import { splitInterest } from "@/lib/services/interest-sharing";
 import {
   assessBorrowing,
   illustrateLoan,
+  securedCeiling,
   wholeMonthsBetween,
 } from "@/lib/rules/borrowing";
 
@@ -525,7 +526,7 @@ describe("what a member may borrow", () => {
     expect(result.blockers.map((b) => b.rule)).toContain("FINE_OUTSTANDING");
   });
 
-  it("refuses a term beyond the six-month limit", () => {
+  it("refuses a term beyond the three-month limit (Art. 33)", () => {
     const result = assessBorrowing({
       ...eligible,
       requestedAmount: "100000",
@@ -534,30 +535,81 @@ describe("what a member may borrow", () => {
 
     expect(result.blockers.map((b) => b.rule)).toContain("TERM_TOO_LONG");
   });
+
+  // STGT Art. 34: savings of 300,000 cap any loan at 900,000.
+  it("never lends more than three times the member's savings", () => {
+    const result = assessBorrowing({
+      ...eligible,
+      requestedAmount: "900001",
+      collateralValue: "10000000",
+    });
+
+    expect(result.maximumLoan).toBe("900000.00");
+    const blocker = result.blockers.find((b) => b.rule === "ABOVE_MAXIMUM");
+    expect(blocker?.params.maximum).toBe("900000.00");
+    expect(result.requestAllowed).toBe(false);
+  });
+
+  it("allows exactly three times the savings when it is secured", () => {
+    const result = assessBorrowing({
+      ...eligible,
+      requestedAmount: "900000",
+      collateralValue: "660000",
+    });
+
+    expect(result.blockers).toEqual([]);
+  });
+});
+
+describe("the approval ceiling", () => {
+  it("is capped at the savings multiple however much is pledged", () => {
+    expect(
+      securedCeiling({
+        ownShareLimit: "240000",
+        acceptedGuarantees: "0",
+        collateralValue: "5000000",
+        collateralRequiredAboveShare: true,
+        collateralCoveragePercent: "100",
+        maximumLoan: "900000.00",
+      })
+    ).toBe("900000.00");
+  });
+
+  it("still applies the cap when nothing else limits the approval", () => {
+    expect(
+      securedCeiling({
+        ownShareLimit: "240000",
+        acceptedGuarantees: "0",
+        collateralRequiredAboveShare: false,
+        collateralCoveragePercent: "100",
+        maximumLoan: "900000.00",
+      })
+    ).toBe("900000.00");
+  });
 });
 
 describe("what a loan costs", () => {
-  it("works out 2% a month over six months, flat", () => {
-    const quote = illustrateLoan(POLICY, "100000", 6);
+  it("works out 2% a month over three months, flat", () => {
+    const quote = illustrateLoan(POLICY, "100000", 3);
 
     expect(quote.monthlyInterest).toBe("2000.00");
-    expect(quote.totalInterest).toBe("12000.00");
-    expect(quote.totalRepayable).toBe("112000.00");
-    // Six equal instalments of principal plus interest.
-    expect(quote.monthlyInstalment).toBe("18666.67");
+    expect(quote.totalInterest).toBe("6000.00");
+    expect(quote.totalRepayable).toBe("106000.00");
+    // Three equal instalments of principal plus interest.
+    expect(quote.monthlyInstalment).toBe("35333.33");
   });
 
   it("shows the half that comes back, and the real net cost", () => {
-    const quote = illustrateLoan(POLICY, "100000", 6);
+    const quote = illustrateLoan(POLICY, "100000", 3);
 
-    expect(quote.memberShareOfInterest).toBe("6000.00");
-    expect(quote.associationShareOfInterest).toBe("6000.00");
-    // What the loan actually cost: 12,000 charged, 6,000 returned.
-    expect(quote.netCostToMember).toBe("6000.00");
+    expect(quote.memberShareOfInterest).toBe("3000.00");
+    expect(quote.associationShareOfInterest).toBe("3000.00");
+    // What the loan actually cost: 6,000 charged, 3,000 returned.
+    expect(quote.netCostToMember).toBe("3000.00");
   });
 
   it("never quotes a term longer than the rules allow", () => {
-    expect(illustrateLoan(POLICY, "100000", 24).termMonths).toBe(6);
+    expect(illustrateLoan(POLICY, "100000", 24).termMonths).toBe(3);
   });
 });
 

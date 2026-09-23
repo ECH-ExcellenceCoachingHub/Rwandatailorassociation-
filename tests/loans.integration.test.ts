@@ -65,7 +65,7 @@ beforeAll(async () => {
       name: "Test Standard Loan",
       // The rulebook, expressed in product columns — see prisma/seed.ts.
       // 2% a month flat is stored as 24% a year because generateSchedule
-      // always reads the rate as annual. No fees, six months, monthly.
+      // always reads the rate as annual. No fees, three months, monthly.
       // The savings multiple, minimum balance and tenure gate are left
       // non-binding so that assessBorrowing is the only thing deciding.
       minimumSavings: "0",
@@ -80,7 +80,7 @@ beforeAll(async () => {
       insuranceFeeValue: "0",
       minimumMembershipMonths: 0,
       minTermMonths: 1,
-      maxTermMonths: 6,
+      maxTermMonths: 3,
       allowedFrequencies: ["MONTHLY"],
       requiresGuarantors: false,
       minimumGuarantors: 0,
@@ -173,7 +173,7 @@ describe("application", () => {
       loanProductId: productId,
       requestedAmount: "600000",
       purpose: "Expand tailoring workshop",
-      termMonths: 6,
+      termMonths: 3,
       frequency: "MONTHLY",
     });
 
@@ -186,14 +186,14 @@ describe("application", () => {
   /**
    * LOAN_MAX_TERM_MONTHS, enforced twice over.
    *
-   * The product now restates the six-month rule in its own term bounds, and
+   * The product now restates the three-month rule in its own term bounds, and
    * `checkEligibility` runs before `assessBorrowing` and returns early — so an
    * over-long term is caught by the product's TERM rule and never reaches the
    * rulebook's TERM_TOO_LONG. Both say the same thing because the product was
    * configured from the rulebook; this asserts the refusal, not which of the
    * two gates happened to speak first.
    */
-  it("refuses a term longer than the six months the rules allow", async () => {
+  it("refuses a term longer than the three months the rules allow", async () => {
     const result = await submitLoanApplication({
       memberId,
       loanProductId: productId,
@@ -227,7 +227,7 @@ describe("application", () => {
       loanProductId: productId,
       requestedAmount: "600000",
       purpose: "Buy an industrial embroidery machine",
-      termMonths: 6,
+      termMonths: 3,
       frequency: "MONTHLY",
       collateralDescription: "Two industrial sewing machines",
       // 600,000 − 400,000 own share = 200,000 above, covered at 100%.
@@ -255,7 +255,7 @@ describe("application", () => {
       loanProductId: productId,
       requestedAmount: "400000",
       purpose: "Buy industrial sewing machines",
-      termMonths: 6,
+      termMonths: 3,
       frequency: "MONTHLY",
     });
 
@@ -327,7 +327,7 @@ describe("full lifecycle", () => {
         status: "SUBMITTED",
         requestedAmount: "100000",
         purpose: "test",
-        termMonths: 6,
+        termMonths: 3,
         frequency: "MONTHLY",
         submittedAt: new Date(),
       },
@@ -354,7 +354,7 @@ describe("full lifecycle", () => {
     // LOAN_NO_EXTRA_CHARGES: no processing fee and no insurance fee, so the
     // member receives the whole of what they borrowed.
     expect(result.netDisbursement).toBe("400000.00");
-    expect(result.instalments).toBe(6);
+    expect(result.instalments).toBe(3);
 
     expect(await savingsBalance()).toBe(balanceBefore + 400000);
 
@@ -364,14 +364,14 @@ describe("full lifecycle", () => {
     });
 
     expect(loan.status).toBe("ACTIVE");
-    expect(loan.installments).toHaveLength(6);
-    expect(loan.installments[5].balanceAfter.toFixed(2)).toBe("0.00");
+    expect(loan.installments).toHaveLength(3);
+    expect(loan.installments[2].balanceAfter.toFixed(2)).toBe("0.00");
 
-    // 2% a month for six months on 400,000 — the rulebook's own arithmetic,
+    // 2% a month for three months on 400,000 — the rulebook's own arithmetic,
     // which a member can check on a phone calculator.
-    expect(loan.totalInterest.toFixed(2)).toBe("48000.00");
+    expect(loan.totalInterest.toFixed(2)).toBe("24000.00");
     expect(loan.totalFees.toFixed(2)).toBe("0.00");
-    expect(loan.totalPayable.toFixed(2)).toBe("448000.00");
+    expect(loan.totalPayable.toFixed(2)).toBe("424000.00");
 
     // The schedule's instalments must sum to the recorded total payable.
     const scheduleTotal = loan.installments.reduce(
@@ -409,7 +409,7 @@ describe("full lifecycle", () => {
     });
 
     // There are no fees to settle under the rulebook, so interest is taken
-    // first and the rest reduces principal. 48,000 over six instalments.
+    // first and the rest reduces principal. 24,000 over three instalments.
     expect(result.allocated.fees).toBe("0.00");
     expect(result.allocated.interest).toBe("8000.00");
     expect(Number(result.allocated.principal)).toBeGreaterThan(0);

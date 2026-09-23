@@ -50,6 +50,7 @@ export interface RulesCopy {
     FINE_OUTSTANDING: string;
     ACTIVE_LOAN: string;
     AMOUNT: string;
+    ABOVE_MAXIMUM: string;
     COLLATERAL: string;
     TERM_TOO_LONG: string;
     NO_SAVINGS: string;
@@ -158,6 +159,10 @@ export interface RulesCopy {
     reactivate: string;
     deleteRule: string;
     deleteConfirm: string;
+    /// For a system rule the code never reads: hidden, not erased.
+    deleteConfirmSystem: string;
+    deleteReasonLabel: string;
+    deleteReasonPlaceholder: string;
 
     invalidValues: string;
     invalidValuesBody: string;
@@ -394,9 +399,9 @@ export const rules: Record<Locale, RulesCopy> = {
       LENDING_ELIGIBILITY: "Who may borrow",
       LOAN_TERMS: "Loan terms",
       INTEREST_SHARING: "Where the interest goes",
-      WAREHOUSE_CREDIT: "Buying from the store on credit",
-      GOVERNANCE: "How the rules work",
-      OTHER: "Other rules",
+      WAREHOUSE_CREDIT: "The warehouse and buying on credit",
+      GOVERNANCE: "Meetings, committees and how the rules work",
+      OTHER: "Mutual support and other rules",
     },
 
     enforcement: {
@@ -420,10 +425,12 @@ export const rules: Record<Locale, RulesCopy> = {
       ACTIVE_LOAN:
         "You already have a loan running. It must be finished before you take another.",
       AMOUNT: "Enter the amount you want to borrow.",
+      ABOVE_MAXIMUM:
+        "The largest loan the rules allow is {maximum} — {percent}% of your savings. Ask for {maximum} or less.",
       COLLATERAL:
         "Borrowing {requested} goes {above} beyond your own share, and that part must be backed by guarantors. Guarantors cover {guaranteed}, which leaves {uncovered}: add guarantors for it, or pledge items worth {required} (you have offered {offered}).",
       TERM_TOO_LONG:
-        "Loans are repaid within {max} months. There is no extension, so choose {max} months or fewer.",
+        "Loans are repaid within {max} months, after which what is still owed is charged at a higher rate. Choose {max} months or fewer.",
       NO_SAVINGS:
         "You have no savings yet, so any loan would rest entirely on collateral.",
       COLLATERAL_TO_RECORD:
@@ -545,6 +552,9 @@ export const rules: Record<Locale, RulesCopy> = {
       deleteRule: "Delete",
       deleteConfirm:
         "Delete this rule permanently? Members will no longer see it. If it has been in force, withdraw it instead so the record survives.",
+      deleteConfirmSystem: "Delete this rule from the rulebook? Members will no longer see it. Its past wording is kept in the audit log.",
+      deleteReasonLabel: "Why is this rule being deleted?",
+      deleteReasonPlaceholder: "e.g. Dropped by the general assembly of 20 September",
 
       invalidValues: "{count} rule(s) could not be read",
       invalidValuesBody:
@@ -792,9 +802,9 @@ export const rules: Record<Locale, RulesCopy> = {
       LENDING_ELIGIBILITY: "Uwemerewe kuguza",
       LOAN_TERMS: "Amabwiriza y'inguzanyo",
       INTEREST_SHARING: "Aho inyungu ijya",
-      WAREHOUSE_CREDIT: "Kugura muri Warehouse ku ideni",
-      GOVERNANCE: "Uko amategeko akora",
-      OTHER: "Andi mategeko",
+      WAREHOUSE_CREDIT: "Warehouse no kugura ku ideni",
+      GOVERNANCE: "Inama, komite n'uko amategeko akora",
+      OTHER: "Gutabarana n'andi mategeko",
     },
 
     enforcement: {
@@ -818,10 +828,12 @@ export const rules: Record<Locale, RulesCopy> = {
       ACTIVE_LOAN:
         "Usanzwe ufite inguzanyo igenda. Igomba kurangira mbere yo gufata indi.",
       AMOUNT: "Andika amafaranga ushaka kuguza.",
+      ABOVE_MAXIMUM:
+        "Inguzanyo ntarengwa amategeko yemera ni {maximum} — {percent}% by'ubuzigame bwawe. Saba {maximum} cyangwa munsi yayo.",
       COLLATERAL:
         "Kuguza {requested} birenza igice cyawe {above}, kandi icyo gice kigomba kwishingirwa n'abishingizi. Abishingizi bishingira {guaranteed}, hasigaye {uncovered}: ongeraho abishingizi, cyangwa utange ingwate y'ibintu bifite agaciro ka {required} (watanze {offered}).",
       TERM_TOO_LONG:
-        "Inguzanyo zishyurwa mu mezi {max}. Nta kongererwa igihe, bityo hitamo amezi {max} cyangwa macye.",
+        "Inguzanyo zishyurwa mu mezi {max}; ibisigaye nyuma yaho bibarwa ku nyungu yo hejuru. Hitamo amezi {max} cyangwa macye.",
       NO_SAVINGS:
         "Nta buzigame ufite, bityo inguzanyo iyo ari yo yose yashingira ku ngwate gusa.",
       COLLATERAL_TO_RECORD:
@@ -944,6 +956,9 @@ export const rules: Record<Locale, RulesCopy> = {
       deleteRule: "Siba",
       deleteConfirm:
         "Gusiba iri tegeko burundu? Abanyamuryango ntibazongera kuribona. Niba ryarakurikizwaga, hitamo kurikuraho kugira ngo inyandiko isigare.",
+      deleteConfirmSystem: "Gusiba iri tegeko mu gitabo cy'amategeko? Abanyamuryango ntibazongera kuribona. Uko ryari ryanditswe mbere bibikwa mu gitabo cy'igenzura.",
+      deleteReasonLabel: "Kuki iri tegeko risibwa?",
+      deleteReasonPlaceholder: "urugero: Ryakuweho n'inteko rusange yo ku wa 20 Nzeri",
 
       invalidValues: "Amategeko {count} ntiyashoboye gusomwa",
       invalidValuesBody:

@@ -2238,6 +2238,13 @@ model AssociationRule {
   /// they were fined under.
   isActive Boolean @default(true)
 
+  /// Set when an officer deleted a system rule the code never reads. The row
+  /// is kept rather than removed: `ensureRulebook` re-seeds any catalogue key
+  /// it cannot find, so a removed row would come straight back, and the
+  /// revisions stay behind as the record of what the rule said. Hidden from
+  /// every rulebook screen. Custom rules are removed outright instead.
+  deletedAt DateTime?
+
   displayOrder Int @default(0)
 
   /// The rule as members read it, in both languages. Held here rather than in

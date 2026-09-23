@@ -175,6 +175,46 @@ export interface AdminCopy {
     noNotes: string;
     internal: string;
   };
+  /// Hand corrections to a member's savings and loan figures.
+  corrections: {
+    title: string;
+    description: string;
+    tabDeposit: string;
+    tabBalance: string;
+    tabLoan: string;
+    depositHint: string;
+    balanceHint: string;
+    loanHint: string;
+    channel: string;
+    channelCash: string;
+    channelBank: string;
+    channelMobile: string;
+    channelOther: string;
+    externalReference: string;
+    optional: string;
+    currentBalance: string;
+    correctBalance: string;
+    loan: string;
+    noLoans: string;
+    principal: string;
+    interest: string;
+    fees: string;
+    penalty: string;
+    nowOwed: string;
+    totalOwed: string;
+    willClose: string;
+    review: string;
+    invalidAmount: string;
+    confirmBody: string;
+    depositConfirmTitle: string;
+    depositConfirm: string;
+    balanceConfirmTitle: string;
+    balanceConfirm: string;
+    loanConfirmTitle: string;
+    loanConfirm: string;
+    reasonLabel: string;
+    reasonPlaceholder: string;
+  };
   /// The actions on a member's file: status, identity, notes and removal.
   manage: {
     jump: string;
@@ -1228,6 +1268,45 @@ export const admin: Record<Locale, AdminCopy> = {
       notes: "Administrator notes",
       noNotes: "No notes have been recorded on this member.",
       internal: "internal",
+    },
+    corrections: {
+      title: "Correct figures",
+      description: "Put this member's numbers right when the automatic matching or the nightly jobs got them wrong. Nothing already posted is edited: each correction is a new entry on the statement, with your reason, written to the audit log under your name.",
+      tabDeposit: "Record missed deposit",
+      tabBalance: "Set savings balance",
+      tabLoan: "Correct a loan",
+      depositHint: "For money the member paid that never reached their account — cash at the office, or a transfer the statement import missed. It counts as a contribution, so it also clears the arrears the missing payment caused.",
+      balanceHint: "Enter the balance the account should hold. The difference is posted as one adjustment. Use this for errors that are not a missed payment — an adjustment does not count as a contribution.",
+      loanHint: "Enter what the member should still owe in each part of the loan. The repayment schedule is reshaped to match, and a loan corrected to zero is closed and its guarantors released.",
+      channel: "Paid by",
+      channelCash: "Cash",
+      channelBank: "Bank transfer",
+      channelMobile: "Mobile money",
+      channelOther: "Other",
+      externalReference: "Receipt or bank reference",
+      optional: "Optional",
+      currentBalance: "Current balance",
+      correctBalance: "Correct balance",
+      loan: "Loan",
+      noLoans: "This member has no loan whose figures can be corrected.",
+      principal: "Principal owed",
+      interest: "Interest owed",
+      fees: "Fees owed",
+      penalty: "Penalty owed",
+      nowOwed: "Now: {amount}",
+      totalOwed: "Total owed",
+      willClose: "Nothing will be owed: the loan will be closed and its guarantors released.",
+      review: "Review correction",
+      invalidAmount: "Enter amounts in francs, e.g. 15000.",
+      confirmBody: "This posts a new entry on the member's statement. It cannot be deleted — a mistake is put right with another correction.",
+      depositConfirmTitle: "Record this deposit?",
+      depositConfirm: "Record deposit",
+      balanceConfirmTitle: "Correct the savings balance?",
+      balanceConfirm: "Correct balance",
+      loanConfirmTitle: "Correct loan {reference}?",
+      loanConfirm: "Correct loan",
+      reasonLabel: "Why is this being corrected?",
+      reasonPlaceholder: "e.g. Cash paid at the office on 12 September, receipt 0042",
     },
     manage: {
       jump: "Manage",
@@ -2419,6 +2498,45 @@ export const admin: Record<Locale, AdminCopy> = {
       notes: "Ibyitonderwa by'umuyobozi",
       noNotes: "Nta cyitonderwa cyanditswe kuri uyu munyamuryango.",
       internal: "by'imbere",
+    },
+    corrections: {
+      title: "Gukosora imibare",
+      description: "Kosora imibare y'uyu munyamuryango igihe ihuzwa ryikora cyangwa imirimo ikorwa buri joro byayishyize nabi. Nta gikorwa cyanditswe gihindurwa: buri gukosora ni igikorwa gishya kuri raporo, kiriho impamvu yawe, kandi cyandikwa mu gitabo cy'igenzura mu izina ryawe.",
+      tabDeposit: "Andika ubwizigame bwabuze",
+      tabBalance: "Shyiraho amafaranga ari kuri konti",
+      tabLoan: "Kosora inguzanyo",
+      depositHint: "Ku mafaranga umunyamuryango yishyuye ariko ntagere kuri konti ye — amafaranga yatanzwe ku biro, cyangwa ayoherejwe atagaragaye muri raporo ya banki. Abarwa nk'umusanzu, bityo akuraho n'ibirarane byatewe n'ubwishyu bwabuze.",
+      balanceHint: "Andika amafaranga konti igomba kuba ifite. Itandukaniro ryandikwa nk'ikosora rimwe. Koresha ibi ku makosa atari ubwishyu bwabuze — ikosora ntiribarwa nk'umusanzu.",
+      loanHint: "Andika ayo umunyamuryango agomba kuba agisigayemo kuri buri gice cy'inguzanyo. Gahunda yo kwishyura ihindurwa ikajyana na yo, kandi inguzanyo ikosowe ikagera kuri zeru irafungwa, abishingizi bayo bakarekurwa.",
+      channel: "Yishyuwe hakoreshejwe",
+      channelCash: "Amafaranga mu ntoki",
+      channelBank: "Kohereza muri banki",
+      channelMobile: "Mobile money",
+      channelOther: "Ibindi",
+      externalReference: "Nimero y'inyemezabwishyu cyangwa ya banki",
+      optional: "Si ngombwa",
+      currentBalance: "Amafaranga ariho ubu",
+      correctBalance: "Amafaranga nyayo",
+      loan: "Inguzanyo",
+      noLoans: "Uyu munyamuryango nta nguzanyo afite ishobora gukosorwa.",
+      principal: "Igishoro gisigaye",
+      interest: "Inyungu isigaye",
+      fees: "Amafaranga ya serivisi asigaye",
+      penalty: "Ibihano bisigaye",
+      nowOwed: "Ubu: {amount}",
+      totalOwed: "Yose asigaye",
+      willClose: "Nta kizaba gisigaye: inguzanyo izafungwa, abishingizi bayo barekurwe.",
+      review: "Suzuma ikosora",
+      invalidAmount: "Andika amafaranga mu mafaranga y'u Rwanda, urugero 15000.",
+      confirmBody: "Ibi byandika igikorwa gishya kuri raporo y'umunyamuryango. Ntigishobora gusibwa — ikosa rikosorwa n'irindi kosora.",
+      depositConfirmTitle: "Wandike ubu bwizigame?",
+      depositConfirm: "Andika ubwizigame",
+      balanceConfirmTitle: "Ukosore amafaranga ari kuri konti?",
+      balanceConfirm: "Kosora amafaranga",
+      loanConfirmTitle: "Ukosore inguzanyo {reference}?",
+      loanConfirm: "Kosora inguzanyo",
+      reasonLabel: "Kuki ibi bikosorwa?",
+      reasonPlaceholder: "urugero: Amafaranga yatanzwe ku biro ku wa 12 Nzeri, inyemezabwishyu 0042",
     },
     manage: {
       jump: "Gucunga",

@@ -2,12 +2,12 @@ import { type NextRequest } from "next/server";
 import { requireApiPermission, resolveAssociationScope } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import {
-  deleteCustomRule,
+  deleteRule,
   getRuleHistory,
   updateRule,
   RuleError,
 } from "@/lib/services/rulebook";
-import { updateRuleSchema } from "@/lib/validation/rules";
+import { deleteRuleSchema, updateRuleSchema } from "@/lib/validation/rules";
 import { notifyMembersOfRuleChange } from "@/lib/services/rule-announcements";
 import {
   apiBadRequest,
@@ -20,7 +20,8 @@ import { RATE_LIMITS, checkRateLimit, getClientIp } from "@/lib/api/rate-limit";
 /**
  * GET    /api/admin/rules/[id] — the amendment history of one rule.
  * PATCH  /api/admin/rules/[id] — amend it.
- * DELETE /api/admin/rules/[id] — remove a rule the committee added.
+ * DELETE /api/admin/rules/[id] — delete a rule, with a reason. Rules the
+ *                                system enforces are refused.
  *
  * The association scope is passed into every service call rather than trusted
  * from the id: a rule id from another tenant must find nothing, not another
@@ -98,15 +99,27 @@ export const PATCH = withErrorHandling(async (request: NextRequest, { params }: 
   }
 });
 
-export const DELETE = withErrorHandling(async (_request: NextRequest, { params }: Params) => {
+export const DELETE = withErrorHandling(async (request: NextRequest, { params }: Params) => {
   const context = await requireApiPermission(PERMISSIONS.RULES_MANAGE);
   const associationId = resolveAssociationScope(context);
   if (!associationId) return apiBadRequest("Choose an association first");
 
   const { id } = await params;
+  const body = await request.json().catch(() => null);
+  const parsed = deleteRuleSchema.safeParse(body);
+  if (!parsed.success) {
+    return apiBadRequest(parsed.error.issues[0]?.message ?? "Say why this rule is being deleted", {
+      reason: parsed.error.issues.map((issue) => issue.message),
+    });
+  }
 
   try {
-    await deleteCustomRule(associationId, id, context.user.id);
+    await deleteRule({
+      associationId,
+      ruleId: id,
+      actorId: context.user.id,
+      reason: parsed.data.reason,
+    });
     return apiNoContent();
   } catch (error) {
     if (error instanceof RuleError) return apiBadRequest(error.message);

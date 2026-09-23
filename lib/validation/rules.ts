@@ -167,6 +167,9 @@ export const remitFeesSchema = z.object({
   reference: z.string().trim().max(120).optional(),
 });
 
+/** Deleting a rule. The reason is written to the audit log. */
+export const deleteRuleSchema = z.object({ reason });
+
 export type UpdateRuleInput = z.infer<typeof updateRuleSchema>;
 export type CreateRuleInput = z.infer<typeof createRuleSchema>;
 export type FineActionInput = z.infer<typeof fineActionSchema>;

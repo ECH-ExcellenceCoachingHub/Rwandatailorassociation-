@@ -13,6 +13,7 @@ import {
 } from "@/lib/quantity";
 import { postSavingsTransaction } from "@/lib/services/ledger";
 import { openCreditWithin } from "@/lib/services/warehouse-credit";
+import { wholeMonthsBetween } from "@/lib/rules/borrowing";
 import { getPolicy } from "@/lib/services/rulebook";
 import type {
   InstallmentStatus,
@@ -822,7 +823,14 @@ export async function issueToMember(params: {
 
   const member = await prisma.member.findFirst({
     where: { id: params.memberId, associationId: params.associationId },
-    select: { id: true, memberNumber: true, status: true },
+    select: {
+      id: true,
+      memberNumber: true,
+      status: true,
+      approvedAt: true,
+      joinedAt: true,
+      createdAt: true,
+    },
   });
 
   if (!member) throw new WarehouseError("Member not found", "NOT_FOUND");
@@ -865,6 +873,20 @@ export async function issueToMember(params: {
   const policy = CREDIT_TERMS.includes(params.terms)
     ? await getPolicy(params.associationId)
     : null;
+
+  // STGT Art. 15: a member without six months' record may use the warehouse,
+  // but pays cash — no credit. Tenure is counted the way the loan form counts
+  // it, so a member is told the same number of months on both screens.
+  if (policy) {
+    const since = member.approvedAt ?? member.joinedAt ?? member.createdAt;
+    const months = wholeMonthsBetween(since, params.issuedAt ?? new Date());
+    if (months < policy.warehouseCreditMinimumMonths) {
+      throw new WarehouseError(
+        `Goods are given on credit only after ${policy.warehouseCreditMinimumMonths} months of membership. This member has ${months}, so they must pay for these goods now.`,
+        "INVALID_STATE"
+      );
+    }
+  }
 
   const issuanceId = await withFinancialTransaction(async (tx) => {
     const issuance = await tx.warehouseIssuance.create({

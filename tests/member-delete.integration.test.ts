@@ -123,7 +123,7 @@ beforeAll(async () => {
       insuranceFeeValue: "0",
       minimumMembershipMonths: 0,
       minTermMonths: 1,
-      maxTermMonths: 6,
+      maxTermMonths: 3,
       allowedFrequencies: ["MONTHLY"],
       requiresGuarantors: false,
       minimumGuarantors: 0,
@@ -210,7 +210,7 @@ beforeAll(async () => {
     loanProductId: productId,
     requestedAmount: "300000",
     purpose: "Test loan",
-    termMonths: 6,
+    termMonths: 3,
     frequency: "MONTHLY",
   });
   if (!application.ok) {

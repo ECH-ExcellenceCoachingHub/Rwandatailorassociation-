@@ -1884,6 +1884,11 @@ export const getMemberProfile = cache(async (memberId: string) => {
           totalPaid: true,
           daysOverdue: true,
           disbursedAt: true,
+          // The outstanding split, for the correction form on the file.
+          principalOutstanding: true,
+          interestOutstanding: true,
+          feesOutstanding: true,
+          penaltyOutstanding: true,
         },
       },
       notes: {

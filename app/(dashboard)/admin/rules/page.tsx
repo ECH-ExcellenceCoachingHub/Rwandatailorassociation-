@@ -192,10 +192,13 @@ export default async function AdminRulesPage() {
                 bodyRw: rule.body.rw,
               }}
             />
-            {/* Only a rule the committee wrote can be deleted; a system rule
-                would leave a service with no policy to apply. The server
-                refuses it too — this only avoids offering the button. */}
-            {!rule.isSystem && <DeleteRuleButton ruleId={rule.id} />}
+            {/* A committee's own rule, or a system rule that is only written
+                policy, can be deleted. A rule the system enforces cannot: the
+                policy reader would fall back to the catalogue default. The
+                server refuses it too — this only avoids offering the button. */}
+            {(!rule.isSystem || rule.enforcement === "INFORMATIONAL") && (
+              <DeleteRuleButton ruleId={rule.id} isSystem={rule.isSystem} />
+            )}
           </>
         )}
       />

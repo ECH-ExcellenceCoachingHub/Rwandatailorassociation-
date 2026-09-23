@@ -46,8 +46,9 @@ import type { ChargeType, InterestMethod, RepaymentFrequency } from "@/lib/gener
  * This form used to be driven by the LOAN PRODUCT instead — it offered a
  * ceiling of three times savings, a term of up to 24 months, and a preview
  * carrying a processing and an insurance fee. The rulebook allows 80% of a
- * member's own savings without collateral, six months, and no charges of any
- * kind. So the form invited requests the server then refused, with a rule the
+ * member's own savings without collateral, three months, and no charges of
+ * any kind. (Three times savings is now the rulebook's own ceiling, STGT
+ * Art. 34 — but enforced from the rulebook, not the product.) So the form invited requests the server then refused, with a rule the
  * member had never been shown. That is how a committee comes to look as though
  * it is playing favourites.
  *
@@ -516,7 +517,12 @@ export function LoanApplicationForm({
             <Field
               id="loan-amount"
               label={copy.amountLabel}
-              error={amountTooSmall ?? blockerText("AMOUNT") ?? fieldErrors.amount}
+              error={
+                amountTooSmall ??
+                blockerText("AMOUNT") ??
+                blockerText("ABOVE_MAXIMUM") ??
+                fieldErrors.amount
+              }
               hint={fill(copy.amountHint, {
                 amount: formatMoney(assessment.ownShareLimit),
               })}

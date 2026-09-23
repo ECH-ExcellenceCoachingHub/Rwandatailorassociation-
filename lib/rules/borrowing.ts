@@ -95,6 +95,7 @@ export type BlockerRule =
   | "FINE_OUTSTANDING"
   | "ACTIVE_LOAN"
   | "AMOUNT"
+  | "ABOVE_MAXIMUM"
   | "COLLATERAL"
   | "TERM_TOO_LONG";
 
@@ -127,6 +128,9 @@ export interface LoanIllustration {
 export interface BorrowingAssessment {
   /// The most this member may take against their own savings alone.
   ownShareLimit: string;
+  /// The largest loan the rules allow at all: a multiple of the member's
+  /// savings (STGT Art. 34). Nothing — guarantors or collateral — lifts it.
+  maximumLoan: string;
   /// Of the requested amount, how much would come from the association's
   /// pooled money — that is, other members' savings.
   aboveOwnShare: string;
@@ -176,6 +180,10 @@ export function assessBorrowing(
   // --- What the member may take against their own savings ------------------
 
   const ownShareLimit = percentageOf(savings, policy.ownSavingsPercent);
+  const maximumLoan = percentageOf(savings, policy.loanMaxSavingsMultiplePercent);
+  const maximumPercent = toMoney(policy.loanMaxSavingsMultiplePercent)
+    .toDecimalPlaces(2)
+    .toString();
 
   // --- Rules about the member and the moment -------------------------------
 
@@ -281,6 +289,16 @@ export function assessBorrowing(
         params: {},
         message: "Enter the amount you want to borrow.",
       });
+    } else if (gt(requested, maximumLoan)) {
+      requestBlockers.push({
+        rule: "ABOVE_MAXIMUM",
+        params: {
+          requested: toMoneyString(requested),
+          maximum: toMoneyString(maximumLoan),
+          percent: maximumPercent,
+        },
+        message: `The largest loan the rules allow is ${toMoneyString(maximumLoan)} — ${maximumPercent}% of your savings. Ask for ${toMoneyString(maximumLoan)} or less.`,
+      });
     }
 
     if (gt(guaranteed, 0) && policy.collateralRequiredAboveShare) {
@@ -325,7 +343,7 @@ export function assessBorrowing(
     requestBlockers.push({
       rule: "TERM_TOO_LONG",
       params: { max: policy.loanMaxTermMonths },
-      message: `Loans are repaid within ${policy.loanMaxTermMonths} months. There is no extension, so choose a term of ${policy.loanMaxTermMonths} months or fewer.`,
+      message: `Loans are repaid within ${policy.loanMaxTermMonths} months, after which what is still owed is charged at a higher rate. Choose a term of ${policy.loanMaxTermMonths} months or fewer.`,
     });
   }
 
@@ -333,6 +351,7 @@ export function assessBorrowing(
 
   return {
     ownShareLimit: toMoneyString(ownShareLimit),
+    maximumLoan: toMoneyString(maximumLoan),
     aboveOwnShare: toMoneyString(aboveOwnShare),
     guaranteed: toMoneyString(guaranteed),
     uncoveredAboveShare: toMoneyString(uncovered),
@@ -364,6 +383,9 @@ export function assessBorrowing(
  * ask for no security above the own share, because then nothing here limits
  * the approval.
  *
+ * Never above `maximumLoan` when one is given — the by-laws' cap of a multiple
+ * of savings (Art. 34) binds however well a loan is secured.
+ *
  * Pure and shared, so the reviewer's screen shows the same ceiling the server
  * enforces when they press approve.
  */
@@ -373,19 +395,29 @@ export function securedCeiling(input: {
   collateralValue?: string | null;
   collateralRequiredAboveShare: boolean;
   collateralCoveragePercent: string;
+  maximumLoan?: string | null;
 }): string | null {
-  if (!input.collateralRequiredAboveShare) return null;
+  const cap = input.maximumLoan ?? null;
+  const withCap = (secured: string | null): string | null => {
+    if (cap === null) return secured;
+    if (secured === null) return toMoneyString(cap);
+    return gt(secured, cap) ? toMoneyString(cap) : secured;
+  };
+
+  if (!input.collateralRequiredAboveShare) return withCap(null);
 
   const coverage = toMoney(input.collateralCoveragePercent);
   // A coverage rate of zero means items cover any amount; nothing is capped.
-  if (!coverage.greaterThan(0)) return null;
+  if (!coverage.greaterThan(0)) return withCap(null);
 
   const coveredByItems = divide(
     multiply(toMoney(input.collateralValue ?? 0), 100),
     coverage
   );
 
-  return toMoneyString(add(input.ownShareLimit, input.acceptedGuarantees, coveredByItems));
+  return withCap(
+    toMoneyString(add(input.ownShareLimit, input.acceptedGuarantees, coveredByItems))
+  );
 }
 
 /**
@@ -397,7 +429,7 @@ export function securedCeiling(input: {
  * for what the loan cost them is 6,000 — not 12,000, and not zero.
  *
  * FLAT INTEREST, computed on the original principal for every month of the
- * term. That is what "2% a month for six months" means to the people who wrote
+ * term. That is what "2% a month for three months" means to the people who wrote
  * the rule, and it is arithmetic a member can check by hand — which matters
  * more here than the theoretical superiority of a reducing balance.
  */

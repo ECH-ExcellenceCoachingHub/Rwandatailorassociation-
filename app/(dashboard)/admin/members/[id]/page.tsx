@@ -10,6 +10,7 @@ import {
   Settings2,
   ShieldCheck,
   UserRound,
+  Wrench,
 } from "lucide-react";
 import {
   assertSameAssociation,
@@ -30,6 +31,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { MemberManagement } from "@/components/dashboard/MemberManagement";
 import { MemberNoteForm } from "@/components/dashboard/MemberNoteForm";
+import { BalanceCorrections } from "@/components/dashboard/BalanceCorrections";
 import {
   TableWrapper,
   Table,
@@ -116,6 +118,26 @@ export default async function AdminMemberDetailPage({
   const overdueLoans = member.loans.filter((loan) => loan.daysOverdue > 0);
 
   const canManage = allowed.length > 0;
+  const canCorrect = {
+    deposit: context.permissions.has(PERMISSIONS.SAVINGS_ADJUST),
+    setBalance: context.permissions.has(PERMISSIONS.SAVINGS_ADJUST),
+    loans: context.permissions.has(PERMISSIONS.LOANS_ADJUST),
+  };
+  // The statuses the correction service accepts: a live schedule, or a loan
+  // closed by mistake.
+  const correctableLoans = member.loans
+    .filter((loan) =>
+      ["DISBURSED", "ACTIVE", "OVERDUE", "DEFAULTED", "COMPLETED"].includes(loan.status)
+    )
+    .map((loan) => ({
+      id: loan.id,
+      reference: loan.reference,
+      status: loan.status,
+      principal: loan.principalOutstanding.toFixed(2),
+      interest: loan.interestOutstanding.toFixed(2),
+      fees: loan.feesOutstanding.toFixed(2),
+      penalty: loan.penaltyOutstanding.toFixed(2),
+    }));
   const history = removalHistory ?? [];
   const fullName = `${member.user.firstName} ${member.user.lastName}`.trim();
 
@@ -135,6 +157,14 @@ export default async function AdminMemberDetailPage({
                   <Pencil className="size-3.5" aria-hidden="true" />
                   {copy.editDetails}
                 </Link>
+              </Button>
+            )}
+            {(canCorrect.deposit || canCorrect.setBalance || canCorrect.loans) && (
+              <Button asChild variant="outline" size="sm">
+                <a href="#corrections">
+                  <Wrench className="size-3.5" aria-hidden="true" />
+                  {d.admin.corrections.title}
+                </a>
               </Button>
             )}
             {canManage && (
@@ -466,6 +496,13 @@ export default async function AdminMemberDetailPage({
           </ul>
         )}
       </section>
+
+      <BalanceCorrections
+        memberId={member.id}
+        savingsBalance={account ? account.balance.toFixed(2) : null}
+        loans={correctableLoans}
+        can={canCorrect}
+      />
 
       {canManage && (
         <MemberManagement
