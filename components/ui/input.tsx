@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Text input, styled from the existing design tokens — same border, radius
- * family and primary-teal focus ring as the rest of the site. Deliberately
+ * family and primary-blue focus ring as the rest of the site. Deliberately
  * `rounded-xl` rather than the `rounded-full` used by buttons: pill-shaped
  * fields read as buttons and waste horizontal space at form widths.
  */

@@ -577,11 +577,11 @@ export function memberAccountStatementToHtml(statement: MemberAccountStatement):
   @page { size: A4 landscape; margin: 12mm; }
   * { box-sizing: border-box; }
   body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #1f2937; margin: 0; padding: 0 4px; font-size: 11px; line-height: 1.45; }
-  .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #20b2aa; padding-bottom: 12px; }
-  .org { font-size: 18px; font-weight: 700; color: #0f3d3a; margin: 0; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1f4a88; padding-bottom: 12px; }
+  .org { font-size: 18px; font-weight: 700; color: #0b1b33; margin: 0; }
   .muted { color: #6b7280; }
   .title { text-align: right; }
-  .title h2 { margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: #20b2aa; }
+  .title h2 { margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: #1f4a88; }
   .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 14px 0; }
   .panel { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; }
   .panel h3 { margin: 0 0 6px; font-size: 9.5px; text-transform: uppercase; letter-spacing: .1em; color: #6b7280; }
@@ -600,7 +600,7 @@ export function memberAccountStatementToHtml(statement: MemberAccountStatement):
   .sub { display: block; font-size: 9px; color: #6b7280; font-weight: 400; }
   .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
   .bad { color: #b91c1c; }
-  .totals td { background: #f0fbfa; font-weight: 700; border-top: 2px solid #20b2aa; border-bottom: 2px solid #20b2aa; }
+  .totals td { background: #eef3fa; font-weight: 700; border-top: 2px solid #1f4a88; border-bottom: 2px solid #1f4a88; }
   .foot { margin-top: 18px; border-top: 1px solid #e5e7eb; padding-top: 8px; font-size: 9.5px; color: #6b7280; }
   @media print { .noprint { display: none; } }
 </style>
@@ -709,7 +709,7 @@ export function memberAccountStatementToHtml(statement: MemberAccountStatement):
   </div>
 
   <p class="noprint" style="margin-top:16px;text-align:center">
-    <button onclick="window.print()" style="padding:10px 20px;border:0;border-radius:999px;background:#20b2aa;color:#fff;font-weight:600;cursor:pointer">
+    <button onclick="window.print()" style="padding:10px 20px;border:0;border-radius:999px;background:#1f4a88;color:#fff;font-weight:600;cursor:pointer">
       Print or save as PDF
     </button>
   </p>

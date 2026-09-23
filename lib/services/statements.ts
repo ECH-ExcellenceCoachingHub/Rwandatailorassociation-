@@ -344,11 +344,11 @@ export function statementToHtml(statement: StatementData): string {
   @page { size: A4; margin: 16mm; }
   * { box-sizing: border-box; }
   body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: #1f2937; margin: 0; font-size: 12px; line-height: 1.5; }
-  .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #20b2aa; padding-bottom: 14px; }
-  .org { font-size: 19px; font-weight: 700; color: #0f3d3a; margin: 0; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #1f4a88; padding-bottom: 14px; }
+  .org { font-size: 19px; font-weight: 700; color: #0b1b33; margin: 0; }
   .muted { color: #6b7280; }
   .title { text-align: right; }
-  .title h2 { margin: 0; font-size: 15px; text-transform: uppercase; letter-spacing: .08em; color: #20b2aa; }
+  .title h2 { margin: 0; font-size: 15px; text-transform: uppercase; letter-spacing: .08em; color: #1f4a88; }
   .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 18px 0; }
   .panel { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; }
   .panel h3 { margin: 0 0 8px; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; color: #6b7280; }
@@ -361,7 +361,7 @@ export function statementToHtml(statement: StatementData): string {
   .num { text-align: right; font-variant-numeric: tabular-nums; }
   .strong { font-weight: 700; }
   .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; color: #6b7280; }
-  .balrow td { background: #f0fbfa; font-weight: 700; border-bottom: 2px solid #20b2aa; }
+  .balrow td { background: #eef3fa; font-weight: 700; border-bottom: 2px solid #1f4a88; }
   .totals { margin-top: 18px; width: 320px; margin-left: auto; }
   .totals .kv { border-bottom: 1px solid #f1f5f9; padding: 5px 0; }
   .foot { margin-top: 26px; border-top: 1px solid #e5e7eb; padding-top: 10px; font-size: 10px; color: #6b7280; }
@@ -433,7 +433,7 @@ export function statementToHtml(statement: StatementData): string {
     <div class="kv"><dt>Fees and penalties</dt><dd>${formatMoney(statement.totals.fees)}</dd></div>
     <div class="kv"><dt>Loan disbursements</dt><dd>${formatMoney(statement.totals.loanDisbursements)}</dd></div>
     <div class="kv"><dt>Loan repayments</dt><dd>${formatMoney(statement.totals.loanRepayments)}</dd></div>
-    <div class="kv" style="border-bottom:none;border-top:2px solid #20b2aa;margin-top:4px;padding-top:8px">
+    <div class="kv" style="border-bottom:none;border-top:2px solid #1f4a88;margin-top:4px;padding-top:8px">
       <dt class="strong">Net movement</dt>
       <dd class="strong">${formatMoney(net, { signed: true })}</dd>
     </div>
@@ -452,7 +452,7 @@ export function statementToHtml(statement: StatementData): string {
   </div>
 
   <p class="noprint" style="margin-top:20px;text-align:center">
-    <button onclick="window.print()" style="padding:10px 20px;border:0;border-radius:999px;background:#20b2aa;color:#fff;font-weight:600;cursor:pointer">
+    <button onclick="window.print()" style="padding:10px 20px;border:0;border-radius:999px;background:#1f4a88;color:#fff;font-weight:600;cursor:pointer">
       Print or save as PDF
     </button>
   </p>

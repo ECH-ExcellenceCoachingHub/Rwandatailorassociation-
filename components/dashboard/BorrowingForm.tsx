@@ -567,7 +567,7 @@ export function PublishToggle({
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="mt-0.5 size-4 shrink-0 accent-[var(--color-primary,#20b2aa)]"
+        className="mt-0.5 size-4 shrink-0 accent-[var(--color-primary,#1f4a88)]"
       />
       <span className="min-w-0">
         <span className="block text-sm font-semibold text-ink">{label}</span>

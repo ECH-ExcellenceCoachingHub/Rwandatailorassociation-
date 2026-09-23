@@ -2,16 +2,19 @@
 @plugin "tailwindcss-animate";
 
 @theme inline {
-  /* Brand palette */
-  --color-primary: #20b2aa;
-  --color-primary-hover: #17948e;
-  --color-primary-50: #f0fbfa;
-  --color-primary-100: #d7f3f1;
+  /* Brand palette, taken from the logo: the navy of the R–T–A bars as the
+     primary, and the lighter globe blue for accents on the dark panels,
+     where the navy itself would not show. */
+  --color-primary: #1f4a88;
+  --color-primary-hover: #173a6d;
+  --color-primary-50: #eef3fa;
+  --color-primary-100: #d6e2f2;
+  --color-primary-light: #8db4e3;
   --color-primary-foreground: #ffffff;
 
   --color-ink: #1f2937;
   --color-ink-muted: #6b7280;
-  --color-footer: #0f3d3a;
+  --color-footer: #0b1b33;
 
   --color-background: #f8fafc;
   --color-surface: #ffffff;
@@ -80,6 +83,16 @@
   :focus-visible {
     outline: 2px solid var(--color-primary);
     outline-offset: 2px;
+  }
+
+  /* Chrome paints autofilled fields pale blue, which clashes with the brand
+     palette. An inset shadow is the only way to cover it. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px var(--color-surface) inset;
+    -webkit-text-fill-color: var(--color-ink);
+    caret-color: var(--color-ink);
   }
 }
 

@@ -32,13 +32,13 @@ import { formatMonthLabel } from "@/lib/i18n/dates";
  *    arithmetic; a balance does, which is why the conversion happens at the
  *    very edge and never flows back into anything that gets stored.
  *
- *  • Colours come from the site's existing palette — teal for savings, amber
+ *  • Colours come from the site's existing palette — brand blue for savings, amber
  *    for withdrawals, red for arrears — so a figure means the same thing here
  *    as it does in a status badge elsewhere.
  */
 
-const TEAL = "#20b2aa";
-const TEAL_DARK = "#17948e";
+const BLUE = "#4b7cb4";
+const BLUE_DARK = "#1f4a88";
 const AMBER = "#d4a94c";
 const RED = "#ef4444";
 const GRID = "#e5e7eb";
@@ -105,8 +105,8 @@ export function SavingsGrowthChart({
       <AreaChart data={plotted} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
         <defs>
           <linearGradient id="savingsFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={TEAL} stopOpacity={0.28} />
-            <stop offset="100%" stopColor={TEAL} stopOpacity={0.02} />
+            <stop offset="0%" stopColor={BLUE} stopOpacity={0.28} />
+            <stop offset="100%" stopColor={BLUE} stopOpacity={0.02} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
@@ -116,7 +116,7 @@ export function SavingsGrowthChart({
         <Area
           type="monotone"
           dataKey={series}
-          stroke={TEAL_DARK}
+          stroke={BLUE_DARK}
           strokeWidth={2.5}
           fill="url(#savingsFill)"
         />
@@ -146,13 +146,13 @@ export function ContributionsChart({
         <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
         <XAxis dataKey="month" {...axisProps} />
         <YAxis {...axisProps} tickFormatter={(v) => formatMoneyCompact(String(v)).replace("RWF ", "")} />
-        <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(32,178,170,0.06)" }} />
+        <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(31,74,136,0.06)" }} />
         <Legend
           iconType="circle"
           iconSize={8}
           wrapperStyle={{ fontSize: 12, color: MUTED, paddingTop: 8 }}
         />
-        <Bar dataKey={depositsKey} fill={TEAL} radius={[4, 4, 0, 0]} maxBarSize={28} />
+        <Bar dataKey={depositsKey} fill={BLUE} radius={[4, 4, 0, 0]} maxBarSize={28} />
         <Bar
           dataKey={withdrawalsKey}
           fill={AMBER}
@@ -174,7 +174,7 @@ export function ContributionsChart({
 export function MonthlyBarChart({
   data,
   series,
-  colour = TEAL,
+  colour = BLUE,
   highlightNegative = false,
 }: {
   data: { label: string; value: string }[];
@@ -194,7 +194,7 @@ export function MonthlyBarChart({
         <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
         <XAxis dataKey="label" {...axisProps} />
         <YAxis {...axisProps} tickFormatter={(v) => formatMoneyCompact(String(v)).replace("RWF ", "")} />
-        <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(32,178,170,0.06)" }} />
+        <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(31,74,136,0.06)" }} />
         <Bar dataKey={series} radius={[4, 4, 0, 0]} maxBarSize={32}>
           {plotted.map((entry, index) => (
             <Cell
@@ -220,7 +220,7 @@ export function MonthlyBarChart({
  * number nobody could spend.
  *
  * Amber for the fee — the same amber this file uses for money leaving a
- * member — teal for the association's own income, and a lighter teal for the
+ * member — navy for the association's own income, and a lighter blue for the
  * share returned to members, so the two halves of one interest payment read as
  * related without reading as the same thing.
  */
@@ -254,7 +254,7 @@ export function FundsFlowChart({
           {...axisProps}
           tickFormatter={(v) => formatMoneyCompact(String(v)).replace("RWF ", "")}
         />
-        <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(32,178,170,0.06)" }} />
+        <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(31,74,136,0.06)" }} />
         <Legend
           wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
           iconType="circle"
@@ -263,11 +263,11 @@ export function FundsFlowChart({
         <Bar dataKey={labels.fee} fill={AMBER} radius={[4, 4, 0, 0]} maxBarSize={18} />
         <Bar
           dataKey={labels.association}
-          fill={TEAL_DARK}
+          fill={BLUE_DARK}
           radius={[4, 4, 0, 0]}
           maxBarSize={18}
         />
-        <Bar dataKey={labels.member} fill={TEAL} radius={[4, 4, 0, 0]} maxBarSize={18} />
+        <Bar dataKey={labels.member} fill={BLUE} radius={[4, 4, 0, 0]} maxBarSize={18} />
       </BarChart>
     </ResponsiveContainer>
   );

@@ -41,7 +41,7 @@ export default function Footer() {
                 <li key={link.href + link.label.en}>
                   <Link
                     href={link.href}
-                    className="text-[13px] text-white/65 transition-colors hover:text-primary"
+                    className="text-[13px] text-white/65 transition-colors hover:text-primary-light"
                   >
                     {link.label[locale]}
                   </Link>
@@ -60,12 +60,12 @@ export default function Footer() {
               const external = item.href.startsWith("http");
               return (
                 <li key={item.value} className="flex items-start gap-2">
-                  <item.icon className="mt-0.5 size-3.5 shrink-0 text-primary" aria-hidden="true" />
+                  <item.icon className="mt-0.5 size-3.5 shrink-0 text-primary-light" aria-hidden="true" />
                   <Link
                     href={item.href}
                     target={external ? "_blank" : undefined}
                     rel={external ? "noopener noreferrer" : undefined}
-                    className="transition-colors hover:text-primary"
+                    className="transition-colors hover:text-primary-light"
                   >
                     {item.value}
                   </Link>
@@ -90,10 +90,10 @@ export default function Footer() {
         <div className="container-page flex flex-col items-center justify-between gap-3 py-6 text-xs text-white/55 sm:flex-row">
           <p>{t.footer.copyright}</p>
           <div className="flex items-center gap-5">
-            <Link href="#" className="hover:text-primary">
+            <Link href="#" className="hover:text-primary-light">
               {t.footer.privacyPolicy}
             </Link>
-            <Link href="#" className="hover:text-primary">
+            <Link href="#" className="hover:text-primary-light">
               {t.footer.termsOfUse}
             </Link>
           </div>

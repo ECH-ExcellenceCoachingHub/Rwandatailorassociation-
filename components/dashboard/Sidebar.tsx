@@ -56,7 +56,7 @@ export function SidebarContent({
           <p className="truncate font-heading text-sm font-bold leading-tight text-white">
             {associationName}
           </p>
-          <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-primary">
+          <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-primary-light">
             {ROLE_LABEL[role]}
           </p>
         </div>
