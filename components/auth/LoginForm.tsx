@@ -22,8 +22,8 @@ interface LoginResponse {
  * email one tap away for those who registered with it.
  *
  * With `presetPhone` (the admin-shared link at /in/:token) the number is
- * filled in and fixed, and everything but the password is left out, so the
- * member has exactly one thing to do.
+ * filled in and not shown, and everything but the password is left out, so
+ * the member has exactly one thing to do.
  */
 export default function LoginForm({ presetPhone }: { presetPhone?: string } = {}) {
   const router = useRouter();
@@ -89,30 +89,45 @@ export default function LoginForm({ presetPhone }: { presetPhone?: string } = {}
         )
       )}
 
-      <Field id="identifier" label={mode === "phone" ? copy.phone : copy.email}>
-        {(props) => (
-          <Input
-            {...props}
-            name="identifier"
-            type={mode === "phone" ? "tel" : "email"}
-            inputMode={mode === "phone" ? "tel" : "email"}
-            autoComplete="username"
-            placeholder={mode === "phone" ? copy.phonePlaceholder : copy.emailPlaceholder}
-            value={identifier}
-            onChange={(e) => {
-              const value = e.target.value;
-              setIdentifier(value);
-              // A password manager fills whatever it saved — often an email —
-              // into this field. Follow it rather than show an email under a
-              // "Phone number" label.
-              if (mode === "phone" && value.includes("@")) setMode("email");
-            }}
-            readOnly={minimal}
-            required
-            autoFocus={!minimal}
-          />
-        )}
-      </Field>
+      {minimal ? (
+        // The number came from the link, so it is not shown. It stays in the
+        // form, out of sight, so a password manager can still pair it with
+        // the password it saves.
+        <input
+          type="text"
+          name="identifier"
+          autoComplete="username"
+          value={identifier}
+          readOnly
+          tabIndex={-1}
+          aria-hidden="true"
+          className="sr-only"
+        />
+      ) : (
+        <Field id="identifier" label={mode === "phone" ? copy.phone : copy.email}>
+          {(props) => (
+            <Input
+              {...props}
+              name="identifier"
+              type={mode === "phone" ? "tel" : "email"}
+              inputMode={mode === "phone" ? "tel" : "email"}
+              autoComplete="username"
+              placeholder={mode === "phone" ? copy.phonePlaceholder : copy.emailPlaceholder}
+              value={identifier}
+              onChange={(e) => {
+                const value = e.target.value;
+                setIdentifier(value);
+                // A password manager fills whatever it saved — often an email —
+                // into this field. Follow it rather than show an email under a
+                // "Phone number" label.
+                if (mode === "phone" && value.includes("@")) setMode("email");
+              }}
+              required
+              autoFocus
+            />
+          )}
+        </Field>
+      )}
 
       {!minimal && (
         <div className="-mt-2">

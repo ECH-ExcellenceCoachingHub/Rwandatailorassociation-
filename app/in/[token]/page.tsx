@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import LoginForm from "@/components/auth/LoginForm";
@@ -10,8 +11,9 @@ import { getDashboardCopy } from "@/lib/i18n/server";
  * /in/:token — the sign-in link an admin copies from the member register.
  *
  * Deliberately bare: outside the (auth) layout, so there is no brand panel,
- * no navigation and no language switch — just the member's number, already
- * filled in, and a box for their password. The number is encrypted in the
+ * no navigation and no language switch — just the STGT mark, so the member
+ * knows where they are, and a box for their password. Their number is filled
+ * in behind the scenes. The number is encrypted in the
  * token (lib/auth/sign-in-link.ts); the password is still required.
  */
 export async function generateMetadata(): Promise<Metadata> {
@@ -37,6 +39,26 @@ export default async function PhoneSignInPage({
     <main className="flex min-h-screen items-center justify-center px-6 py-12">
       <div className="w-full max-w-[380px]">
         <h1 className="sr-only">{d.auth.login.title}</h1>
+
+        {/* The same lockup as the sign-in page on a phone. */}
+        <div className="mb-10 flex items-center gap-4">
+          <Image
+            src="/images/rtalogo.jpg"
+            alt=""
+            width={80}
+            height={80}
+            className="size-20 shrink-0 rounded-full object-cover"
+          />
+          <span className="leading-tight">
+            <span className="block font-heading text-[32px] font-bold tracking-[0.06em] text-ink">
+              STGT
+            </span>
+            <span className="mt-1 block font-heading text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
+              {d.auth.layout.brandTagline}
+            </span>
+          </span>
+        </div>
+
         {/* useSearchParams needs a Suspense boundary to keep the shell static. */}
         <Suspense fallback={<div className="h-56" />}>
           <LoginForm presetPhone={toLocalPhone(phone)} />
