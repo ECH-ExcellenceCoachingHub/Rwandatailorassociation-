@@ -33,6 +33,11 @@ export const AUDIT_ACTIONS = {
   USER_PASSWORD_CHANGED: "USER_PASSWORD_CHANGED",
   USER_PASSWORD_RESET_REQUESTED: "USER_PASSWORD_RESET_REQUESTED",
   USER_PASSWORD_RESET_COMPLETED: "USER_PASSWORD_RESET_COMPLETED",
+  /// An administrator replaced a member's password with a temporary one.
+  /// Distinct from USER_PASSWORD_RESET_COMPLETED, which the account holder
+  /// does themselves from a link: in a dispute, "who last set this password"
+  /// must be answerable from the log alone.
+  USER_PASSWORD_RESET_BY_ADMIN: "USER_PASSWORD_RESET_BY_ADMIN",
   USER_EMAIL_VERIFIED: "USER_EMAIL_VERIFIED",
   USER_PHONE_VERIFIED: "USER_PHONE_VERIFIED",
   USER_SESSIONS_REVOKED: "USER_SESSIONS_REVOKED",

@@ -31,6 +31,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { MemberManagement } from "@/components/dashboard/MemberManagement";
 import { MemberNoteForm } from "@/components/dashboard/MemberNoteForm";
+import { MemberPasswordReset } from "@/components/dashboard/MemberPasswordReset";
 import { BalanceCorrections } from "@/components/dashboard/BalanceCorrections";
 import {
   TableWrapper,
@@ -496,6 +497,14 @@ export default async function AdminMemberDetailPage({
           </ul>
         )}
       </section>
+
+      {/* Staff logins are refused by the service; not offering it avoids a
+          button that can only fail. */}
+      {context.permissions.has(PERMISSIONS.MEMBERS_UPDATE) &&
+        member.user.role === "MEMBER" &&
+        member.user.status !== "DISABLED" && (
+          <MemberPasswordReset memberId={member.id} />
+        )}
 
       <BalanceCorrections
         memberId={member.id}

@@ -288,6 +288,16 @@ export interface AdminCopy {
     notePlaceholder: string;
     noteSave: string;
     noteHint: string;
+
+    passwordTitle: string;
+    passwordIntro: string;
+    passwordReset: string;
+    passwordConfirm: string;
+    passwordConfirmButton: string;
+    passwordDone: string;
+    passwordNew: string;
+    passwordNewHint: string;
+    passwordCopy: string;
   };
   /// The register's row menus and the actions on several ticked members.
   memberBulk: {
@@ -1408,6 +1418,19 @@ export const admin: Record<Locale, AdminCopy> = {
       noteSave: "Save note",
       noteHint:
         "Notes are seen by administrators only, and cannot be edited once saved.",
+
+      passwordTitle: "Password",
+      passwordIntro:
+        "If this member cannot sign in and cannot use the reset link, give them a new temporary password. They will have to choose their own the next time they sign in.",
+      passwordReset: "Reset password",
+      passwordConfirm:
+        "Their current password will stop working and they will be signed out on every device. Continue?",
+      passwordConfirmButton: "Yes, reset it",
+      passwordDone: "The password has been reset.",
+      passwordNew: "Temporary password",
+      passwordNewHint:
+        "Give this to the member now. It is shown only once and cannot be looked up again.",
+      passwordCopy: "Copy password",
     },
     memberBulk: {
       selectAll: "Select every member on this page",
@@ -2651,6 +2674,19 @@ export const admin: Record<Locale, AdminCopy> = {
       noteSave: "Bika icyitonderwa",
       noteHint:
         "Ibyitonderwa bibonwa n'abayobozi gusa, kandi ntibishobora guhindurwa bimaze kubikwa.",
+
+      passwordTitle: "Ijambobanga",
+      passwordIntro:
+        "Niba uyu munyamuryango adashobora kwinjira kandi adashobora gukoresha umurongo wo guhindura ijambobanga, muhe ijambobanga ry'agateganyo. Azasabwa kwihitiramo irye ubutaha yinjiye.",
+      passwordReset: "Hindura ijambobanga",
+      passwordConfirm:
+        "Ijambobanga rye ry'ubu rizahita rireka gukora kandi azasohorwa ku bikoresho byose. Ukomeze?",
+      passwordConfirmButton: "Yego, rihindure",
+      passwordDone: "Ijambobanga ryahinduwe.",
+      passwordNew: "Ijambobanga ry'agateganyo",
+      passwordNewHint:
+        "Rihe umunyamuryango ubu. Rigaragara rimwe gusa kandi ntirishobora kongera kurebwa.",
+      passwordCopy: "Koporora ijambobanga",
     },
     memberBulk: {
       selectAll: "Hitamo abanyamuryango bose bari kuri iyi paji",

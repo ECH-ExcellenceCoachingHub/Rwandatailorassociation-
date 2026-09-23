@@ -5,6 +5,7 @@ import { prisma, Prisma, withFinancialTransaction, type TxClient } from "@/lib/d
 import { recordAudit, diffFields, AUDIT_ACTIONS } from "@/lib/audit";
 import { notify, NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { hashPassword } from "@/lib/auth/password";
+import { revokeAllUserSessions } from "@/lib/auth/session";
 import { abs, add, subtract, toMoneyString } from "@/lib/money";
 import { acceptPhotoDataUrl, type AcceptedPhoto } from "@/lib/images/photo";
 import {
@@ -665,6 +666,91 @@ function snapshotOf(member: SnapshotSource): EditableSnapshot {
     acceptsInterns: member.acceptsInterns,
     internCapacity: member.internCapacity,
   };
+}
+
+/**
+ * Replaces a member's password with a fresh temporary one, for a member who
+ * cannot sign in and cannot use the reset link — no email, a phone they no
+ * longer have, or simply standing at the desk.
+ *
+ * The same rules as enrolment apply: the password is generated, never chosen
+ * by the administrator, and `mustChangePassword` makes the member replace it
+ * at their next sign-in, so the administrator does not go on knowing it.
+ *
+ * Every session is revoked and any outstanding reset link is voided: if the
+ * reset was asked for because someone else got in, they must not stay in.
+ * The lockout is cleared too, since a locked-out member is the usual reason
+ * for coming to the desk.
+ *
+ * Staff logins are refused. An administrator who could reset another
+ * administrator's — or a super admin's — password could sign in as them.
+ */
+export async function resetMemberPassword(params: {
+  memberId: string;
+  actorId: string;
+}): Promise<{ ok: true; temporaryPassword: string } | { ok: false; message: string }> {
+  const { memberId, actorId } = params;
+
+  const member = await prisma.member.findUnique({
+    where: { id: memberId },
+    select: {
+      id: true,
+      associationId: true,
+      memberNumber: true,
+      user: { select: { id: true, role: true, status: true } },
+    },
+  });
+
+  if (!member) return { ok: false, message: "Member not found" };
+  if (member.user.role !== "MEMBER") {
+    return {
+      ok: false,
+      message:
+        "This member is also a member of staff. Their password can only be reset by a super admin.",
+    };
+  }
+  if (member.user.status === "DISABLED") {
+    return { ok: false, message: "This login has been disabled and cannot be given a new password." };
+  }
+
+  const temporaryPassword = generateTemporaryPassword();
+  const passwordHash = await hashPassword(temporaryPassword);
+  const now = new Date();
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: member.user.id },
+      data: {
+        passwordHash,
+        passwordChangedAt: now,
+        mustChangePassword: true,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+      },
+    });
+
+    await tx.verificationToken.updateMany({
+      where: { userId: member.user.id, purpose: "PASSWORD_RESET", consumedAt: null },
+      data: { consumedAt: now },
+    });
+
+    await recordAudit(
+      {
+        action: AUDIT_ACTIONS.USER_PASSWORD_RESET_BY_ADMIN,
+        entityType: "User",
+        entityId: member.user.id,
+        associationId: member.associationId,
+        metadata: { memberId: member.id, memberNumber: member.memberNumber },
+        severity: "NOTICE",
+      },
+      { id: actorId },
+      tx
+    );
+  });
+
+  await revokeAllUserSessions(member.user.id, "PASSWORD_RESET_BY_ADMIN");
+
+  return { ok: true, temporaryPassword };
 }
 
 /**
