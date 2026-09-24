@@ -244,6 +244,15 @@ export interface AdminCopy {
     reopenTitle: string;
     reopenBody: string;
 
+    /// The day a member's daily saving is counted from, and restarting it.
+    savingsLabel: string;
+    savingsStart: string;
+    resetSavings: string;
+    resetSavingsTitle: string;
+    resetSavingsBody: string;
+    resetSavingsReasonLabel: string;
+    resetSavingsReasonPlaceholder: string;
+
     kycLabel: string;
     kycUnverified: string;
     kycPending: string;
@@ -332,6 +341,8 @@ export interface AdminCopy {
     closeBody: string;
     deleteTitle: string;
     deleteBody: string;
+    resetSavingsTitle: string;
+    resetSavingsBody: string;
     sameReason: string;
     staffKept: string;
     staffErased: string;
@@ -1352,6 +1363,17 @@ export const admin: Record<Locale, AdminCopy> = {
       reopenTitle: "Reopen {name}'s membership?",
       reopenBody: "They return to the active register and can sign in again.",
 
+      savingsLabel: "Daily saving",
+      savingsStart:
+        "Saving days, arrears and fines are counted from {date}. Restart from today if they were approved before their saving really began.",
+      resetSavings: "Restart from today",
+      resetSavingsTitle: "Restart {name}'s saving from today?",
+      resetSavingsBody:
+        "Their daily saving is counted from today, as if they had been approved today. Every fine they still owe is waived, and any fine already taken from their savings is paid back into them. Money they have deposited stays theirs and counts towards the days ahead.",
+      resetSavingsReasonLabel: "Why is their saving being restarted?",
+      resetSavingsReasonPlaceholder:
+        "e.g. Approved during the trial period, before saving began",
+
       kycLabel: "Identity",
       kycUnverified: "Not checked yet.",
       kycPending: "National ID {id} is waiting to be checked.",
@@ -1470,6 +1492,10 @@ export const admin: Record<Locale, AdminCopy> = {
         "Delete {count} member permanently?|Delete {count} members permanently?",
       deleteBody:
         "For test accounts and records made in error. Each member is erased with their login and every record against them — savings, loans, fines, service fees and warehouse issues. Goods they still hold go back into stock, and payments matched to them return to the unmatched queue. Real members who are leaving should be closed instead. This cannot be undone.",
+      resetSavingsTitle:
+        "Restart saving from today for {count} member?|Restart saving from today for {count} members?",
+      resetSavingsBody:
+        "Their daily saving is counted from today, as if they had been approved today. Every fine they still owe is waived, and any fine already taken from their savings is paid back into them. Money they have deposited stays theirs and counts towards the days ahead. Pending and closed memberships are left alone.",
       sameReason: "The same reason is recorded against each member.",
       staffKept:
         "{count} of them is also a member of staff and keeps their administrator sign-in.|{count} of them are also staff and keep their administrator sign-in.",
@@ -2599,6 +2625,17 @@ export const admin: Record<Locale, AdminCopy> = {
       reopenBody:
         "Azagaruka ku rutonde rw'abanyamuryango bakora kandi ashobore kongera kwinjira.",
 
+      savingsLabel: "Kuzigama kwa buri munsi",
+      savingsStart:
+        "Iminsi yo kuzigama, ibirarane n'amahazabu bibarwa guhera ku wa {date}. Tangira bushya uyu munsi niba yaremejwe mbere y'uko kuzigama kwe gutangira koko.",
+      resetSavings: "Tangira bushya uyu munsi",
+      resetSavingsTitle: "Gutangira bushya kubara kuzigama kwa {name} guhera uyu munsi?",
+      resetSavingsBody:
+        "Kuzigama kwe kwa buri munsi kuzabarwa guhera uyu munsi, nk'aho yemejwe uyu munsi. Amahazabu yose akimubereyemo arasonerwa, kandi amahazabu yose yakuwe mu buzigame bwe arayasubizwa. Amafaranga yabitse aguma ari aye kandi abarwa ku minsi iri imbere.",
+      resetSavingsReasonLabel: "Kuki kubara kuzigama kwe bitangiye bushya?",
+      resetSavingsReasonPlaceholder:
+        "urugero: Yemejwe mu gihe cy'igerageza, mbere y'uko kuzigama gutangira",
+
       kycLabel: "Umwirondoro",
       kycUnverified: "Ntiburagenzurwa.",
       kycPending: "Indangamuntu {id} itegereje kugenzurwa.",
@@ -2736,6 +2773,10 @@ export const admin: Record<Locale, AdminCopy> = {
         "Gusiba burundu umunyamuryango {count}?|Gusiba burundu abanyamuryango {count}?",
       deleteBody:
         "Ku makonti y'igerageza n'inyandiko zakozwe mu makosa. Buri munyamuryango asibwa hamwe na konti ye yo kwinjira n'ibyanditswe byose bimwerekeyeho — ubuzigame, inguzanyo, amahazabu, amafaranga ya serivisi n'ibyo yahawe mu bubiko. Ibikoresho bagifite bisubizwa mu bubiko, kandi ubwishyu bwabahujweho busubizwa ku rutonde rw'ubwishyu butahujwe. Abanyamuryango nyakuri bavuye mu ihuriro bakwiye gusozerwa ubunyamuryango aho gusibwa. Ntibishobora gusubizwa inyuma.",
+      resetSavingsTitle:
+        "Gutangira bushya kubara kuzigama kw'umunyamuryango {count} guhera uyu munsi?|Gutangira bushya kubara kuzigama kw'abanyamuryango {count} guhera uyu munsi?",
+      resetSavingsBody:
+        "Kuzigama kwabo kwa buri munsi kuzabarwa guhera uyu munsi, nk'aho bemejwe uyu munsi. Amahazabu yose bakibereyemo arasonerwa, kandi amahazabu yose yakuwe mu buzigame bwabo barayasubizwa. Amafaranga babitse aguma ari ayabo kandi abarwa ku minsi iri imbere. Abategereje kwemezwa n'abasojwe ntibakorwaho.",
       sameReason: "Impamvu imwe yandikwa kuri buri munyamuryango.",
       staffKept:
         "{count} muri bo ni n'umukozi w'ihuriro, kandi konti ye y'umuyobozi iguma uko iri.|{count} muri bo ni n'abakozi b'ihuriro, kandi konti zabo z'abayobozi ziguma uko ziri.",

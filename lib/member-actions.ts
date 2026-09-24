@@ -26,6 +26,7 @@ export const MEMBER_ACTION_KINDS = [
   "fail",
   "close",
   "delete",
+  "resetSavings",
 ] as const;
 
 export type MemberActionKind = (typeof MEMBER_ACTION_KINDS)[number];
@@ -40,6 +41,7 @@ export const API_ACTION: Record<MemberActionKind, MemberAction> = {
   fail: "reject_kyc",
   close: "close",
   delete: "delete",
+  resetSavings: "reset_savings",
 };
 
 export interface MemberActionState {
@@ -74,6 +76,9 @@ export function canTake(kind: MemberActionKind, member: MemberActionState): bool
       // Whether they have a history that rules it out is the server's call;
       // the register does not load it for every row.
       return !member.isSelf;
+    case "resetSavings":
+      // Only somebody who is expected to contribute has a clock running.
+      return member.status === "ACTIVE" || member.status === "SUSPENDED";
   }
 }
 

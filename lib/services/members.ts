@@ -16,6 +16,7 @@ import {
 } from "@/lib/member-removal";
 import type { BulkMemberResult } from "@/lib/member-actions";
 import { returnStockOfDeletedMember } from "@/lib/services/warehouse";
+import { resetSavingsClock } from "@/lib/services/contributions";
 import { logger, serialiseError } from "@/lib/logger";
 import type {
   CreateMemberInput,
@@ -1838,6 +1839,10 @@ export async function applyMemberAction(params: {
       return setMemberKyc({ memberId, actorId, verified: false, reason });
     case "delete":
       return deleteMember({ memberId, actorId, reason });
+    case "reset_savings": {
+      const outcome = await resetSavingsClock({ memberId, actorId, reason });
+      return outcome.ok ? { ok: true } : outcome;
+    }
   }
 }
 
@@ -1958,6 +1963,8 @@ export const getMemberProfile = cache(async (memberId: string) => {
         },
       },
       successorPhoto: { select: { updatedAt: true } },
+      // When their saving clock runs from, for the management panel.
+      contributionStanding: { select: { obligationStartDate: true } },
       savingsAccounts: { where: { isActive: true }, take: 1 },
       loans: {
         orderBy: { createdAt: "desc" },

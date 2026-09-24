@@ -429,7 +429,7 @@ export async function getMemberStanding(
       sharesSubscribed: true,
       contributionFines: {
         where: { status: { in: ["OUTSTANDING", "SETTLED"] } },
-        orderBy: { dueDayIndex: "desc" },
+        orderBy: [{ cycle: "desc" }, { dueDayIndex: "desc" }],
         take: 10,
         select: {
           id: true,
@@ -437,6 +437,7 @@ export async function getMemberStanding(
           amount: true,
           missedDays: true,
           dueDayIndex: true,
+          cycle: true,
           rate: true,
           amountPerShare: true,
           shares: true,
@@ -485,7 +486,7 @@ export async function getMemberStanding(
     asOf: options.asOf ?? new Date(),
     totalContributed: toMoneyString(totalContributed),
     feeChargedThroughDay: member.platformFeeCharges[0]?.coveredThroughDay ?? 0,
-    priorFines: member.contributionFines.map((fine) => ({
+    priorFines: priorFinesOf(member).map((fine) => ({
       missedDays: fine.missedDays,
       dueDayIndex: fine.dueDayIndex,
     })),
@@ -529,7 +530,7 @@ export async function getMemberStanding(
  * created. NEVER defaults to "today", which would show a member who joined two
  * years ago as perfectly up to date and quietly forgive every missed day.
  */
-function resolveObligationStart(member: {
+export function resolveObligationStart(member: {
   contributionStanding: { obligationStartDate: Date | null } | null;
   approvedAt: Date | null;
   joinedAt: Date | null;
@@ -541,6 +542,29 @@ function resolveObligationStart(member: {
     member.joinedAt ??
     member.createdAt
   );
+}
+
+/**
+ * The run of the obligation a member is in. Zero until an officer first resets
+ * their saving clock; see `resetSavingsClock`.
+ */
+function currentCycle(member: {
+  contributionStanding: { obligationCycle: number } | null;
+}): number {
+  return member.contributionStanding?.obligationCycle ?? 0;
+}
+
+/**
+ * The fines that count against the current run of the obligation. A fine's
+ * day number is measured from the start date in force when it was assessed,
+ * so one from before a reset says nothing about the member's arrears now.
+ */
+function priorFinesOf<F extends { cycle: number }>(member: {
+  contributionStanding: { obligationCycle: number } | null;
+  contributionFines: F[];
+}): F[] {
+  const cycle = currentCycle(member);
+  return member.contributionFines.filter((fine) => fine.cycle === cycle);
 }
 
 /** An exemption with a date on it stops applying when that date passes. */
@@ -736,13 +760,14 @@ export async function computeStandings(
         sharesSubscribed: true,
         contributionFines: {
           where: { status: { in: ["OUTSTANDING", "SETTLED"] } },
-          orderBy: { dueDayIndex: "desc" },
+          orderBy: [{ cycle: "desc" }, { dueDayIndex: "desc" }],
           take: 10,
           select: {
             id: true,
             amount: true,
             missedDays: true,
             dueDayIndex: true,
+            cycle: true,
             status: true,
           },
         },
@@ -786,7 +811,7 @@ export async function computeStandings(
       asOf,
       totalContributed: toMoneyString(totalContributed),
       feeChargedThroughDay: member.platformFeeCharges[0]?.coveredThroughDay ?? 0,
-      priorFines: member.contributionFines.map((fine) => ({
+      priorFines: priorFinesOf(member).map((fine) => ({
         missedDays: fine.missedDays,
         dueDayIndex: fine.dueDayIndex,
       })),
@@ -1066,12 +1091,13 @@ export async function assessFines(
       },
       contributionFines: {
         where: { status: { in: ["OUTSTANDING", "SETTLED"] } },
-        orderBy: { dueDayIndex: "desc" },
+        orderBy: [{ cycle: "desc" }, { dueDayIndex: "desc" }],
         take: 10,
         select: {
           amount: true,
           missedDays: true,
           dueDayIndex: true,
+          cycle: true,
           status: true,
         },
       },
@@ -1108,7 +1134,7 @@ export async function assessFines(
       asOf,
       totalContributed: toMoneyString(totalContributed),
       feeChargedThroughDay: member.platformFeeCharges[0]?.coveredThroughDay ?? 0,
-      priorFines: member.contributionFines.map((fine) => ({
+      priorFines: priorFinesOf(member).map((fine) => ({
         missedDays: fine.missedDays,
         dueDayIndex: fine.dueDayIndex,
       })),
@@ -1128,6 +1154,7 @@ export async function assessFines(
           reference: buildTransactionReference("FIN"),
           missedDays: fine.missedDays,
           dueDayIndex: fine.dueDayIndex,
+          cycle: currentCycle(member),
           arrearsAmount: fine.arrearsAmount,
           amountPerShare: fine.amountPerShare,
           shares: fine.shares,
@@ -1455,6 +1482,208 @@ export async function setObligationStart(params: {
 }
 
 // ---------------------------------------------------------------------------
+// Restarting the clock
+// ---------------------------------------------------------------------------
+
+export interface SavingsClockReset {
+  startDate: Date;
+  finesWaived: number;
+  amountWaived: string;
+  finesRefunded: number;
+  amountRefunded: string;
+}
+
+/**
+ * Restarts a member's saving clock from today.
+ *
+ * FOR MEMBERS WHO WERE COUNTED BEFORE THEY HAD STARTED. The obligation runs
+ * from the day a member was approved, and members approved while the platform
+ * was still being tried out were put in arrears and fined for days on which
+ * nobody expected them to save. Moving the start date alone would not undo
+ * that: the fines would still be owed. So a reset does four things, in one
+ * transaction:
+ *
+ *   - the obligation starts again today, and day one is today;
+ *   - every fine still owed is waived, with the reason given;
+ *   - every fine already taken from savings is paid back, by reversing the
+ *     PENALTY debit on the ledger, and marked cancelled;
+ *   - the reminder escalation goes back to none.
+ *
+ * Nothing the member deposited is touched. Money they paid in still counts
+ * towards the days they cover, now measured from the new start.
+ *
+ * The run counter on the standing moves on by one, and the fines left behind
+ * keep the old number. Without that, the first fine of the new run would land
+ * on a day number an old fine already holds and be silently dropped by the
+ * unique index, and settled fines from before the reset would go on raising
+ * the threshold for the next one.
+ */
+export async function resetSavingsClock(params: {
+  memberId: string;
+  actorId: string;
+  reason: string;
+  asOf?: Date;
+}): Promise<{ ok: true; reset: SavingsClockReset } | { ok: false; message: string }> {
+  const reason = params.reason.trim();
+  const startDate = params.asOf ?? new Date();
+
+  const member = await prisma.member.findUnique({
+    where: { id: params.memberId },
+    select: { id: true, associationId: true, status: true },
+  });
+  if (!member) return { ok: false, message: "Member not found" };
+
+  // Only members who are expected to contribute have a clock to reset. A
+  // pending applicant's has not started, and a closed membership's has ended.
+  if (member.status !== "ACTIVE" && member.status !== "SUSPENDED") {
+    return {
+      ok: false,
+      message: "Only an active or suspended member has a saving clock to reset",
+    };
+  }
+
+  const reset = await withFinancialTransaction(async (tx) => {
+    const existing = await tx.memberContributionStanding.findUnique({
+      where: { memberId: member.id },
+      select: { obligationStartDate: true, obligationCycle: true },
+    });
+
+    await tx.memberContributionStanding.upsert({
+      where: { memberId: member.id },
+      create: {
+        associationId: member.associationId,
+        memberId: member.id,
+        obligationStartDate: startDate,
+        obligationCycle: 1,
+        lastReminderStage: 0,
+      },
+      update: {
+        obligationStartDate: startDate,
+        obligationCycle: { increment: 1 },
+        lastReminderStage: 0,
+      },
+    });
+
+    const fines = await tx.contributionFine.findMany({
+      where: { memberId: member.id, status: { in: ["OUTSTANDING", "SETTLED"] } },
+      select: {
+        id: true,
+        reference: true,
+        amount: true,
+        status: true,
+        savingsTransaction: {
+          select: { id: true, savingsAccountId: true, status: true },
+        },
+      },
+    });
+
+    let finesWaived = 0;
+    let amountWaived = toMoney(0);
+    let finesRefunded = 0;
+    let amountRefunded = toMoney(0);
+    const waiverReason = `Saving clock reset: ${reason}`;
+
+    for (const fine of fines) {
+      if (fine.status === "OUTSTANDING") {
+        await tx.contributionFine.update({
+          where: { id: fine.id },
+          data: {
+            status: "WAIVED",
+            waivedAt: startDate,
+            waivedById: params.actorId,
+            waiverReason,
+          },
+        });
+        finesWaived++;
+        amountWaived = add(amountWaived, fine.amount);
+        continue;
+      }
+
+      // Settled. Paid back only when it was taken from savings and that debit
+      // still stands; a fine settled any other way is left as it is, in the
+      // old run, where it no longer counts against the member.
+      const debit = fine.savingsTransaction;
+      if (!debit || debit.status === "REVERSED") continue;
+
+      // The same contra entry reverseSavingsTransaction posts, written here so
+      // it lands in this transaction with the rest of the reset.
+      const reversal = await postSavingsTransaction(
+        {
+          savingsAccountId: debit.savingsAccountId,
+          type: "REVERSAL",
+          direction: "CREDIT",
+          amount: toMoneyString(fine.amount),
+          description: `Refund of contribution fine ${fine.reference}: saving clock reset`,
+          postedById: params.actorId,
+          adjustmentReason: waiverReason,
+        },
+        tx
+      );
+      await tx.savingsTransaction.update({
+        where: { id: reversal.id },
+        data: { reversalOfId: debit.id, reversalReason: waiverReason },
+      });
+      await tx.savingsTransaction.update({
+        where: { id: debit.id },
+        data: {
+          status: "REVERSED",
+          reversedById: params.actorId,
+          reversalReason: waiverReason,
+        },
+      });
+      await tx.contributionFine.update({
+        where: { id: fine.id },
+        data: {
+          status: "CANCELLED",
+          waivedAt: startDate,
+          waivedById: params.actorId,
+          waiverReason,
+        },
+      });
+      finesRefunded++;
+      amountRefunded = add(amountRefunded, fine.amount);
+    }
+
+    const summary: SavingsClockReset = {
+      startDate,
+      finesWaived,
+      amountWaived: toMoneyString(amountWaived),
+      finesRefunded,
+      amountRefunded: toMoneyString(amountRefunded),
+    };
+
+    await recordAudit(
+      {
+        action: AUDIT_ACTIONS.CONTRIBUTION_CLOCK_RESET,
+        entityType: "Member",
+        entityId: member.id,
+        associationId: member.associationId,
+        oldValue: {
+          obligationStartDate: existing?.obligationStartDate ?? null,
+          obligationCycle: existing?.obligationCycle ?? 0,
+        },
+        newValue: {
+          obligationStartDate: startDate,
+          obligationCycle: (existing?.obligationCycle ?? 0) + 1,
+          finesWaived,
+          amountWaived: summary.amountWaived,
+          finesRefunded,
+          amountRefunded: summary.amountRefunded,
+        },
+        reason,
+        severity: "WARNING",
+      },
+      { id: params.actorId },
+      tx
+    );
+
+    return summary;
+  });
+
+  return { ok: true, reset };
+}
+
+// ---------------------------------------------------------------------------
 // Reminders
 // ---------------------------------------------------------------------------
 
@@ -1509,7 +1738,7 @@ export async function sendContributionReminders(
       },
       contributionFines: {
         where: { status: "OUTSTANDING" },
-        select: { amount: true, missedDays: true, dueDayIndex: true },
+        select: { amount: true, missedDays: true, dueDayIndex: true, cycle: true },
       },
       platformFeeCharges: {
         where: { status: "CHARGED" },
@@ -1547,7 +1776,7 @@ export async function sendContributionReminders(
       asOf,
       totalContributed: toMoneyString(totalContributed),
       feeChargedThroughDay: member.platformFeeCharges[0]?.coveredThroughDay ?? 0,
-      priorFines: member.contributionFines.map((fine) => ({
+      priorFines: priorFinesOf(member).map((fine) => ({
         missedDays: fine.missedDays,
         dueDayIndex: fine.dueDayIndex,
       })),

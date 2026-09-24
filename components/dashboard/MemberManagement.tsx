@@ -23,6 +23,8 @@ export interface ManagedMember extends MemberTarget {
   status: MemberStatus;
   kycStatus: KycStatus;
   exitedAt: string | null;
+  /// The day their daily saving is counted from, as an ISO date.
+  savingsStart: string | null;
 }
 
 export const dangerButtonClass =
@@ -186,6 +188,15 @@ export function MemberManagement({
         >
           {kycActions}
         </ActionRow>
+
+        {member.savingsStart && (member.status === "ACTIVE" || member.status === "SUSPENDED") && (
+          <ActionRow
+            label={copy.savingsLabel}
+            text={fill(copy.savingsStart, { date: formatDate(member.savingsStart, locale) })}
+          >
+            {offers("resetSavings") ? [actionButton("resetSavings")] : []}
+          </ActionRow>
+        )}
       </div>
 
       {showRemoval && (

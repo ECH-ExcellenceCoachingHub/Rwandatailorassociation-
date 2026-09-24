@@ -6,6 +6,7 @@ import {
   RotateCcw,
   ShieldCheck,
   ShieldX,
+  TimerReset,
   Trash2,
   X,
   type LucideIcon,
@@ -53,6 +54,7 @@ export const MEMBER_ACTION_ICON: Record<MemberActionKind, LucideIcon> = {
   fail: ShieldX,
   close: DoorOpen,
   delete: Trash2,
+  resetSavings: TimerReset,
 };
 
 const DANGER: ReadonlySet<MemberActionKind> = new Set<MemberActionKind>([
@@ -81,6 +83,7 @@ export function memberActionLabel(kind: MemberActionKind, d: DashboardDictionary
     fail: copy.failKyc,
     close: copy.closeTitle,
     delete: copy.deleteButton,
+    resetSavings: copy.resetSavings,
   };
   return labels[kind];
 }
@@ -228,6 +231,16 @@ export function describeMemberAction(
         confirmLabel: copy.deleteConfirm,
         reasonLabel: one ? copy.deleteReasonLabel : undefined,
         reasonPlaceholder: copy.deleteReasonPlaceholder,
+      };
+    case "resetSavings":
+      return {
+        ...base,
+        title: one
+          ? fill(copy.resetSavingsTitle, { name })
+          : pluralize(bulk.resetSavingsTitle, count),
+        description: one ? copy.resetSavingsBody : bulk.resetSavingsBody,
+        reasonLabel: one ? copy.resetSavingsReasonLabel : undefined,
+        reasonPlaceholder: copy.resetSavingsReasonPlaceholder,
       };
   }
 }

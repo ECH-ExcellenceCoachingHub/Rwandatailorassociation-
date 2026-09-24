@@ -385,6 +385,7 @@ export const MEMBER_ACTIONS = [
   "verify_kyc",
   "reject_kyc",
   "delete",
+  "reset_savings",
 ] as const;
 
 export type MemberAction = (typeof MEMBER_ACTIONS)[number];
@@ -399,6 +400,9 @@ export const MEMBER_ACTION_PERMISSION: Record<MemberAction, PermissionCode> = {
   verify_kyc: PERMISSIONS.MEMBERS_VERIFY_KYC,
   reject_kyc: PERMISSIONS.MEMBERS_VERIFY_KYC,
   delete: PERMISSIONS.MEMBERS_DELETE,
+  // The same grant as waiving a fine or moving a start date on the compliance
+  // screen: a reset does both, for every fine the member has.
+  reset_savings: PERMISSIONS.COMPLIANCE_ACT,
 };
 
 /**
@@ -412,6 +416,7 @@ export const MEMBER_ACTION_REASON_MIN: Partial<Record<MemberAction, number>> = {
   close: 5,
   reject_kyc: 5,
   delete: 10,
+  reset_savings: 5,
 };
 
 /** The most members one bulk request may touch — a full page of the register. */

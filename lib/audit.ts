@@ -187,6 +187,9 @@ export const AUDIT_ACTIONS = {
   CONTRIBUTION_FINE_CANCELLED: "CONTRIBUTION_FINE_CANCELLED",
   /// Somebody was excused from contributing, or brought back into it.
   CONTRIBUTION_EXEMPTION_CHANGED: "CONTRIBUTION_EXEMPTION_CHANGED",
+  /// An officer restarted a member's saving clock from today, waiving the
+  /// fines still owed and refunding those already collected.
+  CONTRIBUTION_CLOCK_RESET: "CONTRIBUTION_CLOCK_RESET",
   /// Interest collected on a loan was split between the borrower's savings and
   /// the association, per the interest-sharing rule.
   INTEREST_DISTRIBUTED: "INTEREST_DISTRIBUTED",

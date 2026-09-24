@@ -2340,6 +2340,14 @@ model ContributionFine {
   missedDays  Int
   dueDayIndex Int
 
+  /// Which run of the member's obligation this fine belongs to — the
+  /// `obligationCycle` on their standing when it was assessed. `dueDayIndex`
+  /// counts days from the obligation's start, so once an officer resets that
+  /// start the count begins again at one, and a fine from before the reset
+  /// must neither collide with a new one on the same day number nor be read
+  /// as a prior fine against the new count.
+  cycle Int @default(0)
+
   /// The unpaid saving for the days this fine covers, and the rule in force on
   /// the day. Stored rather than recomputed: the rule may change, and a fine
   /// must remain explainable under the rule that produced it.
@@ -2379,7 +2387,7 @@ model ContributionFine {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([memberId, dueDayIndex])
+  @@unique([memberId, cycle, dueDayIndex])
   @@index([associationId, status, assessedAt])
   @@index([memberId, assessedAt])
   @@map("contribution_fines")
@@ -2403,6 +2411,12 @@ model MemberContributionStanding {
   /// date — but an association admitting an existing saver, or granting
   /// someone a settling-in period, needs to be able to say otherwise.
   obligationStartDate DateTime?
+
+  /// Bumped each time an officer resets the member's saving clock — see
+  /// resetSavingsClock in lib/services/contributions.ts. Fines carry the cycle
+  /// they were assessed in, and only the current cycle's count towards the
+  /// next one.
+  obligationCycle Int @default(0)
 
   /// Excused from contributing — illness, maternity, an agreed break. No fees
   /// and no fines accrue while it holds.

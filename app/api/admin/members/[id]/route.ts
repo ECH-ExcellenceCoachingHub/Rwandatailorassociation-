@@ -44,6 +44,7 @@ const schema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("close"), reason: reasonFor("close") }),
   z.object({ action: z.literal("verify_kyc") }),
   z.object({ action: z.literal("reject_kyc"), reason: reasonFor("reject_kyc") }),
+  z.object({ action: z.literal("reset_savings"), reason: reasonFor("reset_savings") }),
 ]);
 
 /**

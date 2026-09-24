@@ -21,6 +21,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { allowedMemberActions } from "@/lib/member-actions";
 import { getMemberProfile, getMemberRemovalHistory } from "@/lib/services/members";
 import { getMemberTransactions } from "@/lib/services/member-queries";
+import { resolveObligationStart } from "@/lib/services/contributions";
 import { add, formatMoney, subtract } from "@/lib/money";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { fill, pluralize } from "@/lib/i18n/fill";
@@ -524,6 +525,12 @@ export default async function AdminMemberDetailPage({
             kycStatus: member.kycStatus,
             nationalId: member.nationalId,
             exitedAt: member.exitedAt?.toISOString() ?? null,
+            savingsStart: resolveObligationStart({
+              contributionStanding: member.contributionStanding,
+              approvedAt: member.approvedAt,
+              joinedAt: member.joinedAt,
+              createdAt: member.createdAt,
+            }).toISOString(),
             savingsBalance: formatMoney(account?.balance ?? 0),
             loansOwing: formatMoney(outstanding),
             isStaff: member.user.role !== "MEMBER",
