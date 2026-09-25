@@ -102,7 +102,6 @@ export interface FormsCopy {
     membershipNumber: string;
     paymentReference: string;
     copyReference: string;
-    keepReferenceTitle: string;
     keepReferenceBody: string;
     goToSignIn: string;
     backHome: string;
@@ -301,16 +300,13 @@ export const forms: Record<Locale, FormsCopy> = {
       alreadyMember: "Already a member?",
       signIn: "Sign in",
       successTitle: "Application received",
-      successBody:
-        "Your application has been received. You will be notified once an administrator approves your membership.",
+      successBody: "We'll let you know once you're approved.",
       membershipNumber: "Membership number",
       paymentReference: "Your payment reference",
       copyReference: "Copy payment reference",
-      keepReferenceTitle: "Keep your payment reference.",
-      keepReferenceBody:
-        "Quote {reference} on every payment you make to the association. It is how your contribution is matched to your savings account.",
-      goToSignIn: "Go to sign in",
-      backHome: "Back to homepage",
+      keepReferenceBody: "Use it on every payment. Tap to copy.",
+      goToSignIn: "Sign in",
+      backHome: "Home",
       error: {
         firstName: "Enter your first name",
         lastName: "Enter your last name",
@@ -504,16 +500,13 @@ export const forms: Record<Locale, FormsCopy> = {
       alreadyMember: "Usanzwe uri umunyamuryango?",
       signIn: "Injira muri konti yawe",
       successTitle: "Ubusabe bwakiriwe",
-      successBody:
-        "Ubusabe bwawe bwakiriwe. Uzamenyeshwa igihe umuyobozi azaba yemeje ubunyamuryango bwawe.",
+      successBody: "Tuzakumenyesha nibumara kwemezwa.",
       membershipNumber: "Nimero y'umunyamuryango",
       paymentReference: "Nimero yawe y'ubwishyu",
       copyReference: "Koporora nimero y'ubwishyu",
-      keepReferenceTitle: "Bika neza nimero yawe y'ubwishyu kugira ngo uzayikoreshe igihe cyose wohereza amafaranga mu ihuriro.",
-      keepReferenceBody:
-        "Andika {reference} kuri buri bwishyu bwose wohereza mu ihuriro. Ni yo ituma amafaranga yawe ajya kuri konti yawe y'ubuzigame.",
-      goToSignIn: "Jya ku rupapuro rwo kwinjira",
-      backHome: "Subira ku rupapuro rwa mbere",
+      keepReferenceBody: "Yikoreshe kuri buri bwishyu. Kanda uyikoporore.",
+      goToSignIn: "Injira",
+      backHome: "Ahabanza",
       error: {
         firstName: "Andika izina ribanza",
         lastName: "Andika izina ry'umuryango",

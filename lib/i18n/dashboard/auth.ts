@@ -48,6 +48,9 @@ export interface AuthCopy {
     /// Shown when a guard signed them out — idle timeout, or a session ended
     /// from elsewhere — so the login screen is not a mystery.
     sessionExpired: string;
+    /// Above the password box after scanning a sign-in QR card, so the holder
+    /// can see whose card it is.
+    qrSignInAs: string;
     notAMember: string;
     applyToJoin: string;
   };
@@ -143,6 +146,7 @@ export const auth: Record<Locale, AuthCopy> = {
       failed: "Unable to sign in. Please try again.",
       sessionExpired:
         "Your session has ended. Sign in again to continue where you left off.",
+      qrSignInAs: "Signing in as {name}. Enter your password to continue.",
       notAMember: "Not yet a member?",
       applyToJoin: "Apply to join",
     },
@@ -249,6 +253,7 @@ export const auth: Record<Locale, AuthCopy> = {
       failed: "Ntibishoboye kwinjira. Ongera ugerageze.",
       sessionExpired:
         "Igihe cyawe cyo kwinjira cyarangiye. Ongera winjire ukomeze aho wari ugeze.",
+      qrSignInAs: "Urinjira nka {name}. Andika ijambobanga ryawe ukomeze.",
       notAMember: "Ntiwaba umunyamuryango?",
       applyToJoin: "Saba kwinjira",
     },

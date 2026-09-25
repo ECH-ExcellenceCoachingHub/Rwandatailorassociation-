@@ -4,32 +4,32 @@ import { prisma } from "@/lib/db/prisma";
 import { getEnv } from "@/lib/env";
 import { authLogger } from "@/lib/logger";
 import { generateToken, sha256 } from "@/lib/auth/jwt";
-import { createSession } from "@/lib/auth/session";
+import { authenticate, type LoginFailureReason } from "@/lib/auth/service";
 import { recordAudit, AUDIT_ACTIONS } from "@/lib/audit";
 import type { UserRole } from "@/lib/generated/prisma/enums";
 
 /**
  * Printable sign-in QR codes.
  *
- * WHY THIS EXISTS. The people this platform serves are tailors, and a good
- * number of them will never reliably reproduce a password on a phone keyboard.
- * A card they can keep in a wallet and hold up to a camera is the difference
- * between checking their own balance and asking someone in the office to check
- * it for them.
+ * WHY THIS EXISTS. The people this platform serves are tailors, and many of
+ * them struggle to type a phone number and a password on a phone keyboard. A
+ * card they keep in a wallet and hold up to a camera takes them straight to
+ * their own sign-in screen, where the only thing left to type is the password.
  *
- * WHAT IT COSTS. The image is a bearer credential. Anyone who photographs the
- * card, or picks it up off a workbench, can sign in as its owner. That is the
- * same bargain a bank card makes, and it is defensible only with the controls
- * that come with one:
+ * A SCAN IS NOT A SIGN-IN. The card names an account; it does not unlock it.
+ * Scanning opens a password screen, the same as the sign-in link an admin
+ * shares (/in/:token), and the password goes through the normal checks,
+ * including the per-account lockout. Someone who finds or photographs a card
+ * still cannot get into the account. Even so, the code carries the usual
+ * controls:
  *
  *   - every code expires (QR_ACCESS_TTL_DAYS, default 180 days);
  *   - issuing a new code revokes the previous one, so "I lost my card" has a
  *     one-click answer;
  *   - the owner can revoke without replacing;
- *   - issue, scan, rejection and revocation are all audited, and a scan is
- *     recorded in login activity where the owner can see it;
- *   - the scan endpoint is rate limited, so a stolen-looking run of failures
- *     is throttled rather than merely logged.
+ *   - issue, scan, rejection and revocation are all audited, and a sign-in by
+ *     card is recorded in login activity where the owner can see it;
+ *   - both the scan and the password step are rate limited.
  *
  * WHAT IS STORED. Two derivations of one secret, never the secret itself:
  *   - `tokenHash`    - SHA-256, the lookup key when a code is scanned.
@@ -369,29 +369,39 @@ export type QrRejectionReason =
   | "REVOKED"
   | "ACCOUNT_INACTIVE";
 
-export type QrRedemption =
+type QrContext = { ipAddress?: string | null; userAgent?: string | null };
+
+export type QrLookup =
   | {
       ok: true;
+      qrCodeId: string;
       userId: string;
       role: UserRole;
-      token: string;
-      expiresAt: Date;
-      mustChangePassword: boolean;
+      email: string | null;
+      associationId: string | null;
+      /// Shown on the password screen, so the holder can see whose card this
+      /// is. The printed card already carries it; nothing new is revealed.
+      fullName: string;
     }
   | { ok: false; reason: QrRejectionReason };
 
 /**
- * Validates a scanned code and, if it holds up, opens a session.
+ * Checks a scanned code WITHOUT signing anyone in.
+ *
+ * The card names an account; it does not unlock it. What it saves the owner is
+ * typing their phone number — the password is still asked for on the next
+ * screen, exactly as with the sign-in link an admin shares (/in/:token). A
+ * card picked up off a workbench is therefore worth nothing on its own.
  *
  * The failure reasons are distinguished for the log and the audit trail, not
  * for the person holding the card: the screen says the same thing either way,
  * because telling a stranger *why* a code failed tells them whether they have
  * found a real one.
  */
-export async function redeemQrToken(
+export async function lookupQrToken(
   rawToken: string,
-  context: { ipAddress?: string | null; userAgent?: string | null } = {}
-): Promise<QrRedemption> {
+  context: QrContext = {}
+): Promise<QrLookup> {
   const token = rawToken.trim();
 
   if (!looksLikeToken(token)) {
@@ -413,9 +423,10 @@ export async function redeemQrToken(
           id: true,
           role: true,
           email: true,
+          firstName: true,
+          lastName: true,
           status: true,
           associationId: true,
-          mustChangePassword: true,
           association: { select: { status: true } },
         },
       },
@@ -427,7 +438,7 @@ export async function redeemQrToken(
     return { ok: false, reason: "INVALID" };
   }
 
-  const reject = async (reason: QrRejectionReason): Promise<QrRedemption> => {
+  const reject = async (reason: QrRejectionReason): Promise<QrLookup> => {
     await recordRejection(row, reason, context);
     return { ok: false, reason };
   };
@@ -443,13 +454,62 @@ export async function redeemQrToken(
     return reject("ACCOUNT_INACTIVE");
   }
 
-  const session = await createSession(row.userId, context);
+  return {
+    ok: true,
+    qrCodeId: row.id,
+    userId: row.userId,
+    role: row.user.role,
+    email: row.user.email,
+    associationId: row.user.associationId,
+    fullName: `${row.user.firstName} ${row.user.lastName}`.trim(),
+  };
+}
+
+export type QrRedemption =
+  | {
+      ok: true;
+      userId: string;
+      role: UserRole;
+      token: string;
+      expiresAt: Date;
+      mustChangePassword: boolean;
+    }
+  /// The card itself is no good. The caller sends the holder to /qr-invalid.
+  | { ok: false; reason: QrRejectionReason }
+  /// The card is fine; the password was not. `message` is client-safe.
+  | { ok: false; reason: LoginFailureReason; message: string };
+
+/**
+ * Signs in the owner of a scanned code, given their password.
+ *
+ * The password goes through `authenticate`, so a scan is held to everything a
+ * normal sign-in is: the per-account lockout, the account-status checks, and a
+ * login-activity row — recorded as `qr:<code id>`, which is what makes a scan
+ * legible on the owner's security page.
+ */
+export async function redeemQrToken(
+  rawToken: string,
+  password: string,
+  context: QrContext = {}
+): Promise<QrRedemption> {
+  const code = await lookupQrToken(rawToken, context);
+  if (!code.ok) return code;
+
+  const login = await authenticate(
+    { type: "qr", value: `qr:${code.qrCodeId}`, userId: code.userId },
+    password,
+    context
+  );
+
+  if (!login.ok) {
+    return { ok: false, reason: login.reason, message: login.message };
+  }
 
   // Usage counters feed the owner's own "where has my card been used" panel.
   // A failure here must not cost them the sign-in they have just made.
   await prisma.accessQrCode
     .update({
-      where: { id: row.id },
+      where: { id: code.qrCodeId },
       data: {
         lastUsedAt: new Date(),
         lastUsedIp: context.ipAddress ?? null,
@@ -457,47 +517,20 @@ export async function redeemQrToken(
       },
     })
     .catch((error) => {
-      authLogger.warn({ err: error, qrCodeId: row.id }, "failed to record QR code use");
-    });
-
-  await prisma.loginActivity
-    .create({
-      data: {
-        userId: row.userId,
-        // The security page lists these back to the owner; naming the code
-        // rather than an email is what makes a scan legible there.
-        identifier: `qr:${row.id}`,
-        success: true,
-        ipAddress: context.ipAddress ?? null,
-        userAgent: context.userAgent?.slice(0, 500) ?? null,
-      },
-    })
-    .catch((error) => {
-      authLogger.warn(
-        { err: error, userId: row.userId },
-        "failed to record QR login activity"
-      );
+      authLogger.warn({ err: error, qrCodeId: code.qrCodeId }, "failed to record QR code use");
     });
 
   await recordAudit(
     {
       action: AUDIT_ACTIONS.QR_ACCESS_SIGNED_IN,
       entityType: "AccessQrCode",
-      entityId: row.id,
-      associationId: row.user.associationId,
-      metadata: { sessionId: session.sessionId },
+      entityId: code.qrCodeId,
+      associationId: code.associationId,
     },
-    { id: row.userId, role: row.user.role, email: row.user.email }
+    { id: code.userId, role: code.role, email: code.email }
   );
 
-  return {
-    ok: true,
-    userId: row.userId,
-    role: row.user.role,
-    token: session.token,
-    expiresAt: session.expiresAt,
-    mustChangePassword: row.user.mustChangePassword,
-  };
+  return login;
 }
 
 async function recordRejection(
@@ -507,7 +540,7 @@ async function recordRejection(
     user: { role: UserRole; email: string | null; associationId: string | null };
   } | null,
   reason: QrRejectionReason,
-  context: { ipAddress?: string | null; userAgent?: string | null }
+  context: QrContext
 ): Promise<void> {
   authLogger.warn(
     { reason, qrCodeId: row?.id ?? null, ip: context.ipAddress ?? null },

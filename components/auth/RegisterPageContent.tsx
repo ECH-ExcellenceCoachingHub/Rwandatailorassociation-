@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import SectionHeading from "@/components/SectionHeading";
 import BackButton from "@/components/BackButton";
@@ -36,6 +37,7 @@ export default function RegisterPageContent({
   // The brand strings live with the sign-in shell, which is the other place
   // this lockup appears. One brand, one pair of translations.
   const brand = d.auth.layout;
+  const [registered, setRegistered] = useState(false);
 
   return (
     <section className="page-pad bg-background">
@@ -66,14 +68,20 @@ export default function RegisterPageContent({
           </p>
         </div>
 
-        <SectionHeading
-          className="mt-8"
-          kicker={t.contact.kicker}
-          title={t.contact.registerTitle}
-          description={t.contact.registerText}
-        />
+        {!registered && (
+          <SectionHeading
+            className="mt-8"
+            kicker={t.contact.kicker}
+            title={t.contact.registerTitle}
+            description={t.contact.registerText}
+          />
+        )}
 
-        <RegisterForm sharePrice={sharePrice} dailyFee={dailyFee} />
+        <RegisterForm
+          sharePrice={sharePrice}
+          dailyFee={dailyFee}
+          onSuccess={() => setRegistered(true)}
+        />
       </div>
     </section>
   );

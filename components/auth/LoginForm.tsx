@@ -24,15 +24,23 @@ interface LoginResponse {
  * With `presetPhone` (the admin-shared link at /in/:token) the number is
  * filled in and not shown, and everything but the password is left out, so
  * the member has exactly one thing to do.
+ *
+ * With `qrToken` (a scanned sign-in card at /qr/:token) it is the same single
+ * password box, but it submits the card instead of a number. No identifier is
+ * put in the page at all: whoever is holding the card has not proved they own
+ * it yet, so the owner's phone number is not theirs to read.
  */
-export default function LoginForm({ presetPhone }: { presetPhone?: string } = {}) {
+export default function LoginForm({
+  presetPhone,
+  qrToken,
+}: { presetPhone?: string; qrToken?: string } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const { d } = useLanguage();
   const copy = d.auth.login;
 
-  const minimal = presetPhone !== undefined;
+  const minimal = presetPhone !== undefined || qrToken !== undefined;
   const [mode, setMode] = useState<"phone" | "email">("phone");
   const [identifier, setIdentifier] = useState(presetPhone ?? "");
   const [password, setPassword] = useState("");
@@ -46,13 +54,21 @@ export default function LoginForm({ presetPhone }: { presetPhone?: string } = {}
     setSubmitting(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await fetch(qrToken ? "/api/auth/qr-login" : "/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify(
+          qrToken ? { token: qrToken, password } : { identifier, password }
+        ),
       });
 
       const payload = await response.json();
+
+      // The card was replaced or revoked while this screen was open.
+      if (payload?.error?.code === "QR_INVALID") {
+        router.replace("/qr-invalid");
+        return;
+      }
 
       if (!response.ok) {
         setError(payload?.error?.message ?? copy.failed);
@@ -89,7 +105,7 @@ export default function LoginForm({ presetPhone }: { presetPhone?: string } = {}
         )
       )}
 
-      {minimal ? (
+      {qrToken !== undefined ? null : minimal ? (
         // The number came from the link, so it is not shown. It stays in the
         // form, out of sight, so a password manager can still pair it with
         // the password it saves.

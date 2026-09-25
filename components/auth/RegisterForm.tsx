@@ -19,7 +19,7 @@ import { PasswordStrength } from "@/components/ui/password-strength";
 import { PhotoField } from "@/components/ui/photo-field";
 import { RwandaLocationFields } from "@/components/ui/rwanda-location-fields";
 import { useLanguage } from "@/components/LanguageProvider";
-import { fill, split } from "@/lib/i18n/fill";
+import { fill } from "@/lib/i18n/fill";
 import { add, formatMoney, multiply } from "@/lib/money";
 import { assessPasswordStrength } from "@/lib/auth/password.shared";
 import { isValidRwandanPhone } from "@/lib/phone";
@@ -78,11 +78,15 @@ const SHARE_OPTIONS = Array.from({ length: MAX_APPLICATION_SHARES }, (_, i) => i
 export default function RegisterForm({
   sharePrice,
   dailyFee,
+  onSuccess,
 }: {
   /// The rulebook's daily saving — the price of one share, per day.
   sharePrice: string;
   /// The platform's service fee, per share per day.
   dailyFee: string;
+  /// Lets the page drop its "become a member" heading once there is nothing
+  /// left to apply for.
+  onSuccess?: () => void;
 }) {
   const { d } = useLanguage();
   const copy = d.forms.register;
@@ -235,6 +239,10 @@ export default function RegisterForm({
       }
 
       setSuccess(payload as SuccessState);
+      onSuccess?.();
+      // The submit button sits at the bottom of a long form; without this the
+      // confirmation would render somewhere above the viewport.
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       setFormError(d.common.serverUnreachable);
       setSubmitting(false);
@@ -242,80 +250,60 @@ export default function RegisterForm({
   }
 
   if (success) {
-    const [keepBefore, keepAfter] = split(copy.keepReferenceBody, "reference");
-
+    // Kept deliberately sparse: the applicant has just filled in a long form,
+    // and the one thing they must carry away is the payment reference — a
+    // payment without it cannot be matched automatically. So it is the largest
+    // thing on the card, with everything else reduced to a line.
     return (
-      <div className="mx-auto mt-10 max-w-2xl">
-        <div className="rounded-2xl border border-border bg-surface p-8 shadow-card sm:p-10">
-          <span className="flex size-14 items-center justify-center rounded-full bg-success/10 text-success">
-            <CheckCircle2 className="size-7" aria-hidden="true" />
+      <div className="mx-auto mt-10 max-w-md text-center">
+        <div className="rounded-3xl border border-border bg-surface px-6 py-10 shadow-card sm:px-10">
+          <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-success/10 text-success ring-8 ring-success/5">
+            <CheckCircle2 className="size-8" aria-hidden="true" />
           </span>
 
-          <h3 className="mt-6 font-heading text-2xl font-bold text-ink">
+          <h2 className="mt-6 font-heading text-2xl font-bold text-ink">
             {copy.successTitle}
-          </h3>
-          <p className="mt-3 text-[15px] leading-relaxed text-ink-muted">
-            {copy.successBody}
+          </h2>
+          <p className="mt-2 text-[15px] text-ink-muted">{copy.successBody}</p>
+
+          <div className="mt-8 rounded-2xl bg-primary-50 px-5 py-6">
+            <p className="text-xs font-semibold uppercase tracking-wider text-primary-hover">
+              {copy.paymentReference}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard.writeText(success.paymentReference);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              className="mx-auto mt-2 flex items-center gap-2 rounded-lg px-2 py-1 font-heading text-2xl font-bold tracking-wide text-primary-hover transition-colors hover:bg-primary/10"
+              aria-label={copy.copyReference}
+            >
+              {success.paymentReference}
+              {copied ? (
+                <CheckCircle2 className="size-5 text-success" aria-hidden="true" />
+              ) : (
+                <Copy className="size-5 text-primary" aria-hidden="true" />
+              )}
+            </button>
+            <p className="mt-2 text-sm text-ink-muted">{copy.keepReferenceBody}</p>
+          </div>
+
+          <p className="mt-5 text-sm text-ink-muted">
+            {copy.membershipNumber}:{" "}
+            <span className="font-semibold text-ink">{success.memberNumber}</span>
           </p>
 
-          <dl className="mt-8 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-border bg-background p-4">
-              <dt className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
-                {copy.membershipNumber}
-              </dt>
-              <dd className="mt-1.5 font-heading text-lg font-bold text-ink">
-                {success.memberNumber}
-              </dd>
-            </div>
-
-            <div className="rounded-xl border border-primary/25 bg-primary-50 p-4">
-              <dt className="text-xs font-semibold uppercase tracking-wider text-primary-hover">
-                {copy.paymentReference}
-              </dt>
-              <dd className="mt-1.5 flex items-center gap-2">
-                <span className="font-heading text-lg font-bold text-primary-hover">
-                  {success.paymentReference}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(success.paymentReference);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }}
-                  className="rounded-lg p-1.5 text-primary transition-colors hover:bg-primary/10"
-                  aria-label={copy.copyReference}
-                >
-                  {copied ? (
-                    <CheckCircle2 className="size-4" aria-hidden="true" />
-                  ) : (
-                    <Copy className="size-4" aria-hidden="true" />
-                  )}
-                </button>
-              </dd>
-            </div>
-          </dl>
-
-          {/*
-            The single most important instruction on this page. A payment that
-            arrives without this reference cannot be attributed automatically
-            and waits in an administrator's unmatched queue.
-          */}
-          <Alert variant="info" className="mt-6">
-            <strong className="font-semibold">{copy.keepReferenceTitle}</strong>{" "}
-            {keepBefore}
-            <strong>{success.paymentReference}</strong>
-            {keepAfter}
-          </Alert>
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button asChild className="flex-1">
-              <Link href="/login">{copy.goToSignIn}</Link>
-            </Button>
-            <Button asChild variant="outline" className="flex-1">
-              <Link href="/">{copy.backHome}</Link>
-            </Button>
-          </div>
+          <Button asChild className="mt-8 w-full">
+            <Link href="/login">{copy.goToSignIn}</Link>
+          </Button>
+          <Link
+            href="/"
+            className="mt-4 inline-block text-sm font-medium text-ink-muted transition-colors hover:text-ink"
+          >
+            {copy.backHome}
+          </Link>
         </div>
       </div>
     );

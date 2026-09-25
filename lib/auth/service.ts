@@ -59,8 +59,18 @@ export type LoginResult =
 const GENERIC_FAILURE =
   "Those credentials are not correct. Check your details and try again.";
 
+/**
+ * Who is signing in. `qr` is a scanned sign-in card: the card names the
+ * account, and the password still has to be typed — see lib/auth/qr-access.ts.
+ * Its `value` is what login activity records, `qr:<code id>`, so the owner's
+ * security page shows the card rather than a bare user id.
+ */
+export type LoginIdentifier =
+  | { type: "email" | "phone"; value: string }
+  | { type: "qr"; value: string; userId: string };
+
 export async function authenticate(
-  identifier: { type: "email" | "phone"; value: string },
+  identifier: LoginIdentifier,
   password: string,
   context: { ipAddress?: string | null; userAgent?: string | null } = {}
 ): Promise<LoginResult> {
@@ -68,9 +78,11 @@ export async function authenticate(
 
   const user = await prisma.user.findFirst({
     where:
-      identifier.type === "email"
-        ? { email: identifier.value }
-        : { phone: identifier.value },
+      identifier.type === "qr"
+        ? { id: identifier.userId }
+        : identifier.type === "email"
+          ? { email: identifier.value }
+          : { phone: identifier.value },
     select: {
       id: true,
       email: true,

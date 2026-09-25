@@ -441,10 +441,10 @@ export const account: Record<Locale, AccountCopy> = {
     qr: {
       title: "My sign-in QR code",
       description:
-        "Scan this with your phone camera to open your account without typing a password.",
+        "Scan this with your phone camera to open your sign-in screen — then just type your password.",
       noCodeTitle: "You do not have a QR code yet",
       noCodeBody:
-        "Generate one, then print it or save the image to your phone. Scanning it takes you straight to your account.",
+        "Generate one, then print it or save the image to your phone. Scanning it opens your sign-in screen, where you only type your password.",
       generate: "Generate my QR code",
       generating: "Generating…",
       regenerate: "Replace with a new code",
@@ -470,10 +470,10 @@ export const account: Record<Locale, AccountCopy> = {
       howToTitle: "How to use it",
       howToStepOne: "Open the camera on your phone.",
       howToStepTwo: "Point it at the code until a link appears.",
-      howToStepThree: "Tap the link — your account opens straight away.",
+      howToStepThree: "Tap the link, type your password, and your account opens.",
       keepSafeTitle: "Keep this code to yourself",
       keepSafeBody:
-        "Anyone holding this image can open your account. Do not send it in a message or post it in a group. If you lose it, replace it here — the old one stops working at once.",
+        "Your password is still needed after scanning, but keep the code private anyway. Do not send it in a message or post it in a group. If you lose it, replace it here — the old one stops working at once.",
       scanToSignIn: "Scan to sign in",
       cardHolder: "Member",
       failedTitle: "That did not work",
@@ -726,10 +726,10 @@ export const account: Record<Locale, AccountCopy> = {
     qr: {
       title: "Kode yanjye ya QR yo kwinjira",
       description:
-        "Fata iyi kode na kamera ya telefone yawe winjire kuri konti utandika ijambobanga.",
+        "Fata iyi kode na kamera ya telefone yawe ufungure ahantu ho kwinjira — hanyuma wandike ijambobanga ryawe gusa.",
       noCodeTitle: "Nta kode ya QR ufite",
       noCodeBody:
-        "Kora imwe, hanyuma uyicape cyangwa ubike ifoto kuri telefone yawe. Kuyifata bikujyana kuri konti yawe ako kanya.",
+        "Kora imwe, hanyuma uyicape cyangwa ubike ifoto kuri telefone yawe. Kuyifata bifungura ahantu ho kwinjira, aho wandika ijambobanga ryawe gusa.",
       generate: "Kora kode yanjye ya QR",
       generating: "Irakorwa…",
       regenerate: "Simbuza indi nshya",
@@ -755,10 +755,10 @@ export const account: Record<Locale, AccountCopy> = {
       howToTitle: "Uko uyikoresha",
       howToStepOne: "Fungura kamera ya telefone yawe.",
       howToStepTwo: "Yerekeze kuri kode kugeza umurongo ugaragaye.",
-      howToStepThree: "Kanda uwo murongo — konti yawe ihita ifunguka.",
+      howToStepThree: "Kanda uwo murongo, wandike ijambobanga ryawe, konti yawe ifunguke.",
       keepSafeTitle: "Iyi kode ni iyawe wenyine",
       keepSafeBody:
-        "Umuntu wese ufite iyi foto ashobora gufungura konti yawe. Ntuyoherereze mu butumwa cyangwa mu itsinda. Nizimira, yisimbuze hano — iya kera ihita ireka gukora.",
+        "Ijambobanga ryawe rirakenewe na nyuma yo gufata kode, ariko uyigumane wenyine. Ntuyoherereze mu butumwa cyangwa mu itsinda. Nizimira, yisimbuze hano — iya kera ihita ireka gukora.",
       scanToSignIn: "Fata kode winjire",
       cardHolder: "Umunyamuryango",
       failedTitle: "Ntibyagenze neza",
