@@ -171,6 +171,31 @@ export interface AccountCopy {
     viewFullStatement: string;
     balanceColumn: string;
     recentActivity: string;
+
+    // The account status list (by-laws Art. 9) -------------------------------
+    sharesCount: string;
+    loanSectionTitle: string;
+    guarantor: string;
+    noGuarantor: string;
+    penaltiesTitle: string;
+    penaltiesUnpaid: string;
+
+    // How deposits are spread over the daily contribution --------------------
+    dailyTitle: string;
+    dailyHint: string;
+    dailyContribution: string;
+    dailyContributionHint: string;
+    dueSoFar: string;
+    dueSoFarHint: string;
+    totalDeposited: string;
+    extraDeposited: string;
+    extraDepositedHint: string;
+    behindAmount: string;
+    behindAmountHint: string;
+    leftover: string;
+    leftoverHint: string;
+    paidThrough: string;
+    paidThroughNone: string;
   };
   qr: {
     title: string;
@@ -437,6 +462,30 @@ export const account: Record<Locale, AccountCopy> = {
       viewFullStatement: "See the full statement",
       balanceColumn: "Balance",
       recentActivity: "Recent activity",
+
+      sharesCount: "Number of shares",
+      loanSectionTitle: "Approved loan & guarantor",
+      guarantor: "Guarantor",
+      noGuarantor: "No guarantor",
+      penaltiesTitle: "Penalties",
+      penaltiesUnpaid: "Unpaid penalties",
+
+      dailyTitle: "How your deposits cover each day",
+      dailyHint:
+        "Every day, one day's contribution for your shares is taken from what you have paid in. Anything extra pays the days still to come.",
+      dailyContribution: "Daily contribution",
+      dailyContributionHint: "{shares} share × {perShare} a day|{shares} shares × {perShare} a day",
+      dueSoFar: "Due up to today",
+      dueSoFarHint: "{days} day × {daily}|{days} days × {daily}",
+      totalDeposited: "You have paid in",
+      extraDeposited: "Paid in advance",
+      extraDepositedHint: "Covers {days} more days",
+      behindAmount: "Still to pay",
+      behindAmountHint: "{days} day not yet paid|{days} days not yet paid",
+      leftover: "Towards the next day",
+      leftoverHint: "Not yet a full day's contribution",
+      paidThrough: "Paid up to",
+      paidThroughNone: "No day paid yet",
     },
     qr: {
       title: "My sign-in QR code",
@@ -570,7 +619,7 @@ export const account: Record<Locale, AccountCopy> = {
       signedInWithQr: "Winjiye ukoresheje kode yawe ya QR.",
       accountState: "Konti",
       identityCheck: "Igenzura ry'umwirondoro",
-      memberNumber: "Nimero y'umunyamuryango",
+      memberNumber: "Nimero y’umunyamuryango",
       paymentReference: "Nimero y'ubwishyu",
       paymentReferenceHint:
         "Andika iyi nimero kuri buri bwishyu kugira ngo bugere kuri konti yawe uwo munsi.",
@@ -614,7 +663,7 @@ export const account: Record<Locale, AccountCopy> = {
 
       yourDetails: "Amakuru yawe",
       fullName: "Amazina",
-      telephone: "Telefone",
+      telephone: "Telefoni",
       emailAddress: "Imeyili",
       notProvided: "Ntibyatanzwe",
 
@@ -645,7 +694,7 @@ export const account: Record<Locale, AccountCopy> = {
       finesCleared: "Nta hazabu itishyuwe",
 
       contributionsTitle: "Amafaranga yose watanze",
-      totalContributed: "Amafaranga yose watanze",
+      totalContributed: "Amafaranga yose umaze gutanga",
       totalContributedHint: "Ibyinjiye byose kuri konti yawe kuva watangira",
       totalWithdrawn: "Amafaranga wabikuje",
       interestEarned: "Inyungu wabonye",
@@ -722,6 +771,30 @@ export const account: Record<Locale, AccountCopy> = {
       viewFullStatement: "Reba icyemezo cyuzuye",
       balanceColumn: "Asigaye",
       recentActivity: "Ibikorwa biheruka",
+
+      sharesCount: "Umubare w’imigabane ufite",
+      loanSectionTitle: "Inguzanyo yemerewe n'umwishingizi",
+      guarantor: "Umwishingizi",
+      noGuarantor: "Nta mwishingizi",
+      penaltiesTitle: "Ibihano",
+      penaltiesUnpaid: "Ibihano bitarishyurwa",
+
+      dailyTitle: "Uko umusanzu w’amafaranga ukatwa buri munsi",
+      dailyHint: "Buri munsi, ukatwa umusanzu ujyanye n’umubare w’imigabane ufite.",
+      dailyContribution: "Umusanzu w’umunsi",
+      dailyContributionHint:
+        "Umugabane {shares} × {perShare} ku munsi|Imigabane {shares} × {perShare} ku munsi",
+      dueSoFar: "Amafaranga wagombaga kuba umaze gutanga",
+      dueSoFarHint: "Umunsi {days} × {daily}|Iminsi {days} × {daily}",
+      totalDeposited: "Amafaranga umaze gutanga",
+      extraDeposited: "Ayo warengejeho (wishyuye mbere)",
+      extraDepositedHint: "Yishyura indi minsi {days}",
+      behindAmount: "Amafaranga usabwa kwishyura",
+      behindAmountHint: "Umunsi {days} utarishyurwa|Iminsi {days} itarishyurwa",
+      leftover: "Ayabitswe ku munsi ukurikira",
+      leftoverHint: "Ntaragera ku musanzu w'umunsi wose",
+      paidThrough: "Wishyuye kugeza",
+      paidThroughNone: "Nta munsi urishyurwa",
     },
     qr: {
       title: "Kode yanjye ya QR yo kwinjira",

@@ -194,6 +194,10 @@ export interface AccountStatusSummary {
   status: MemberStatus;
   kycStatus: KycStatus;
   joinedAt: Date | null;
+  /// Imigabane — how many shares the member subscribed to. Null in the
+  /// database counts as one, which is what members enrolled before shares
+  /// were recorded were paying.
+  shares: number;
 
   /// Null when a member has been approved but no savings account exists yet —
   /// a real state during onboarding, and one the page must not show as zero.
@@ -212,6 +216,9 @@ export interface AccountStatusSummary {
   } | null;
 
   shareholding: ShareholdingSummary | null;
+  /// How the money paid in is spent, day by day, on the member's shares.
+  /// Null for an exempt member, for whom there is no daily obligation.
+  contribution: ContributionBreakdown | null;
   loan: AccountLoanSummary | null;
   borrowing: AccountBorrowingLimit;
   warehouse: MemberWarehouseSummary | null;
@@ -278,6 +285,7 @@ export async function getAccountStatusSummary(
       approvedAt: true,
       createdAt: true,
       associationId: true,
+      sharesSubscribed: true,
       user: {
         select: { firstName: true, lastName: true, phone: true, email: true },
       },
@@ -407,6 +415,7 @@ export async function getAccountStatusSummary(
     // `joinedAt` is when they started; `approvedAt` is when the association
     // agreed. Members recruited at a meeting often have only the second.
     joinedAt: member.joinedAt ?? member.approvedAt,
+    shares: Math.max(1, member.sharesSubscribed ?? 1),
 
     savings: account
       ? {
@@ -424,6 +433,14 @@ export async function getAccountStatusSummary(
       : null,
 
     shareholding: standing ? buildShareholding(standing) : null,
+    contribution:
+      standing && !standing.isExempt
+        ? buildContributionBreakdown({
+            standing,
+            shares: Math.max(1, member.sharesSubscribed ?? 1),
+            totalDeposited: account?.totalDeposits ?? 0,
+          })
+        : null,
 
     loan: buildLoanSummary({
       activeLoan,
@@ -528,6 +545,79 @@ export function buildShareholding(standing: ContributionStanding): ShareholdingS
     status: standing.status,
     outstandingFines: standing.outstandingFineAmount,
     daysUntilFine: standing.daysUntilFine,
+  };
+}
+
+/**
+ * HOW A DEPOSIT BECOMES DAILY CONTRIBUTIONS. A member pays whatever they like;
+ * the association takes one day's contribution — the per-share rate times
+ * their shares — for every day since they joined. Whatever is left over is an
+ * advance that pays the days still to come.
+ *
+ *     due so far   = daily contribution × days since joining
+ *     paid ahead   = total deposited − due so far          (when positive)
+ *     behind by    = due so far − total deposited          (when positive)
+ *     days covered = ⌊total deposited ÷ daily contribution⌋
+ *     leftover     = total deposited − days covered × daily contribution
+ *
+ * `leftover` is less than one day's contribution: money already paid towards
+ * the next day that is not yet enough to cover it.
+ */
+export interface ContributionBreakdown {
+  shares: number;
+  /// One day, for one share: savings plus service fee.
+  perShareDaily: string;
+  /// One day, for all their shares.
+  dailyTotal: string;
+  daysDue: number;
+  dueSoFar: string;
+  totalDeposited: string;
+  daysCovered: number;
+  paidAheadAmount: string;
+  paidAheadDays: number;
+  behindAmount: string;
+  behindDays: number;
+  leftover: string;
+  /// The last day the money paid in covers in full. Null when not even the
+  /// first day is covered.
+  paidThrough: Date | null;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export function buildContributionBreakdown(input: {
+  standing: ContributionStanding & { obligationStart: Date };
+  shares: number;
+  totalDeposited: Prisma.Decimal | string | number;
+}): ContributionBreakdown {
+  const { standing, shares } = input;
+  const dailyTotal = toMoney(standing.dailyTotal);
+  const totalDeposited = toMoney(input.totalDeposited);
+  const dueSoFar = multiply(dailyTotal, standing.dueDays);
+  const difference = subtract(totalDeposited, dueSoFar);
+  const zero = toMoney(0);
+
+  return {
+    shares,
+    perShareDaily: toMoneyString(dailyTotal.dividedBy(shares)),
+    dailyTotal: toMoneyString(dailyTotal),
+    daysDue: standing.dueDays,
+    dueSoFar: toMoneyString(dueSoFar),
+    totalDeposited: toMoneyString(totalDeposited),
+    daysCovered: standing.coveredDays,
+    paidAheadAmount: toMoneyString(gt(difference, 0) ? difference : zero),
+    paidAheadDays: Math.max(0, standing.coveredDays - standing.dueDays),
+    behindAmount: toMoneyString(gt(difference, 0) ? zero : difference.negated()),
+    behindDays: standing.missedDays,
+    leftover: toMoneyString(
+      gt(dailyTotal, 0)
+        ? subtract(totalDeposited, multiply(dailyTotal, standing.coveredDays))
+        : zero
+    ),
+    paidThrough:
+      standing.coveredDays > 0
+        ? new Date(standing.obligationStart.getTime() + (standing.coveredDays - 1) * DAY_MS)
+        : null,
   };
 }
 

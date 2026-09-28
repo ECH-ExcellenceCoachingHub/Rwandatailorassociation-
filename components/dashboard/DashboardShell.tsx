@@ -60,6 +60,7 @@ export function DashboardShell({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { d } = useLanguage();
+  const pathname = usePathname();
 
   // `memberNumber` is the shell's existing proxy for "this person has a member
   // record of their own" — it is already sent for exactly those accounts, and
@@ -115,6 +116,13 @@ export function DashboardShell({
       window.removeEventListener("focus", checkSession);
     };
   }, []);
+
+  // The account status page stands on its own — no sidebar, no top bar. It is
+  // the screen a member lands on after scanning their card, and it should read
+  // as a single statement of where they stand.
+  if (pathname === "/account/status") {
+    return <main className="min-h-screen">{children}</main>;
+  }
 
   return (
     <div className="min-h-screen bg-background">
