@@ -183,6 +183,29 @@ describe("warning before the fine", () => {
     expect(result.status).toBe("BEHIND");
   });
 
+  it("counts down to the next fine, not the first, once already fined", () => {
+    // Fined at seven days. Ten days behind now, so the next fine is at
+    // fourteen — four days off, not "tonight". Counting to the grace period
+    // alone left this at zero, and the nightly reminder told the member every
+    // night that a fine was landing.
+    const result = standing({
+      asOf: at("2026-01-10"),
+      priorFines: [{ missedDays: 7, dueDayIndex: 7 }],
+    });
+    expect(result.missedDays).toBe(10);
+    expect(result.daysUntilFine).toBe(4);
+    expect(result.fineDue).toBeNull();
+  });
+
+  it("reaches zero again only when the next fine is due", () => {
+    const result = standing({
+      asOf: at("2026-01-14"),
+      priorFines: [{ missedDays: 7, dueDayIndex: 7 }],
+    });
+    expect(result.daysUntilFine).toBe(0);
+    expect(result.fineDue?.missedDays).toBe(14);
+  });
+
   it("is at risk once the fine is within the reminder lead time", () => {
     const result = standing({ asOf: at("2026-01-06") });
     expect(result.missedDays).toBe(6);

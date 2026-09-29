@@ -216,7 +216,12 @@ export function computeStanding(input: StandingInputs): ContributionStanding {
   const arrearsFee = multiply(dailyFee, missedDays);
   const arrearsTotal = add(arrearsSavings, arrearsFee);
 
-  const daysUntilFine = Math.max(0, policy.graceDays - missedDays);
+  // Counted to the NEXT fine, not the first. Counting to the grace period
+  // alone pins this at zero for anyone already fined, and the nightly
+  // reminder then tells them every night that a fine lands tonight — which
+  // members read, reasonably, as being fined every day.
+  const { threshold } = nextFineThreshold(policy, input.priorFines, coveredDays);
+  const daysUntilFine = Math.max(0, threshold - missedDays);
 
   // Fees are owed for days the member has PAID for, never for days they have
   // missed. Charging the service fee on a day nobody contributed would bill a
@@ -273,6 +278,31 @@ export function computeStanding(input: StandingInputs): ContributionStanding {
 }
 
 /**
+ * How many missed days the member's next fine lands at, given the fines that
+ * still bite. Shared by the fine itself and the countdown the warnings quote,
+ * so the two cannot drift apart.
+ */
+function nextFineThreshold(
+  policy: AssociationPolicy,
+  priorFines: PriorFine[],
+  coveredDays: number
+): { threshold: number; highestPrior: number } {
+  // A prior fine still bites while the member has not yet paid for the days it
+  // punished. Once they have, it drops out and the count starts afresh.
+  const biting = priorFines.filter((fine) => fine.dueDayIndex > coveredDays);
+
+  const highestPrior = biting.reduce(
+    (highest, fine) => Math.max(highest, fine.missedDays),
+    0
+  );
+
+  const threshold =
+    biting.length > 0 ? highestPrior + policy.penaltyRepeatDays : policy.graceDays;
+
+  return { threshold, highestPrior };
+}
+
+/**
  * Decides whether tonight's run owes this member a fine.
  *
  * THE PROBLEM THIS SOLVES. The job runs every night, and a member who is
@@ -313,19 +343,11 @@ function resolveFineDue(input: {
 
   if (missedDays < policy.graceDays) return null;
 
-  // A prior fine still bites while the member has not yet paid for the days it
-  // punished. Once they have, it drops out and the count starts afresh.
-  const biting = input.priorFines.filter(
-    (fine) => fine.dueDayIndex > input.coveredDays
+  const { threshold, highestPrior } = nextFineThreshold(
+    policy,
+    input.priorFines,
+    input.coveredDays
   );
-
-  const highestPrior = biting.reduce(
-    (highest, fine) => Math.max(highest, fine.missedDays),
-    0
-  );
-
-  const threshold =
-    biting.length > 0 ? highestPrior + policy.penaltyRepeatDays : policy.graceDays;
 
   if (missedDays < threshold) return null;
 
