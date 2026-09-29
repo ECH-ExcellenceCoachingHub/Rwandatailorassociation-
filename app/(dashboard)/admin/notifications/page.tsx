@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Bell, CheckCheck, Send, TriangleAlert } from "lucide-react";
 import { requirePermission, resolveAssociationScope } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
@@ -13,6 +14,8 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { SearchFilterForm } from "@/components/dashboard/SearchFilterForm";
 import { PaginationLinks } from "@/components/dashboard/PaginationLinks";
 import { parsePage } from "@/lib/validation/filters";
+import { NotificationStatus } from "@/lib/generated/prisma/enums";
+import { Button } from "@/components/ui/button";
 import {
   TableWrapper,
   Table,
@@ -52,7 +55,14 @@ function humanise(value: string): string {
 export default async function AdminNotificationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; eventType?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    eventType?: string;
+    q?: string;
+    delivery?: string;
+    read?: string;
+    member?: string;
+  }>;
 }) {
   const context = await requirePermission(
     PERMISSIONS.NOTIFICATIONS_SEND,
@@ -63,9 +73,17 @@ export default async function AdminNotificationsPage({
   const { d, locale } = await getDashboardCopy();
   const copy = d.admin.notifications;
 
+  const deliveryStatus = Object.values(NotificationStatus).find(
+    (status) => status === params.delivery
+  );
+
   const data = await listSentNotifications(associationId, {
     page: parsePage(params.page),
     eventType: params.eventType && params.eventType !== "ALL" ? params.eventType : undefined,
+    search: params.q,
+    memberId: params.member || undefined,
+    deliveryStatus,
+    read: params.read === "READ" ? true : params.read === "UNREAD" ? false : undefined,
   });
 
   const failed = data.deliveryStatus.FAILED ?? 0;
@@ -106,9 +124,21 @@ export default async function AdminNotificationsPage({
         />
       </StatGrid>
 
+      {params.member && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-ink">
+          <span>{copy.forMember}</span>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/admin/notifications">{copy.clearMember}</Link>
+          </Button>
+        </div>
+      )}
+
       <SearchFilterForm
         action="/admin/notifications"
-        showSearch={false}
+        search={params.q ?? ""}
+        searchLabel={copy.searchLabel}
+        placeholder={copy.searchPlaceholder}
+        hidden={{ member: params.member }}
         selects={[
           {
             name: "eventType",
@@ -122,6 +152,28 @@ export default async function AdminNotificationsPage({
               })),
             ],
             width: "lg:w-72",
+          },
+          {
+            name: "delivery",
+            label: copy.deliveryFilter,
+            value: deliveryStatus,
+            options: [
+              { value: "ALL", label: copy.allDeliveries },
+              ...(["SENT", "DELIVERED", "FAILED", "PENDING", "SKIPPED"] as const).map(
+                (status) => ({ value: status, label: d.status[status] })
+              ),
+            ],
+          },
+          {
+            name: "read",
+            label: copy.readFilter,
+            value: params.read,
+            options: [
+              { value: "ALL", label: copy.anyRead },
+              { value: "READ", label: copy.read },
+              { value: "UNREAD", label: copy.unread },
+            ],
+            width: "lg:w-44",
           },
         ]}
       />
@@ -143,6 +195,9 @@ export default async function AdminNotificationsPage({
                 <TableHead>{copy.colDelivery}</TableHead>
                 <TableHead>{copy.colSent}</TableHead>
                 <TableHead>{copy.colRead}</TableHead>
+                <TableHead>
+                  <span className="sr-only">{copy.view}</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -221,6 +276,15 @@ export default async function AdminNotificationsPage({
                     >
                       {notification.read ? copy.read : copy.unread}
                     </span>
+                  </TableCell>
+
+                  <TableCell>
+                    <Link
+                      href={`/admin/notifications/${notification.id}`}
+                      className="text-sm font-semibold text-primary hover:underline"
+                    >
+                      {copy.view}
+                    </Link>
                   </TableCell>
                 </TableRow>
               ))}

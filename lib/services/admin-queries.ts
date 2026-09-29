@@ -1,8 +1,11 @@
 import "server-only";
 import { prisma, Prisma } from "@/lib/db/prisma";
 import { add, subtract, toMoneyString } from "@/lib/money";
+import { renderNotification, type TemplateContext } from "@/lib/notifications/templates";
+import type { NotificationEvent } from "@/lib/notifications/types";
 import type {
   LoanStatus,
+  NotificationStatus,
   PaymentStatus,
   TransactionType,
   UserRole,
@@ -809,13 +812,53 @@ export async function listJobRuns(
 
 export async function listSentNotifications(
   associationId: string | null,
-  filters: { eventType?: string; page?: number; pageSize?: number } = {}
+  filters: {
+    eventType?: string;
+    /// Name, member number, email or phone of the recipient.
+    search?: string;
+    /// One member's history, as linked from their profile.
+    memberId?: string;
+    /// A delivery outcome, e.g. FAILED, to find the members not reached.
+    deliveryStatus?: NotificationStatus;
+    read?: boolean;
+    page?: number;
+    pageSize?: number;
+  } = {}
 ) {
   const { page, pageSize } = paginate(filters.page, filters.pageSize);
+  const search = filters.search?.trim();
 
   const where: Prisma.NotificationWhereInput = {
     ...scopeOf(associationId),
     ...(filters.eventType ? { eventType: filters.eventType } : {}),
+    ...(filters.memberId ? { user: { member: { id: filters.memberId } } } : {}),
+    ...(filters.deliveryStatus
+      ? { deliveries: { some: { status: filters.deliveryStatus } } }
+      : {}),
+    ...(filters.read === undefined
+      ? {}
+      : { readAt: filters.read ? { not: null } : null }),
+    ...(search
+      ? {
+          AND: [
+            {
+              user: {
+                OR: [
+                  { firstName: { contains: search, mode: "insensitive" } },
+                  { lastName: { contains: search, mode: "insensitive" } },
+                  { email: { contains: search, mode: "insensitive" } },
+                  { phone: { contains: search } },
+                  {
+                    member: {
+                      memberNumber: { contains: search, mode: "insensitive" },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }
+      : {}),
   };
 
   const [total, rows, eventTypes, unread, deliveries] = await Promise.all([
@@ -847,9 +890,11 @@ export async function listSentNotifications(
     }),
     prisma.notification.groupBy({ by: ["eventType"], where: scopeOf(associationId), _count: true }),
     prisma.notification.count({ where: { ...where, readAt: null } }),
+    // Counted over the same filter as the list, so a page filtered to one
+    // member shows that member's deliveries rather than everyone's.
     prisma.notificationDelivery.groupBy({
       by: ["status"],
-      where: { notification: scopeOf(associationId) },
+      where: { notification: where },
       _count: true,
     }),
   ]);
@@ -880,6 +925,93 @@ export async function listSentNotifications(
         sentAt: d.sentAt,
       })),
     })),
+  };
+}
+
+/**
+ * One notification, with everything the member was shown on each channel.
+ *
+ * Deliveries sent before the content was stored have none on the row; those
+ * are re-rendered from the template and the context saved with the
+ * notification, and flagged `reconstructed` so the page can say the wording
+ * is today's template rather than a copy of what went out.
+ */
+export async function getSentNotification(associationId: string | null, id: string) {
+  const notification = await prisma.notification.findFirst({
+    where: { id, ...scopeOf(associationId) },
+    include: {
+      deliveries: { orderBy: { createdAt: "asc" } },
+      user: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          association: { select: { name: true } },
+          member: { select: { id: true, memberNumber: true, paymentReference: true } },
+        },
+      },
+    },
+  });
+
+  if (!notification) return null;
+
+  const rendered = (() => {
+    try {
+      return renderNotification(notification.eventType as NotificationEvent, {
+        firstName: notification.user.firstName,
+        associationName: notification.user.association?.name ?? "RTA",
+        paymentReference: notification.user.member?.paymentReference,
+        ...((notification.metadata as TemplateContext | null) ?? {}),
+      });
+    } catch {
+      return null;
+    }
+  })();
+
+  return {
+    id: notification.id,
+    eventType: notification.eventType,
+    title: notification.title,
+    body: notification.body,
+    severity: notification.severity,
+    actionUrl: notification.actionUrl,
+    createdAt: notification.createdAt,
+    readAt: notification.readAt,
+    recipient: `${notification.user.firstName} ${notification.user.lastName}`.trim(),
+    email: notification.user.email,
+    phone: notification.user.phone,
+    memberId: notification.user.member?.id ?? null,
+    memberNumber: notification.user.member?.memberNumber ?? null,
+    deliveries: notification.deliveries.map((d) => {
+      const stored = d.content !== null;
+      return {
+        id: d.id,
+        channel: d.channel,
+        status: d.status,
+        provider: d.provider,
+        destination: d.destination,
+        providerMessageId: d.providerMessageId,
+        errorMessage: d.errorMessage,
+        attempts: d.attempts,
+        createdAt: d.createdAt,
+        sentAt: d.sentAt,
+        deliveredAt: d.deliveredAt,
+        nextRetryAt: d.nextRetryAt,
+        subject:
+          d.channel === "EMAIL"
+            ? stored
+              ? d.subject
+              : (rendered?.emailSubject ?? null)
+            : null,
+        content: stored
+          ? d.content
+          : d.channel === "EMAIL"
+            ? (rendered?.emailText ?? null)
+            : (rendered?.sms ?? null),
+        reconstructed: !stored,
+      };
+    }),
   };
 }
 

@@ -723,6 +723,39 @@ export interface AdminCopy {
     inAppOnly: string;
     read: string;
     unread: string;
+    searchLabel: string;
+    searchPlaceholder: string;
+    deliveryFilter: string;
+    allDeliveries: string;
+    readFilter: string;
+    anyRead: string;
+    forMember: string;
+    clearMember: string;
+    view: string;
+    back: string;
+    memberProfile: string;
+    memberLink: string;
+    inApp: string;
+    inAppHint: string;
+    openedAt: string;
+    notOpened: string;
+    externalTitle: string;
+    externalHint: string;
+    noExternal: string;
+    channelEMAIL: string;
+    channelSMS: string;
+    to: string;
+    subject: string;
+    provider: string;
+    attempts: string;
+    queuedAt: string;
+    sentAt: string;
+    deliveredAt: string;
+    nextRetry: string;
+    error: string;
+    providerId: string;
+    reconstructed: string;
+    noContent: string;
   };
   /// Facilities the association itself has taken from a bank, and the
   /// projects it spent the money on. Both screens write what members read on
@@ -1939,6 +1972,41 @@ export const admin: Record<Locale, AdminCopy> = {
       inAppOnly: "In-app only",
       read: "Read",
       unread: "Unread",
+      searchLabel: "Recipient",
+      searchPlaceholder: "Name, member number, email or phone",
+      deliveryFilter: "Delivery",
+      allDeliveries: "Any delivery status",
+      readFilter: "Read in app",
+      anyRead: "Read or unread",
+      forMember: "Showing only notifications sent to one member.",
+      clearMember: "Show everyone",
+      view: "View",
+      back: "Back to notifications",
+      memberProfile: "Member profile",
+      memberLink: "Notifications sent",
+      inApp: "In the app",
+      inAppHint: "What the member sees on their notifications page.",
+      openedAt: "Opened in the app {date}",
+      notOpened: "Not opened in the app yet",
+      externalTitle: "Email and SMS",
+      externalHint:
+        "Exactly what was sent on each channel. \"Sent\" means the provider accepted the message; whether a member opened an email is not tracked.",
+      noExternal: "Shown in the app only. No email or SMS was sent.",
+      channelEMAIL: "Email",
+      channelSMS: "SMS",
+      to: "To",
+      subject: "Subject",
+      provider: "Provider",
+      attempts: "Attempts",
+      queuedAt: "Queued",
+      sentAt: "Sent",
+      deliveredAt: "Delivered",
+      nextRetry: "Next retry",
+      error: "Error",
+      providerId: "Provider message ID",
+      reconstructed:
+        "Sent before copies of messages were kept. This text is rebuilt from the current template, so the wording may differ slightly from what went out.",
+      noContent: "No text available for this message.",
     },
     borrowings: {
       title: "Bank borrowing",
@@ -3236,6 +3304,41 @@ export const admin: Record<Locale, AdminCopy> = {
       inAppOnly: "Muri porogaramu gusa",
       read: "Bwasomwe",
       unread: "Butarasomwa",
+      searchLabel: "Uwoherejwe",
+      searchPlaceholder: "Izina, nimero y'umunyamuryango, imeri cyangwa telefoni",
+      deliveryFilter: "Uko bwageze",
+      allDeliveries: "Uko bwageze kose",
+      readFilter: "Bwasomwe muri porogaramu",
+      anyRead: "Bwasomwe cyangwa butarasomwa",
+      forMember: "Herekanwa ubutumwa bwoherejwe umunyamuryango umwe gusa.",
+      clearMember: "Erekana bose",
+      view: "Reba",
+      back: "Subira ku butumwa",
+      memberProfile: "Umwirondoro w'umunyamuryango",
+      memberLink: "Ubutumwa bwoherejwe",
+      inApp: "Muri porogaramu",
+      inAppHint: "Ibyo umunyamuryango abona ku rupapuro rw'ubutumwa bwe.",
+      openedAt: "Bwafunguwe muri porogaramu {date}",
+      notOpened: "Ntiburafungurwa muri porogaramu",
+      externalTitle: "Imeri na SMS",
+      externalHint:
+        "Ibyoherejwe nyirizina kuri buri nzira. \"Byoherejwe\" bivuze ko utanga serivisi yakiriye ubutumwa; niba umunyamuryango yafunguye imeri ntibikurikiranwa.",
+      noExternal: "Bwerekanywe muri porogaramu gusa. Nta meri cyangwa SMS byoherejwe.",
+      channelEMAIL: "Imeri",
+      channelSMS: "SMS",
+      to: "Kuri",
+      subject: "Umutwe",
+      provider: "Utanga serivisi",
+      attempts: "Inshuro zageragejwe",
+      queuedAt: "Byashyizwe ku murongo",
+      sentAt: "Byoherejwe",
+      deliveredAt: "Byageze",
+      nextRetry: "Kongera kugerageza",
+      error: "Ikosa",
+      providerId: "Nimero y'ubutumwa ku utanga serivisi",
+      reconstructed:
+        "Bwoherejwe mbere y'uko kopi z'ubutumwa zibikwa. Iyi nyandiko yongeye gukorwa hifashishijwe icyitegererezo cy'ubu, bityo amagambo ashobora gutandukana gato n'ayoherejwe.",
+      noContent: "Nta nyandiko ihari kuri ubu butumwa.",
     },
     borrowings: {
       title: "Inguzanyo za banki",

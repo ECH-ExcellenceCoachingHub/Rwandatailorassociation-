@@ -132,6 +132,13 @@ const STATUS_TONES: Record<string, StatusTone> = {
   PARTIAL: "warning",
   SKIPPED: "neutral",
 
+  // Notification deliveries. SENT means the provider accepted it, which is
+  // the most an email can usually confirm; DELIVERED is the provider's own
+  // confirmation where one is reported.
+  QUEUED: "pending",
+  SENT: "info",
+  DELIVERED: "success",
+
   // Investments. PLANNED reads as "not started yet", which is the same
   // promise-not-yet-kept as a pending record elsewhere; PAUSED is a warning
   // because a member seeing it is entitled to ask why.

@@ -105,6 +105,11 @@ export interface StatusCopy {
   PARTIAL: string;
   SKIPPED: string;
 
+  // Notification deliveries
+  QUEUED: string;
+  SENT: string;
+  DELIVERED: string;
+
   // Investments
   PLANNED: string;
   PAUSED: string;
@@ -240,6 +245,10 @@ export const status: Record<Locale, StatusCopy> = {
     PARTIAL: "Partial",
     SKIPPED: "Skipped",
 
+    QUEUED: "Queued",
+    SENT: "Sent",
+    DELIVERED: "Delivered",
+
     PLANNED: "Planned",
     PAUSED: "Paused",
 
@@ -365,6 +374,10 @@ export const status: Record<Locale, StatusCopy> = {
     SUCCESS: "Byagenze neza",
     PARTIAL: "Byagenze igice",
     SKIPPED: "Byasimbutswe",
+
+    QUEUED: "Biri ku murongo",
+    SENT: "Byoherejwe",
+    DELIVERED: "Byageze",
 
     PLANNED: "Byateganyijwe",
     PAUSED: "Byahagaritswe by'agateganyo",

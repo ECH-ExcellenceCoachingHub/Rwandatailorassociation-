@@ -1949,6 +1949,12 @@ model NotificationDelivery {
   /// Which adapter handled it, e.g. "SMTP", "TWILIO", "AFRICASTALKING".
   provider          String?
   destination       String?
+  /// Exactly what went out on this channel, captured when it was sent: the
+  /// email subject (null for SMS) and the email or SMS text. Kept so an
+  /// officer can see what a member actually received, which a re-render
+  /// cannot promise once a template's wording has changed.
+  subject           String?
+  content           String?
   providerMessageId String?
   errorMessage      String?
   attempts          Int                 @default(0)

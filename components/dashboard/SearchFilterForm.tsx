@@ -34,6 +34,7 @@ export async function SearchFilterForm({
   searchLabel,
   searchName = "q",
   showSearch = true,
+  hidden = {},
 }: {
   /// Page path the form submits to; also the target of the Clear link.
   action: string;
@@ -46,6 +47,10 @@ export async function SearchFilterForm({
   /// False for screens filtered only by dropdown, so no dead text field is
   /// rendered for a form that has nothing to search.
   showSearch?: boolean;
+  /// Filters set elsewhere (a link from another page) that submitting this
+  /// form must keep. A GET form drops its action's own query string, so they
+  /// travel as hidden inputs.
+  hidden?: Record<string, string | undefined>;
 }) {
   const { d } = await getDashboardCopy();
   const copy = d.views.filters;
@@ -62,6 +67,10 @@ export async function SearchFilterForm({
       action={action}
       className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 lg:flex-row lg:items-end"
     >
+      {Object.entries(hidden).map(([name, value]) =>
+        value ? <input key={name} type="hidden" name={name} value={value} /> : null
+      )}
+
       {showSearch && (
         <div className="flex-1">
           <label

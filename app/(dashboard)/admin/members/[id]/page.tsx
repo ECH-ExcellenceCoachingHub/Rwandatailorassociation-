@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   AlertTriangle,
+  Bell,
   HandCoins,
   Pencil,
   PiggyBank,
@@ -175,6 +176,14 @@ export default async function AdminMemberDetailPage({
                   <Settings2 className="size-3.5" aria-hidden="true" />
                   {d.admin.manage.jump}
                 </a>
+              </Button>
+            )}
+            {context.permissions.has(PERMISSIONS.NOTIFICATIONS_SEND) && (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/admin/notifications?member=${member.id}`}>
+                  <Bell className="size-3.5" aria-hidden="true" />
+                  {d.admin.notifications.memberLink}
+                </Link>
               </Button>
             )}
             <Button asChild variant="outline" size="sm">

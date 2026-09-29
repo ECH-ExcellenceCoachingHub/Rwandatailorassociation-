@@ -230,6 +230,9 @@ async function attemptDelivery(
     where: { id: deliveryId },
     data: {
       status: result.ok ? "SENT" : "FAILED",
+      destination,
+      subject: channel === "EMAIL" ? content.subject : null,
+      content: channel === "EMAIL" ? content.text : content.sms,
       provider: provider.name,
       providerMessageId: result.providerMessageId ?? null,
       errorMessage: result.error ?? null,
