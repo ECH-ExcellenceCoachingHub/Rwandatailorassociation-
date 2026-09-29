@@ -876,15 +876,24 @@ export async function listSentNotifications(
         severity: true,
         readAt: true,
         createdAt: true,
+        metadata: true,
         user: {
           select: {
             firstName: true,
             lastName: true,
-            member: { select: { memberNumber: true } },
+            association: { select: { name: true } },
+            member: { select: { memberNumber: true, paymentReference: true } },
           },
         },
         deliveries: {
-          select: { channel: true, status: true, errorMessage: true, sentAt: true },
+          select: {
+            channel: true,
+            status: true,
+            errorMessage: true,
+            sentAt: true,
+            subject: true,
+            content: true,
+          },
         },
       },
     }),
@@ -908,23 +917,80 @@ export async function listSentNotifications(
     deliveryStatus: Object.fromEntries(
       deliveries.map((d) => [d.status, d._count])
     ) as Record<string, number>,
-    notifications: rows.map((n) => ({
-      id: n.id,
-      eventType: n.eventType,
-      title: n.title,
-      body: n.body,
-      severity: n.severity,
-      read: Boolean(n.readAt),
-      createdAt: n.createdAt,
-      recipient: `${n.user.firstName} ${n.user.lastName}`.trim(),
-      memberNumber: n.user.member?.memberNumber ?? null,
-      deliveries: n.deliveries.map((d) => ({
-        channel: d.channel,
-        status: d.status,
-        errorMessage: d.errorMessage,
-        sentAt: d.sentAt,
-      })),
-    })),
+    notifications: rows.map((n) => {
+      const copyOf = deliveryCopyFor(n);
+      return {
+        id: n.id,
+        eventType: n.eventType,
+        title: n.title,
+        body: n.body,
+        severity: n.severity,
+        read: Boolean(n.readAt),
+        createdAt: n.createdAt,
+        recipient: `${n.user.firstName} ${n.user.lastName}`.trim(),
+        memberNumber: n.user.member?.memberNumber ?? null,
+        deliveries: n.deliveries.map((d) => ({
+          channel: d.channel,
+          status: d.status,
+          errorMessage: d.errorMessage,
+          sentAt: d.sentAt,
+          ...copyOf(d),
+        })),
+      };
+    }),
+  };
+}
+
+/**
+ * What each delivery of a notification said. The stored copy when there is
+ * one; otherwise a re-render from the template and the context saved with the
+ * notification, flagged `reconstructed` because the wording is the template's
+ * today rather than a copy of what went out.
+ */
+function deliveryCopyFor(notification: {
+  eventType: string;
+  metadata: Prisma.JsonValue;
+  user: {
+    firstName: string;
+    association: { name: string } | null;
+    member: { paymentReference: string } | null;
+  };
+}) {
+  let rendered: ReturnType<typeof renderNotification> | null | undefined;
+  const render = () => {
+    if (rendered !== undefined) return rendered;
+    try {
+      rendered = renderNotification(notification.eventType as NotificationEvent, {
+        firstName: notification.user.firstName,
+        associationName: notification.user.association?.name ?? "RTA",
+        paymentReference: notification.user.member?.paymentReference,
+        ...((notification.metadata as TemplateContext | null) ?? {}),
+      });
+    } catch {
+      rendered = null;
+    }
+    return rendered;
+  };
+
+  return (d: {
+    channel: string;
+    status: string;
+    subject: string | null;
+    content: string | null;
+  }) => {
+    // A skipped delivery sent nothing, so there is no text to show.
+    if (d.status === "SKIPPED") {
+      return { subject: null, content: null, reconstructed: false };
+    }
+    if (d.content !== null) {
+      return { subject: d.subject, content: d.content, reconstructed: false };
+    }
+    const r = render();
+    return {
+      subject: d.channel === "EMAIL" ? (r?.emailSubject ?? null) : null,
+      content: d.channel === "EMAIL" ? (r?.emailText ?? null) : (r?.sms ?? null),
+      reconstructed: true,
+    };
   };
 }
 
@@ -956,18 +1022,7 @@ export async function getSentNotification(associationId: string | null, id: stri
 
   if (!notification) return null;
 
-  const rendered = (() => {
-    try {
-      return renderNotification(notification.eventType as NotificationEvent, {
-        firstName: notification.user.firstName,
-        associationName: notification.user.association?.name ?? "RTA",
-        paymentReference: notification.user.member?.paymentReference,
-        ...((notification.metadata as TemplateContext | null) ?? {}),
-      });
-    } catch {
-      return null;
-    }
-  })();
+  const copyOf = deliveryCopyFor(notification);
 
   return {
     id: notification.id,
@@ -984,7 +1039,6 @@ export async function getSentNotification(associationId: string | null, id: stri
     memberId: notification.user.member?.id ?? null,
     memberNumber: notification.user.member?.memberNumber ?? null,
     deliveries: notification.deliveries.map((d) => {
-      const stored = d.content !== null;
       return {
         id: d.id,
         channel: d.channel,
@@ -998,18 +1052,7 @@ export async function getSentNotification(associationId: string | null, id: stri
         sentAt: d.sentAt,
         deliveredAt: d.deliveredAt,
         nextRetryAt: d.nextRetryAt,
-        subject:
-          d.channel === "EMAIL"
-            ? stored
-              ? d.subject
-              : (rendered?.emailSubject ?? null)
-            : null,
-        content: stored
-          ? d.content
-          : d.channel === "EMAIL"
-            ? (rendered?.emailText ?? null)
-            : (rendered?.sms ?? null),
-        reconstructed: !stored,
+        ...copyOf(d),
       };
     }),
   };

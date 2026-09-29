@@ -214,13 +214,54 @@ export default async function AdminNotificationsPage({
                     )}
                   </TableCell>
 
-                  <TableCell className="max-w-sm">
+                  <TableCell className="max-w-md">
                     <span className="block font-medium text-ink">
                       {notification.title}
                     </span>
-                    <span className="mt-0.5 block truncate text-xs text-ink-muted">
-                      {notification.body}
-                    </span>
+                    <details className="group mt-1">
+                      <summary className="cursor-pointer list-none text-xs text-ink-muted">
+                        <span className="block truncate group-open:hidden">
+                          {notification.body}
+                        </span>
+                        <span className="mt-0.5 block font-semibold text-primary hover:underline">
+                          {copy.showFull}
+                        </span>
+                      </summary>
+
+                      <div className="mt-2 space-y-3 text-xs">
+                        <div>
+                          <p className="font-semibold uppercase text-ink-muted">
+                            {copy.inApp}
+                          </p>
+                          <p className="mt-1 whitespace-pre-line break-words text-ink">
+                            {notification.body}
+                          </p>
+                        </div>
+
+                        {notification.deliveries
+                          .filter((delivery) => delivery.content)
+                          .map((delivery, index) => (
+                            <div key={`${notification.id}-copy-${index}`}>
+                              <p className="font-semibold uppercase text-ink-muted">
+                                {delivery.channel === "EMAIL"
+                                  ? copy.channelEMAIL
+                                  : copy.channelSMS}
+                              </p>
+                              {delivery.subject && (
+                                <p className="mt-1 font-medium text-ink">
+                                  {copy.subject}: {delivery.subject}
+                                </p>
+                              )}
+                              <p className="mt-1 whitespace-pre-line break-words rounded-lg bg-surface-muted p-2 text-ink">
+                                {delivery.content}
+                              </p>
+                              {delivery.reconstructed && (
+                                <p className="mt-1 text-amber-700">{copy.reconstructed}</p>
+                              )}
+                            </div>
+                          ))}
+                      </div>
+                    </details>
                   </TableCell>
 
                   <TableCell>

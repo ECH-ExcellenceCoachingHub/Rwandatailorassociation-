@@ -756,6 +756,7 @@ export interface AdminCopy {
     providerId: string;
     reconstructed: string;
     noContent: string;
+    showFull: string;
   };
   /// Facilities the association itself has taken from a bank, and the
   /// projects it spent the money on. Both screens write what members read on
@@ -2007,6 +2008,7 @@ export const admin: Record<Locale, AdminCopy> = {
       reconstructed:
         "Sent before copies of messages were kept. This text is rebuilt from the current template, so the wording may differ slightly from what went out.",
       noContent: "No text available for this message.",
+      showFull: "Show full message",
     },
     borrowings: {
       title: "Bank borrowing",
@@ -3339,6 +3341,7 @@ export const admin: Record<Locale, AdminCopy> = {
       reconstructed:
         "Bwoherejwe mbere y'uko kopi z'ubutumwa zibikwa. Iyi nyandiko yongeye gukorwa hifashishijwe icyitegererezo cy'ubu, bityo amagambo ashobora gutandukana gato n'ayoherejwe.",
       noContent: "Nta nyandiko ihari kuri ubu butumwa.",
+      showFull: "Erekana ubutumwa bwose",
     },
     borrowings: {
       title: "Inguzanyo za banki",
