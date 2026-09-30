@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { BadgeCheck, ShieldCheck } from "lucide-react";
 import LoginForm from "@/components/auth/LoginForm";
 import { lookupQrToken } from "@/lib/auth/qr-access";
+import { prisma } from "@/lib/db/prisma";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import {
@@ -64,8 +65,21 @@ export default async function QrSignInPage({
   // a real one; the page covers all three cases in words the owner can act on.
   if (!code.ok) redirect("/qr-invalid");
 
-  const { d } = await getDashboardCopy();
+  // The holder's own photograph — the one printed on the card they just
+  // scanned, so showing it reveals nothing the card does not. Inlined rather
+  // than served from a route: a public image URL keyed by user would need its
+  // own guard, and this page has already checked the card.
+  const [{ d }, avatar] = await Promise.all([
+    getDashboardCopy(),
+    prisma.userAvatar.findUnique({
+      where: { userId: code.userId },
+      select: { data: true, mimeType: true },
+    }),
+  ]);
   const copy = d.auth.login;
+  const photoSrc = avatar
+    ? `data:${avatar.mimeType};base64,${Buffer.from(avatar.data).toString("base64")}`
+    : null;
   const initials = code.fullName
     .split(/\s+/)
     .filter(Boolean)
@@ -134,12 +148,21 @@ export default async function QrSignInPage({
           <section className="rounded-[28px] bg-surface p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.55)] ring-1 ring-white/10 sm:p-8">
             {/* Whose card this is — the printed card already says so. */}
             <div className="flex items-center gap-4">
-              <span
-                aria-hidden="true"
-                className="flex size-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-footer font-heading text-lg font-semibold tracking-wide text-white shadow-md shadow-primary/30"
-              >
-                {initials}
-              </span>
+              {photoSrc ? (
+                // eslint-disable-next-line @next/next/no-img-element -- a data URI; nothing for the optimiser to fetch
+                <img
+                  src={photoSrc}
+                  alt=""
+                  className="size-16 shrink-0 rounded-full object-cover shadow-md shadow-primary/30 ring-2 ring-primary/20 ring-offset-2"
+                />
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="flex size-16 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-footer font-heading text-lg font-semibold tracking-wide text-white shadow-md shadow-primary/30"
+                >
+                  {initials}
+                </span>
+              )}
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-muted">
                   {copy.qrWelcome}
