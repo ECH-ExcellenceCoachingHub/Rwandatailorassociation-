@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Loader2, LogIn } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
@@ -164,6 +164,15 @@ export default function LoginForm({
       <Field id="password" label={copy.password}>
         {(props) => (
           <div className="relative">
+            {/* After a card scan the password is the only thing on the
+                screen to fill in, so it is made unmistakable: taller, tinted,
+                a firm border and a lock marking what it is for. */}
+            {qrToken !== undefined && (
+              <Lock
+                className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-primary"
+                aria-hidden="true"
+              />
+            )}
             <Input
               {...props}
               name="password"
@@ -172,7 +181,11 @@ export default function LoginForm({
               placeholder={copy.passwordPlaceholder}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="pr-12"
+              className={
+                qrToken !== undefined
+                  ? "h-14 border-2 border-primary/45 bg-primary-50/70 pl-12 pr-14 text-base shadow-sm placeholder:text-ink-muted focus:bg-surface focus:ring-4 focus:ring-primary/15"
+                  : "pr-12"
+              }
               required
               autoFocus={minimal}
             />
@@ -180,7 +193,7 @@ export default function LoginForm({
               type="button"
               onClick={() => setShowPassword((v) => !v)}
               aria-label={showPassword ? copy.hidePassword : copy.showPassword}
-              className="absolute right-1.5 top-1.5 flex size-9 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-ink/5 hover:text-ink"
+              className="absolute right-2 top-1/2 flex size-10 -translate-y-1/2 items-center justify-center rounded-lg text-ink-muted transition-colors hover:bg-ink/5 hover:text-ink"
             >
               {showPassword ? (
                 <EyeOff className="size-4" aria-hidden="true" />

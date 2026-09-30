@@ -53,7 +53,6 @@ export interface AuthCopy {
     qrSignInAs: string;
     /// Heading and badges on the scanned-card screen, around the holder's name.
     qrWelcome: string;
-    qrPrompt: string;
     qrCardVerified: string;
     qrSecure: string;
     notAMember: string;
@@ -153,7 +152,6 @@ export const auth: Record<Locale, AuthCopy> = {
         "Your session has ended. Sign in again to continue where you left off.",
       qrSignInAs: "Signing in as {name}. Enter your password to continue.",
       qrWelcome: "Welcome back",
-      qrPrompt: "Enter your password to open your account.",
       qrCardVerified: "Membership card recognised",
       qrSecure: "Your card alone opens nothing — your password is always required.",
       notAMember: "Not yet a member?",
@@ -264,7 +262,6 @@ export const auth: Record<Locale, AuthCopy> = {
         "Igihe cyawe cyo kwinjira cyarangiye. Ongera winjire ukomeze aho wari ugeze.",
       qrSignInAs: "Urinjira nka {name}. Andika ijambobanga ryawe ukomeze.",
       qrWelcome: "Murakaza neza",
-      qrPrompt: "Andika ijambobanga ryawe kugira ngo winjire kuri konti yawe.",
       qrCardVerified: "Ikarita y'umunyamuryango yemejwe",
       qrSecure: "Ikarita yonyine ntifungura konti — ijambobanga rirakenerwa buri gihe.",
       notAMember: "Ntiwaba umunyamuryango?",

@@ -180,8 +180,6 @@ export default async function QrSignInPage({
 
             <div className="my-6 h-px bg-border" />
 
-            <p className="mb-5 text-[15px] leading-relaxed text-ink-muted">{copy.qrPrompt}</p>
-
             {/* useSearchParams needs a Suspense boundary to keep the shell static. */}
             <Suspense fallback={<div className="h-40" />}>
               <LoginForm qrToken={token} />
