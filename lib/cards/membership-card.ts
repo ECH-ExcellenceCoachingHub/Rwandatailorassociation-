@@ -20,7 +20,13 @@ import {
 } from "@/lib/auth/qr-access";
 import { toLocalPhone } from "@/lib/phone";
 import { probeImage } from "@/lib/images/probe";
-import { CARD, FRONT, TEMPLATE_FILES, type CardSide } from "@/lib/cards/geometry";
+import {
+  CARD,
+  FRONT,
+  TEMPLATE_FILES,
+  cardLocation,
+  type CardSide,
+} from "@/lib/cards/geometry";
 import type { UserRole } from "@/lib/generated/prisma/enums";
 
 /**
@@ -36,11 +42,11 @@ import type { UserRole } from "@/lib/generated/prisma/enums";
  * therefore the artwork and nothing else, which is why `renderCardBack` takes
  * no arguments at all.
  *
- * The front composites five live fields onto the supplied artwork: the name,
- * the office, the holder's own telephone number, their sign-in QR and their
- * photograph. Everything else on that side — logo, header, swoosh, icons,
- * "www.rta.rw", "Kigali/Rwanda", the signature — is identical on every card
- * and belongs in the artwork rather than in this file.
+ * The front composites seven live fields onto the supplied artwork: the name,
+ * the office, the membership number, the holder's own telephone number, where
+ * they live, their sign-in QR and their photograph. Everything else on that
+ * side — logo, header, swoosh, icons, "www.rta.rw", the signature — is
+ * identical on every card and belongs in the artwork rather than in this file.
  */
 
 const TEMPLATE_DIR = path.join(process.cwd(), "public");
@@ -52,6 +58,9 @@ const INK = {
   placeholder: rgb(0.85, 0.88, 0.92),
   /// The artwork's mid blue, used for the keyline around the code.
   frame: rgb(0.11, 0.5, 0.83),
+  /// The membership number: the artwork's deep blue, so it reads as a label
+  /// of the card rather than a second title.
+  id: rgb(0.07, 0.33, 0.6),
 } as const;
 
 /** The association's mark, for the middle of the QR. Null if it is missing. */
@@ -86,14 +95,29 @@ export interface MembershipCardData {
   /// The holder's own number, in the local 0788… form the card is printed in
   /// rather than the E.164 the database stores. Empty when none is on file.
   phone: string;
+  /// "ID: RTA-M000123", or empty for an account with no membership record.
+  idNumber: string;
+  /// "Gasabo, Kigali" — from the member's address, see `cardLocation`.
+  location: string;
   /// URL the QR encodes: the same sign-in link as the account's QR page.
   qrUrl: string;
   /// Circular PNG with an alpha channel, or null when no photograph is set.
   photo: { bytes: Uint8Array; mimeType: string } | null;
 }
 
-/** The three printed lines of the front, in the form the card prints them. */
-export type CardText = Pick<MembershipCardData, "displayName" | "title" | "phone">;
+/** The printed lines of the front, in the form the card prints them. */
+export type CardText = Pick<
+  MembershipCardData,
+  "displayName" | "title" | "phone" | "idNumber" | "location"
+>;
+
+/** What `cardTextFor` needs from a holder's membership record. */
+export interface CardMemberFields {
+  memberNumber: string;
+  district: string | null;
+  city: string | null;
+  province: string | null;
+}
 
 /**
  * The printed lines, from the user record they come from.
@@ -106,12 +130,15 @@ export function cardTextFor(user: {
   lastName: string;
   title: string | null;
   phone: string | null;
+  member: CardMemberFields | null;
 }): CardText {
   return {
     // "Nshimiyimana Daniel": family name, then given name.
     displayName: `${user.lastName} ${user.firstName}`.trim(),
     title: user.title?.trim() || CARD_DEFAULT_TITLE,
     phone: toLocalPhone(user.phone),
+    idNumber: user.member ? `ID: ${user.member.memberNumber}` : "",
+    location: cardLocation(user.member),
   };
 }
 
@@ -129,6 +156,9 @@ const CARD_USER_SELECT = {
   email: true,
   associationId: true,
   avatar: { select: { data: true, mimeType: true } },
+  member: {
+    select: { memberNumber: true, district: true, city: true, province: true },
+  },
 } as const;
 
 /**
@@ -322,6 +352,8 @@ export interface CardTextSizes {
   name: number;
   title: number;
   phone: number;
+  idNumber: number;
+  location: number;
 }
 
 /**
@@ -341,6 +373,8 @@ export async function createCardTextMeasurer(): Promise<(data: CardText) => Card
     name: fit(data.displayName, regular, FRONT.name),
     title: fit(data.title, bold, FRONT.title),
     phone: fit(data.phone, regular, FRONT.phone),
+    idNumber: fit(data.idNumber, regular, FRONT.idNumber),
+    location: fit(data.location, regular, FRONT.location),
   });
 }
 
@@ -461,9 +495,24 @@ async function drawFront(
 ): Promise<void> {
   drawGround(page, ground);
 
+  // Blank out the fixed "Kigali/Rwanda" in the artwork before the holder's own
+  // location goes in its place.
+  if (ground) {
+    const mask = FRONT.locationMask;
+    page.drawRectangle({
+      x: mask.x * CARD.widthPt,
+      y: CARD.heightPt - (mask.y + mask.height) * CARD.heightPt,
+      width: mask.width * CARD.widthPt,
+      height: mask.height * CARD.heightPt,
+      color: rgb(1, 1, 1),
+    });
+  }
+
   drawFieldText(page, data.displayName, FRONT.name, regular, INK.name);
   drawFieldText(page, data.title, FRONT.title, bold, INK.name);
+  drawFieldText(page, data.idNumber, FRONT.idNumber, regular, INK.id);
   drawFieldText(page, data.phone, FRONT.phone, regular, INK.body);
+  drawFieldText(page, data.location, FRONT.location, regular, INK.body);
 
   // The fixed "STGT" mark, right-aligned into the blue corner. Not a field:
   // it never changes, so it is never shrunk to fit either.

@@ -28,12 +28,16 @@ export interface CardPreviewProps {
   displayName: string;
   title: string;
   phone: string;
+  /// "ID: RTA-M000123", or empty when the holder has no membership record.
+  idNumber: string;
+  /// Where the holder lives, printed beside the location pin.
+  location: string;
   /// Pre-rendered QR as an SVG data URI, or null when there is none to show.
   qrDataUri: string | null;
   /// Where the browser can fetch the holder's photograph, if they have one.
   photoUrl: string | null;
   /// Type sizes as fractions of card height, measured by the PDF renderer.
-  sizes: { name: number; title: number; phone: number };
+  sizes: { name: number; title: number; phone: number; idNumber: number; location: number };
   /// Shown in the code's place when `qrDataUri` is null, so a card with no
   /// code does not read as one whose code failed to draw. The admin card
   /// register uses this for members who are not active and so get no code.
@@ -47,6 +51,8 @@ export function CardFrontPreview({
   displayName,
   title,
   phone,
+  idNumber,
+  location,
   qrDataUri,
   photoUrl,
   sizes,
@@ -81,6 +87,15 @@ export function CardFrontPreview({
         y={0}
         width={VIEW.width}
         height={VIEW.height}
+      />
+
+      {/* Covers the artwork's fixed "Kigali/Rwanda", as the PDF does. */}
+      <rect
+        x={px(FRONT.locationMask.x)}
+        y={py(FRONT.locationMask.y)}
+        width={px(FRONT.locationMask.width)}
+        height={py(FRONT.locationMask.height)}
+        fill="#ffffff"
       />
 
       {/* The artwork draws the blue ring; the photograph fills the white disc
@@ -191,6 +206,18 @@ export function CardFrontPreview({
         {title}
       </text>
 
+      {idNumber && (
+        <text
+          x={px(FRONT.idNumber.x)}
+          y={baseline(FRONT.idNumber, sizes.idNumber)}
+          fontSize={py(sizes.idNumber)}
+          fontFamily="Helvetica, Arial, sans-serif"
+          fill="#125499"
+        >
+          {idNumber}
+        </text>
+      )}
+
       {phone && (
         <text
           x={px(FRONT.phone.x)}
@@ -202,6 +229,16 @@ export function CardFrontPreview({
           {phone}
         </text>
       )}
+
+      <text
+        x={px(FRONT.location.x)}
+        y={baseline(FRONT.location, sizes.location)}
+        fontSize={py(sizes.location)}
+        fontFamily="Helvetica, Arial, sans-serif"
+        fill="#29292e"
+      >
+        {location}
+      </text>
 
       <text
         x={px(FRONT.tag.right)}

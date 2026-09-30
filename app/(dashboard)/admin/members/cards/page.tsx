@@ -235,6 +235,8 @@ export default async function AdminMemberCardsPage({
                     displayName={text.displayName}
                     title={text.title}
                     phone={text.phone}
+                    idNumber={text.idNumber}
+                    location={text.location}
                     qrDataUri={qrImages.get(card.holder.id) ?? null}
                     qrPlaceholder={copy.qrPlaceholder}
                     photoUrl={card.hasPhoto ? `${memberUrl}/photo` : null}

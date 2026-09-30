@@ -2,6 +2,7 @@ import "server-only";
 import { prisma, type Prisma } from "@/lib/db/prisma";
 import { AUDIT_ACTIONS } from "@/lib/audit";
 import { MemberStatus, type UserRole } from "@/lib/generated/prisma/enums";
+import type { CardMemberFields } from "@/lib/cards/membership-card";
 
 /**
  * The card register: every member's card, for the office that prints them.
@@ -114,6 +115,7 @@ export interface CardRegisterEntry {
     lastName: string;
     title: string | null;
     phone: string | null;
+    member: CardMemberFields;
   };
   hasPhoto: boolean;
   /// When the office last downloaded this member's front, or null if it never
@@ -152,6 +154,9 @@ export async function listCardRegister(params: {
       memberNumber: true,
       status: true,
       associationId: true,
+      district: true,
+      city: true,
+      province: true,
       user: {
         select: {
           id: true,
@@ -186,6 +191,12 @@ export async function listCardRegister(params: {
       lastName: m.user.lastName,
       title: m.user.title,
       phone: m.user.phone,
+      member: {
+        memberNumber: m.memberNumber,
+        district: m.district,
+        city: m.city,
+        province: m.province,
+      },
     },
     hasPhoto: Boolean(m.user.avatar),
     lastPrintedAt: printed.get(m.id) ?? null,

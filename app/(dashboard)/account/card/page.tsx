@@ -77,6 +77,8 @@ export default async function AccountCardPage() {
               displayName={card.displayName}
               title={card.title}
               phone={card.phone}
+              idNumber={card.idNumber}
+              location={card.location}
               qrDataUri={qrDataUri}
               photoUrl={photo ? "/api/account/avatar" : null}
               sizes={sizes}

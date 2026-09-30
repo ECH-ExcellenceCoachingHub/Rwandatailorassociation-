@@ -45,20 +45,41 @@ export const FRONT = {
    * Holder's name, family name first — the order a Rwandan card reads in, and
    * the reverse of how the app addresses someone on screen.
    */
-  name: { x: 0.0605, y: 0.2468, size: 0.0705, maxWidth: 0.46 },
-  /** Office held, or the role label when the holder holds no office. */
-  title: { x: 0.0605, y: 0.3622, size: 0.0304, maxWidth: 0.34 },
+  name: { x: 0.0605, y: 0.2, size: 0.0705, maxWidth: 0.46 },
   /**
-   * The holder's own number, set beside the telephone icon in the artwork and
-   * aligned with the "www.rta.rw" and "Kigali/Rwanda" lines beneath it.
+   * Office held, or the role label when the holder holds no office. Narrower
+   * than the name: this line and the ID below it sit beside the QR's top edge.
    */
-  phone: { x: 0.125, y: 0.4519, size: 0.0337, maxWidth: 0.22 },
+  title: { x: 0.0605, y: 0.288, size: 0.0304, maxWidth: 0.285 },
+  /** Membership number, e.g. "ID: RTA-M000123", in the artwork's blue. */
+  idNumber: { x: 0.0605, y: 0.333, size: 0.027, maxWidth: 0.285 },
+  /**
+   * The holder's own number, beside the telephone icon. Same left edge as the
+   * artwork's "www.rta.rw", and its caps centred on the icon.
+   */
+  phone: { x: 0.128, y: 0.442, size: 0.0337, maxWidth: 0.215 },
+  /**
+   * Where the holder lives, beside the location pin. Its baseline is the one
+   * the artwork's own "Kigali/Rwanda" sat on; its right edge stops short of the
+   * QR, so a long district name is shrunk rather than run under the code.
+   */
+  location: { x: 0.128, y: 0.6633, size: 0.0337, maxWidth: 0.215 },
+  /**
+   * White patch over the "Kigali/Rwanda" printed in the supplied artwork, so
+   * the live location can take its place. The ground there is plain white.
+   * Drop this once the association supplies artwork without that text.
+   */
+  locationMask: { x: 0.1226, y: 0.6593, width: 0.1464, height: 0.0597 },
   /**
    * Sign-in QR. Square, so sized against the card's long edge. The box is the
    * OUTER edge of the blue frame; the code fills it, and its own four-module
    * quiet zone supplies the white margin inside the frame.
+   *
+   * Set in the white between the contact lines and the photograph: clear of
+   * the name above, the photograph's ring to the right and the wave below,
+   * which leaves the contact lines their full width.
    */
-  qr: { x: 0.2705, y: 0.4231, size: 0.1856 },
+  qr: { x: 0.361, y: 0.322, size: 0.168 },
   /** The blue keyline around the code, matching the artwork's own boxes. */
   qrFrame: { stroke: 0.0045 },
   /**
@@ -89,6 +110,33 @@ export const FRONT = {
    */
   tag: { text: "STGT", right: 0.94, y: 0.85, size: 0.056 },
 } as const;
+
+/** Location printed when the holder has none on file. */
+export const CARD_DEFAULT_LOCATION = "Rwanda";
+
+/**
+ * The location line for a holder, from their member address.
+ *
+ * District first, because that is what places someone in Rwanda — then
+ * "Kigali" for the capital's three districts and "Rwanda" elsewhere, which
+ * keeps every line short enough for the space beside the pin. A full
+ * "Nyamasheke, Western Province" would be shrunk to an unreadable size.
+ */
+export function cardLocation(address: {
+  district: string | null;
+  city: string | null;
+  province: string | null;
+} | null): string {
+  const district = address?.district?.trim();
+  const city = address?.city?.trim();
+  const province = address?.province?.trim().toLowerCase() ?? "";
+  const region = province.startsWith("kigali") ? "Kigali" : CARD_DEFAULT_LOCATION;
+
+  const place = district || city;
+  if (place && place.toLowerCase() !== region.toLowerCase()) return `${place}, ${region}`;
+  if (place) return place;
+  return province.startsWith("kigali") ? "Kigali, Rwanda" : CARD_DEFAULT_LOCATION;
+}
 
 /**
  * The back carries no per-holder data at all — the same association name, the
