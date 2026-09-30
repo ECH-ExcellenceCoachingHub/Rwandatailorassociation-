@@ -51,6 +51,11 @@ export interface AuthCopy {
     /// Above the password box after scanning a sign-in QR card, so the holder
     /// can see whose card it is.
     qrSignInAs: string;
+    /// Heading and badges on the scanned-card screen, around the holder's name.
+    qrWelcome: string;
+    qrPrompt: string;
+    qrCardVerified: string;
+    qrSecure: string;
     notAMember: string;
     applyToJoin: string;
   };
@@ -147,6 +152,10 @@ export const auth: Record<Locale, AuthCopy> = {
       sessionExpired:
         "Your session has ended. Sign in again to continue where you left off.",
       qrSignInAs: "Signing in as {name}. Enter your password to continue.",
+      qrWelcome: "Welcome back",
+      qrPrompt: "Enter your password to open your account.",
+      qrCardVerified: "Membership card recognised",
+      qrSecure: "Your card alone opens nothing — your password is always required.",
       notAMember: "Not yet a member?",
       applyToJoin: "Apply to join",
     },
@@ -254,6 +263,10 @@ export const auth: Record<Locale, AuthCopy> = {
       sessionExpired:
         "Igihe cyawe cyo kwinjira cyarangiye. Ongera winjire ukomeze aho wari ugeze.",
       qrSignInAs: "Urinjira nka {name}. Andika ijambobanga ryawe ukomeze.",
+      qrWelcome: "Murakaza neza",
+      qrPrompt: "Andika ijambobanga ryawe kugira ngo winjire kuri konti yawe.",
+      qrCardVerified: "Ikarita y'umunyamuryango yemejwe",
+      qrSecure: "Ikarita yonyine ntifungura konti — ijambobanga rirakenerwa buri gihe.",
       notAMember: "Ntiwaba umunyamuryango?",
       applyToJoin: "Saba kwinjira",
     },
