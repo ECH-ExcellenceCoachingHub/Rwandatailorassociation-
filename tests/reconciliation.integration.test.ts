@@ -183,7 +183,7 @@ describe("member matching", () => {
 
     expect(result.confidence).toBeGreaterThanOrEqual(90);
     expect(result.member?.memberId).toBe(members.bob.memberId);
-    expect(result.evidence).toMatch(/sender name/i);
+    expect(result.evidence).toMatch(/name on the payment/i);
   });
 
   it("holds a phone match whose sender name is somebody else", async () => {
@@ -196,6 +196,23 @@ describe("member matching", () => {
     expect(result.member?.memberId).toBe(members.bob.memberId);
     expect(result.confidence).toBeLessThan(90);
     expect(result.evidence).toMatch(/review/i);
+  });
+
+  it("confirms a phone match from the narration when the payer field is wrong", async () => {
+    // A parsed payer field can hold the association's own account name; the
+    // narration still names the real sender.
+    const result = await matchPaymentToMember(
+      transaction({
+        payerName: "RWANDA TAILORS",
+        payerPhone: "+250788200002",
+        narration: "EKASH incoming transfer : RWANDA TAILORS A I Bob TESTER250788200002",
+      }),
+      associationId,
+      CODE
+    );
+
+    expect(result.confidence).toBeGreaterThanOrEqual(90);
+    expect(result.member?.memberId).toBe(members.bob.memberId);
   });
 
   it("lets the sender name pick between members sharing a phone", async () => {

@@ -186,6 +186,16 @@ describe("payer details in Bank of Kigali narrations", () => {
     ).toContain("UWERA FARIDA");
   });
 
+  it("reads the sender, not the receiving account, of an EKASH incoming transfer", () => {
+    // The slot after the colon is the association's own account; the sender
+    // follows the separator, which the PDF reader turns into a capital "I".
+    expect(
+      extractPayerName(
+        "FTCM26261UCXLNOVR EKASH incoming transfer : RWANDA TAILORS A I Peruth MUNYANA2507835473513064886"
+      )
+    ).toBe("PERUTH MUNYANA");
+  });
+
   it("reads the mobile number out of a mobile money line", () => {
     expect(
       extractPayerPhone(

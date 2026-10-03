@@ -942,13 +942,29 @@ function longestNameRun(fragment: string): string | null {
  * offered it as a person's name.
  */
 function counterpartyFragments(description: string): string[] {
-  const [head, ...rest] = description.split("|");
+  // PDF text extraction often reads the "|" separator as a capital "I". A lone
+  // "I" between words is never part of a name, so it is put back.
+  const normalised = description.includes("|")
+    ? description
+    : description.replace(/\s+I\s+/, " | ");
+
+  const [head, ...rest] = normalised.split("|");
   const fragments: string[] = [];
 
   const colon = head.lastIndexOf(":");
-  if (colon !== -1) fragments.push(head.slice(colon + 1));
-
+  const afterColon = colon !== -1 ? head.slice(colon + 1) : null;
   const tail = rest.join(" ").trim();
+
+  // "EKASH incoming transfer : RWANDA TAILORS A | Peruth MUNYANA2507…" — on an
+  // incoming transfer the slot after the colon is the RECEIVER, which is the
+  // association's own account, and the sender follows the pipe.
+  if (/incoming\s+transfer/i.test(head)) {
+    if (tail) fragments.push(tail);
+    if (afterColon) fragments.push(afterColon);
+    return fragments;
+  }
+
+  if (afterColon) fragments.push(afterColon);
   if (tail) fragments.push(tail);
 
   return fragments;

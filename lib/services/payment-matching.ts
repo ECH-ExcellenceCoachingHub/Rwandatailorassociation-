@@ -145,10 +145,13 @@ export async function matchPaymentToMember(
   }
 
   // 4 — Sender name alone --------------------------------------------------
-  const nameMatch = await matchByPayerName(
-    transaction.payerName ?? transaction.narration,
-    associationId
-  );
+  // The payer field first; if that names nobody (it can be the association's
+  // own account name), the narration, which still carries the real sender.
+  const nameMatch =
+    (await matchByPayerName(transaction.payerName, associationId)) ??
+    (transaction.narration && transaction.narration !== transaction.payerName
+      ? await matchByPayerName(transaction.narration, associationId)
+      : null);
   if (nameMatch) return nameMatch;
 
   paymentLogger.info(
@@ -253,14 +256,26 @@ export async function matchByPhoneAndName(
   });
   if (rows.length === 0) return null;
 
-  const tokens = nameTokens(payer.payerName ?? payer.narration ?? null);
-  const nameIsStructured = nameTokens(payer.payerName).length > 0;
-  const senderName = tokens.join(" ");
+  // The name is checked against BOTH the payer field and the narration, and
+  // the better agreement counts. A parsed payer field can be wrong — on a BK
+  // EKASH line it can pick up the association's own account name, the
+  // receiver — while the narration still carries the real sender.
+  const payerTokens = nameTokens(payer.payerName);
+  const narrationTokens = nameTokens(payer.narration ?? null);
+  const nameIsStructured = payerTokens.length > 0;
+  const senderName = (payerTokens.length > 0 ? payerTokens : narrationTokens).join(" ");
+
+  const rank = { full: 2, some: 1, none: 0 } as const;
+  const bestAgreement = (fullName: string): "full" | "some" | "none" => {
+    const a = nameAgreement(fullName, payerTokens);
+    const b = nameAgreement(fullName, narrationTokens);
+    return rank[a] >= rank[b] ? a : b;
+  };
 
   const scored = rows.map((row) => ({
     candidate: toCandidate(row),
     viaMobileMoney: row.mobileMoneyNumber !== null && variants.includes(row.mobileMoneyNumber),
-    agreement: nameAgreement(`${row.user.firstName} ${row.user.lastName}`, tokens),
+    agreement: bestAgreement(`${row.user.firstName} ${row.user.lastName}`),
   }));
 
   const strategyFor = (s: (typeof scored)[number]): MatchStrategy =>
@@ -281,14 +296,14 @@ export async function matchByPhoneAndName(
       return {
         ...base,
         confidence: MATCH_CONFIDENCE.PHONE_AND_FULL_NAME,
-        evidence: `Payer phone matches this member's ${phoneLabel(only)} and the sender name "${senderName}" is theirs`,
+        evidence: `Payer phone matches this member's ${phoneLabel(only)} and the sender's name on the payment is ${only.candidate.fullName}`,
       };
     }
     if (only.agreement === "some") {
       return {
         ...base,
         confidence: MATCH_CONFIDENCE.PHONE_AND_PARTIAL_NAME,
-        evidence: `Payer phone matches this member's ${phoneLabel(only)} and the sender name "${senderName}" shares their name`,
+        evidence: `Payer phone matches this member's ${phoneLabel(only)} and the payment carries part of ${only.candidate.fullName}'s name`,
       };
     }
     if (nameIsStructured) {
@@ -310,7 +325,6 @@ export async function matchByPhoneAndName(
   }
 
   // Several members share this number — let the name decide -----------------
-  const rank = { full: 2, some: 1, none: 0 } as const;
   const best = Math.max(...scored.map((s) => rank[s.agreement]));
   const leaders = scored.filter((s) => rank[s.agreement] === best);
 
@@ -322,8 +336,8 @@ export async function matchByPhoneAndName(
       member: winner.candidate,
       candidates: scored.map((s) => s.candidate),
       evidence:
-        `${scored.length} members share this phone number; the sender name ` +
-        `"${senderName}" identifies ${winner.candidate.fullName}`,
+        `${scored.length} members share this phone number; the name on the ` +
+        `payment identifies ${winner.candidate.fullName}`,
     };
   }
 
