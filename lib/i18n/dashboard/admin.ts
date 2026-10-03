@@ -301,12 +301,17 @@ export interface AdminCopy {
     passwordTitle: string;
     passwordIntro: string;
     passwordReset: string;
-    passwordConfirm: string;
-    passwordConfirmButton: string;
-    passwordDone: string;
     passwordNew: string;
-    passwordNewHint: string;
-    passwordCopy: string;
+    passwordConfirmNew: string;
+    passwordShow: string;
+    passwordHide: string;
+    /// Shown beside the save button: what happens the moment it is pressed.
+    passwordWarning: string;
+    passwordSave: string;
+    passwordSaving: string;
+    passwordDone: string;
+    passwordMismatch: string;
+    passwordConfirmEmpty: string;
   };
   /// The register's row menus and the actions on several ticked members.
   memberBulk: {
@@ -698,6 +703,46 @@ export interface AdminCopy {
     daysLate: string;
     overdue: string;
     noArrears: string;
+
+    feesTitle: string;
+    feesIntro: string;
+    feesTaken: string;
+    feesTakenHint: string;
+    feesPending: string;
+    feesPendingHint: string;
+    feesOwedToPlatform: string;
+    feesOwedToPlatformHint: string;
+    savingsAfterFees: string;
+    savingsAfterFeesHint: string;
+  };
+  /// One member's payments, opened from the payments list.
+  memberPayments: {
+    title: string;
+    description: string;
+    back: string;
+    openFile: string;
+    totalPaid: string;
+    totalPaidHint: string;
+    saved: string;
+    savedHint: string;
+    serviceFee: string;
+    serviceFeeHint: string;
+    daysCovered: string;
+    daysCoveredValue: string;
+    daysCoveredHint: string;
+    sharesLine: string;
+    tableTitle: string;
+    tableIntro: string;
+    colDate: string;
+    colPayment: string;
+    colAmount: string;
+    colSaved: string;
+    colFee: string;
+    colRunning: string;
+    colDays: string;
+    notCredited: string;
+    noneTitle: string;
+    noneBody: string;
   };
   notifications: {
     title: string;
@@ -1477,16 +1522,19 @@ export const admin: Record<Locale, AdminCopy> = {
 
       passwordTitle: "Password",
       passwordIntro:
-        "If this member cannot sign in and cannot use the reset link, give them a new temporary password. They will have to choose their own the next time they sign in.",
-      passwordReset: "Reset password",
-      passwordConfirm:
-        "Their current password will stop working and they will be signed out on every device. Continue?",
-      passwordConfirmButton: "Yes, reset it",
-      passwordDone: "The password has been reset.",
-      passwordNew: "Temporary password",
-      passwordNewHint:
-        "Give this to the member now. It is shown only once and cannot be looked up again.",
-      passwordCopy: "Copy password",
+        "If this member cannot sign in and cannot use the reset link, type a new password for them here. It works straight away and they will not be asked to change it.",
+      passwordReset: "Set a new password",
+      passwordNew: "New password",
+      passwordConfirmNew: "Confirm new password",
+      passwordShow: "Show password",
+      passwordHide: "Hide password",
+      passwordWarning:
+        "Their current password stops working at once and they are signed out on every device.",
+      passwordSave: "Save new password",
+      passwordSaving: "Saving…",
+      passwordDone: "The new password has been saved. The member can sign in with it now.",
+      passwordMismatch: "Passwords do not match",
+      passwordConfirmEmpty: "Type the password again to confirm it",
     },
     memberBulk: {
       selectAll: "Select every member on this page",
@@ -1946,6 +1994,47 @@ export const admin: Record<Locale, AdminCopy> = {
       daysLate: "Days late",
       overdue: "Overdue",
       noArrears: "No loan is currently in arrears.",
+
+      feesTitle: "Service fees",
+      feesIntro:
+        "The platform's 50 Frw per share per day, kept apart from members' savings. Fees are taken from savings each night for the days a member has paid for.",
+      feesTaken: "Fees taken",
+      feesTakenHint: "Taken from savings so far",
+      feesPending: "Waiting to be taken",
+      feesPendingHint: "{count} member(s) · taken in tonight's run",
+      feesOwedToPlatform: "Owed to the platform",
+      feesOwedToPlatformHint: "{amount} already paid over",
+      savingsAfterFees: "Savings after fees",
+      savingsAfterFeesHint: "Savings held, less fees still to be taken",
+    },
+    memberPayments: {
+      title: "Payments by {name}",
+      description: "Every payment from this member, and how it counted towards their contribution.",
+      back: "All payments",
+      openFile: "Open member file",
+      totalPaid: "Total paid",
+      totalPaidHint: "{count} payment(s) credited",
+      saved: "Saved",
+      savedHint: "The savings part of what was paid",
+      serviceFee: "Service fee",
+      serviceFeeHint: "{taken} taken · {pending} still to take",
+      daysCovered: "Days paid for",
+      daysCoveredValue: "{covered} of {due}",
+      daysCoveredHint: "{missed} day(s) behind",
+      sharesLine: "{shares} share(s) · {daily} a day",
+      tableTitle: "Payment history",
+      tableIntro:
+        "Each credited payment is split as the rules split a day's contribution: the saving and the service fee.",
+      colDate: "Date",
+      colPayment: "Payment",
+      colAmount: "Amount",
+      colSaved: "Saved",
+      colFee: "Service fee",
+      colRunning: "Total so far",
+      colDays: "Days covered",
+      notCredited: "Not credited",
+      noneTitle: "No payments yet",
+      noneBody: "No payment has been credited to this member.",
     },
     notifications: {
       title: "Notifications",
@@ -2784,16 +2873,19 @@ export const admin: Record<Locale, AdminCopy> = {
 
       passwordTitle: "Ijambobanga",
       passwordIntro:
-        "Niba uyu munyamuryango adashobora kwinjira kandi adashobora gukoresha umurongo wo guhindura ijambobanga, muhe ijambobanga ry'agateganyo. Azasabwa kwihitiramo irye ubutaha yinjiye.",
-      passwordReset: "Hindura ijambobanga",
-      passwordConfirm:
-        "Ijambobanga rye ry'ubu rizahita rireka gukora kandi azasohorwa ku bikoresho byose. Ukomeze?",
-      passwordConfirmButton: "Yego, rihindure",
-      passwordDone: "Ijambobanga ryahinduwe.",
-      passwordNew: "Ijambobanga ry'agateganyo",
-      passwordNewHint:
-        "Rihe umunyamuryango ubu. Rigaragara rimwe gusa kandi ntirishobora kongera kurebwa.",
-      passwordCopy: "Koporora ijambobanga",
+        "Niba uyu munyamuryango adashobora kwinjira kandi adashobora gukoresha umurongo wo guhindura ijambobanga, mwandikire ijambobanga rishya hano. Rihita rikora kandi ntazasabwa kurihindura.",
+      passwordReset: "Shyiraho ijambobanga rishya",
+      passwordNew: "Ijambobanga rishya",
+      passwordConfirmNew: "Emeza ijambobanga rishya",
+      passwordShow: "Erekana ijambobanga",
+      passwordHide: "Hisha ijambobanga",
+      passwordWarning:
+        "Ijambobanga rye ry'ubu rihita rireka gukora kandi asohorwa ku bikoresho byose.",
+      passwordSave: "Bika ijambobanga rishya",
+      passwordSaving: "Turabika…",
+      passwordDone: "Ijambobanga rishya ryabitswe. Umunyamuryango ashobora kuryinjiriramo ubu.",
+      passwordMismatch: "Amagambobanga ntaba amwe",
+      passwordConfirmEmpty: "Ongera wandike ijambobanga kugira ngo uryemeze",
     },
     memberBulk: {
       selectAll: "Hitamo abanyamuryango bose bari kuri iyi paji",
@@ -3279,6 +3371,47 @@ export const admin: Record<Locale, AdminCopy> = {
       daysLate: "Iminsi yatinze",
       overdue: "Yarengeje igihe",
       noArrears: "Nta nguzanyo irengeje igihe kugeza ubu.",
+
+      feesTitle: "Amafaranga ya serivisi",
+      feesIntro:
+        "Amafaranga 50 ku munsi kuri buri mugabane ya serivisi y'urubuga, atandukanye n'ubuzigame bw'abanyamuryango. Akurwa ku buzigame buri joro ku minsi umunyamuryango yishyuye.",
+      feesTaken: "Amafaranga yakuweho",
+      feesTakenHint: "Yakuwe ku buzigame kugeza ubu",
+      feesPending: "Ategereje gukurwaho",
+      feesPendingHint: "Abanyamuryango {count} · azakurwaho iri joro",
+      feesOwedToPlatform: "Afitiwe urubuga",
+      feesOwedToPlatformHint: "{amount} yamaze kwishyurwa",
+      savingsAfterFees: "Ubuzigame nyuma ya serivisi",
+      savingsAfterFeesHint: "Ubuzigame bufitwe, havuyemo amafaranga ya serivisi ataravanwaho",
+    },
+    memberPayments: {
+      title: "Ubwishyu bwa {name}",
+      description: "Ubwishyu bwose bw'uyu munyamuryango, n'uko bwabaruwe mu misanzu ye.",
+      back: "Ubwishyu bwose",
+      openFile: "Fungura dosiye y'umunyamuryango",
+      totalPaid: "Yose yishyuwe",
+      totalPaidHint: "Ubwishyu {count} bwageze kuri konti",
+      saved: "Ayazigamwe",
+      savedHint: "Igice cy'ubuzigame mu byishyuwe",
+      serviceFee: "Serivisi",
+      serviceFeeHint: "{taken} yakuweho · {pending} asigaye",
+      daysCovered: "Iminsi yishyuwe",
+      daysCoveredValue: "{covered} kuri {due}",
+      daysCoveredHint: "Asigaye inyuma iminsi {missed}",
+      sharesLine: "Imigabane {shares} · {daily} ku munsi",
+      tableTitle: "Amateka y'ubwishyu",
+      tableIntro:
+        "Buri bwishyu bwageze kuri konti bugabanywa nk'uko amabwiriza agabanya umusanzu w'umunsi: ubuzigame n'amafaranga ya serivisi.",
+      colDate: "Itariki",
+      colPayment: "Ubwishyu",
+      colAmount: "Amafaranga",
+      colSaved: "Ayazigamwe",
+      colFee: "Serivisi",
+      colRunning: "Igiteranyo kugeza ubu",
+      colDays: "Iminsi yishyuwe",
+      notCredited: "Ntibwageze kuri konti",
+      noneTitle: "Nta bwishyu buraboneka",
+      noneBody: "Nta bwishyu buragera kuri konti y'uyu munyamuryango.",
     },
     notifications: {
       title: "Ubutumwa",

@@ -10,9 +10,9 @@ import type { Locale } from "@/types";
  * Kinyarwanda and then rejects the answer in English is worse than one that
  * never pretended.
  *
- * Place names are not translated. Rwanda's provinces and districts have one
- * official spelling each — see lib/rwanda.ts — and translating them would
- * defeat the point of choosing them from a fixed list.
+ * Province names are translated on screen (lib/rwanda.ts holds both names),
+ * but the stored value is always the English one. District names are not
+ * translated: each has one official spelling.
  */
 export interface FormsCopy {
   /// Shared field labels and hints.
@@ -116,7 +116,20 @@ export interface FormsCopy {
       successorNationalId: string;
       password: string;
       confirmPassword: string;
+      /// The confirmation box was left empty, which is not the same mistake
+      /// as two passwords that differ.
+      confirmPasswordEmpty: string;
       terms: string;
+      /// Above the form when something is missing, because the field that
+      /// needs attention may be a long scroll away from the submit button.
+      fixHighlighted: string;
+      /// The server's answers, which arrive in English, said here instead.
+      emailTaken: string;
+      phoneTaken: string;
+      nationalIdTaken: string;
+      checkField: string;
+      tooMany: string;
+      unavailable: string;
     };
   };
   /// Administrator enrolment and editing of a member's file.
@@ -259,7 +272,7 @@ export const forms: Record<Locale, FormsCopy> = {
       nationalId: "1199012345678901",
       occupation: "Tailor, fashion designer, textile trader…",
       city: "Kigali",
-      password: "At least 10 characters",
+      password: "At least 6 characters, with a letter and a number",
       confirmPassword: "Re-enter your password",
       relation: "Spouse",
     },
@@ -316,7 +329,17 @@ export const forms: Record<Locale, FormsCopy> = {
         successorNationalId: "The successor's national ID must be 16 digits",
         password: "Choose a stronger password",
         confirmPassword: "Passwords do not match",
+        confirmPasswordEmpty: "Type your password again to confirm it",
         terms: "You must accept the association rules to register",
+        fixHighlighted:
+          "Some information is missing or incorrect. Please check the fields marked in red.",
+        emailTaken: "An account with this email address already exists",
+        phoneTaken: "An account with this phone number already exists",
+        nationalIdTaken: "A member with this national ID is already registered",
+        checkField: "Please check this field",
+        tooMany: "Too many attempts. Please wait a little and try again.",
+        unavailable:
+          "Registration is not open right now. Please contact the association.",
       },
     },
     member: {
@@ -458,7 +481,7 @@ export const forms: Record<Locale, FormsCopy> = {
       nationalId: "1199012345678901",
       occupation: "Umudozi, umushushanya myambaro, umucuruzi w'imyenda…",
       city: "Kigali",
-      password: "Byibuze inyuguti 10",
+      password: "Nibura inyuguti 6, harimo inyuguti n'umubare",
       confirmPassword: "Ongera wandike ijambobanga",
       relation: "Umubano mufitanye",
     },
@@ -516,7 +539,17 @@ export const forms: Record<Locale, FormsCopy> = {
         successorNationalId: "Indangamuntu y'umusimbura igomba kuba imibare 16",
         password: "Hitamo ijambobanga rikomeye kurushaho",
         confirmPassword: "Amagambobanga ntaba amwe",
+        confirmPasswordEmpty: "Ongera wandike ijambobanga ryawe kugira ngo uryemeze",
         terms: "Ugomba kwemera amabwiriza y'ihuriro mbere yo kwiyandikisha",
+        fixHighlighted:
+          "Hari amakuru abura cyangwa atari yo. Reba ahantu hagaragajwe mu ibara ritukura.",
+        emailTaken: "Hari konti isanzwe ikoresha iyi aderesi imeyili",
+        phoneTaken: "Hari konti isanzwe ikoresha iyi nimero ya telefone",
+        nationalIdTaken: "Hari umunyamuryango usanzwe wanditse kuri iyi ndangamuntu",
+        checkField: "Ongera urebe aya makuru",
+        tooMany: "Wagerageje inshuro nyinshi. Tegereza gato wongere ugerageze.",
+        unavailable:
+          "Kwiyandikisha ntibirafungurwa ubu. Vugana n'ihuriro.",
       },
     },
     member: {

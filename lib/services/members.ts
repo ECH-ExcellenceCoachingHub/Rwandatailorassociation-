@@ -670,13 +670,14 @@ function snapshotOf(member: SnapshotSource): EditableSnapshot {
 }
 
 /**
- * Replaces a member's password with a fresh temporary one, for a member who
+ * Sets a member's password to one the administrator types, for a member who
  * cannot sign in and cannot use the reset link — no email, a phone they no
  * longer have, or simply standing at the desk.
  *
- * The same rules as enrolment apply: the password is generated, never chosen
- * by the administrator, and `mustChangePassword` makes the member replace it
- * at their next sign-in, so the administrator does not go on knowing it.
+ * The password is final: the member is not made to change it again at their
+ * next sign-in. Usually the member is at the desk and chooses it themselves,
+ * and a second forced change only meant a second password to forget. They can
+ * still change it from their account whenever they like.
  *
  * Every session is revoked and any outstanding reset link is voided: if the
  * reset was asked for because someone else got in, they must not stay in.
@@ -688,9 +689,11 @@ function snapshotOf(member: SnapshotSource): EditableSnapshot {
  */
 export async function resetMemberPassword(params: {
   memberId: string;
+  /// Already validated against the password rules by the caller.
+  password: string;
   actorId: string;
-}): Promise<{ ok: true; temporaryPassword: string } | { ok: false; message: string }> {
-  const { memberId, actorId } = params;
+}): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { memberId, password, actorId } = params;
 
   const member = await prisma.member.findUnique({
     where: { id: memberId },
@@ -714,8 +717,7 @@ export async function resetMemberPassword(params: {
     return { ok: false, message: "This login has been disabled and cannot be given a new password." };
   }
 
-  const temporaryPassword = generateTemporaryPassword();
-  const passwordHash = await hashPassword(temporaryPassword);
+  const passwordHash = await hashPassword(password);
   const now = new Date();
 
   await prisma.$transaction(async (tx) => {
@@ -724,7 +726,7 @@ export async function resetMemberPassword(params: {
       data: {
         passwordHash,
         passwordChangedAt: now,
-        mustChangePassword: true,
+        mustChangePassword: false,
         failedLoginAttempts: 0,
         lockedUntil: null,
       },
@@ -751,7 +753,7 @@ export async function resetMemberPassword(params: {
 
   await revokeAllUserSessions(member.user.id, "PASSWORD_RESET_BY_ADMIN");
 
-  return { ok: true, temporaryPassword };
+  return { ok: true };
 }
 
 /**

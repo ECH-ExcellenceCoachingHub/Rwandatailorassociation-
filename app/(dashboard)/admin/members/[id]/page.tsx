@@ -27,6 +27,7 @@ import { add, formatMoney, subtract } from "@/lib/money";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { fill, pluralize } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
+import { provinceLabel } from "@/lib/rwanda";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -301,7 +302,7 @@ export default async function AdminMemberDetailPage({
             }
           />
           <Row label={field.district} value={member.district ?? "—"} />
-          <Row label={field.province} value={member.province ?? "—"} />
+          <Row label={field.province} value={provinceLabel(member.province, locale) || "—"} />
           <Row
             label={field.address}
             value={

@@ -60,6 +60,7 @@ export default async function AdminPaymentsPage({
         status={status}
         suspiciousOnly={suspiciousOnly}
         unmatchedPath="/admin/payments/unmatched"
+        memberPaymentsPath="/admin/payments/member"
       />
     </div>
   );

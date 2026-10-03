@@ -10,55 +10,45 @@
  * advice, not enforcement.
  */
 
-/** Below this, an attacker's dictionary does the work regardless of the hash. */
-export const MIN_PASSWORD_LENGTH = 10;
+/**
+ * Kept short on purpose. Members sign in on basic phones, often with help, and
+ * a ten-character rule with symbols produced passwords written on paper — or
+ * abandoned applications. Six characters with a letter and a number is easy to
+ * remember and still rules out the "123456" that guessing starts with.
+ */
+export const MIN_PASSWORD_LENGTH = 6;
 /** Unbounded input is a cheap denial-of-service against a slow KDF. */
 export const MAX_PASSWORD_LENGTH = 128;
 
 /**
- * A stable identifier for each piece of advice, so the browser can render it in
+ * A stable identifier for each requirement, so the browser can render it in
  * the reader's language. The English `issues` strings stay as they are — they
  * are what the API returns and what a log records — but a Kinyarwanda-speaking
  * applicant needs to be told what to fix in Kinyarwanda, and matching on
  * English prose to work that out would break the moment the wording changed.
  */
-export type PasswordIssue =
-  | "length"
-  | "lowercase"
-  | "uppercase"
-  | "number"
-  | "symbol"
-  | "repeated"
-  | "common";
+export type PasswordIssue = "length" | "letter" | "number";
+
+/** Every requirement, in the order a form lists them. */
+export const PASSWORD_REQUIREMENTS: readonly PasswordIssue[] = [
+  "length",
+  "letter",
+  "number",
+];
 
 export interface PasswordStrength {
   score: 0 | 1 | 2 | 3 | 4;
   label: "Very weak" | "Weak" | "Fair" | "Strong" | "Very strong";
+  /// The requirements still missing, in English.
   issues: string[];
-  /// The same advice as `issues`, in the same order, as translatable codes.
+  /// The same requirements as `issues`, in the same order, as translatable codes.
   codes: PasswordIssue[];
   acceptable: boolean;
 }
 
-const BANNED_SUBSTRINGS = [
-  "password",
-  "123456",
-  "qwerty",
-  "letmein",
-  "welcome",
-  "admin",
-  "rwanda",
-  "tailors",
-  "savings",
-];
-
 /**
- * Advisory strength assessment.
- *
- * Composition rules ("must contain a symbol") are weak security on their own
- * and mostly teach people to write Password1!. So the suggestions cover
- * composition, but the only things that actually *block* acceptance are length
- * and obvious dictionary content.
+ * Checks a password against the three requirements. Anything that meets all
+ * three is accepted; the score is only there to colour the meter.
  */
 export function assessPasswordStrength(password: string): PasswordStrength {
   const issues: string[] = [];
@@ -70,27 +60,23 @@ export function assessPasswordStrength(password: string): PasswordStrength {
     issues.push(message);
   }
 
+  const hasLetter = /\p{L}/u.test(password);
+  const hasNumber = /[0-9]/.test(password);
+
   if (password.length < MIN_PASSWORD_LENGTH) {
     advise("length", `Use at least ${MIN_PASSWORD_LENGTH} characters`);
   }
-  if (!/[a-z]/.test(password)) advise("lowercase", "Add a lowercase letter");
-  if (!/[A-Z]/.test(password)) advise("uppercase", "Add an uppercase letter");
-  if (!/[0-9]/.test(password)) advise("number", "Add a number");
-  if (!/[^A-Za-z0-9]/.test(password)) advise("symbol", "Add a symbol");
-  if (/(.)\1{3,}/.test(password)) advise("repeated", "Avoid repeated characters");
+  if (!hasLetter) advise("letter", "Add a letter");
+  if (!hasNumber) advise("number", "Add a number");
 
-  const lowered = password.toLowerCase();
-  const containsBanned = BANNED_SUBSTRINGS.some((b) => lowered.includes(b));
-  if (containsBanned) {
-    advise("common", "Avoid common words and predictable patterns");
-  }
+  const acceptable =
+    codes.length === 0 && password.length <= MAX_PASSWORD_LENGTH;
 
   let score = 0;
   if (password.length >= MIN_PASSWORD_LENGTH) score++;
-  if (password.length >= 14) score++;
-  if (/[a-z]/.test(password) && /[A-Z]/.test(password) && /[0-9]/.test(password)) score++;
-  if (/[^A-Za-z0-9]/.test(password)) score++;
-  if (containsBanned) score = Math.min(score, 1);
+  if (hasLetter && hasNumber) score++;
+  if (acceptable && password.length >= 10) score++;
+  if (acceptable && /[^\p{L}0-9]/u.test(password)) score++;
 
   const clamped = Math.min(score, 4) as 0 | 1 | 2 | 3 | 4;
   const labels = ["Very weak", "Weak", "Fair", "Strong", "Very strong"] as const;
@@ -100,9 +86,6 @@ export function assessPasswordStrength(password: string): PasswordStrength {
     label: labels[clamped],
     issues,
     codes,
-    acceptable:
-      password.length >= MIN_PASSWORD_LENGTH &&
-      password.length <= MAX_PASSWORD_LENGTH &&
-      !containsBanned,
+    acceptable,
   };
 }

@@ -3,13 +3,23 @@ import { requirePermission, resolveAssociationScope } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getReportBundle } from "@/lib/services/admin-queries";
 import { getAdminDashboard } from "@/lib/services/admin-dashboard";
-import { formatMoney } from "@/lib/money";
+import { getServiceFeeSummary } from "@/lib/services/member-payments";
+import { formatMoney, subtract } from "@/lib/money";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { fill, pluralize } from "@/lib/i18n/fill";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { ReportsView } from "@/components/dashboard/ReportsView";
-import { AlertTriangle, HandCoins, PiggyBank, Users } from "lucide-react";
+import {
+  AlertTriangle,
+  Clock,
+  HandCoins,
+  Landmark,
+  PiggyBank,
+  Receipt,
+  Users,
+  Wallet,
+} from "lucide-react";
 
 /**
  * The browser tab follows the reader's language like the rest of the page.
@@ -34,9 +44,10 @@ export default async function AdminReportsPage() {
   const { d } = await getDashboardCopy();
   const copy = d.admin.reports;
 
-  const [summary, reports] = await Promise.all([
+  const [summary, reports, fees] = await Promise.all([
     getAdminDashboard(associationId),
     getReportBundle(associationId),
+    getServiceFeeSummary(associationId),
   ]);
 
   return (
@@ -73,6 +84,54 @@ export default async function AdminReportsPage() {
           icon={Users}
         />
       </StatGrid>
+
+      {/*
+        The service fee is the platform's money, not the association's. Fees
+        for days already paid are taken from savings by the nightly run, so
+        until it runs "savings held" still includes them — the last card is
+        the figure with them taken out.
+      */}
+      <section className="space-y-3">
+        <div>
+          <h2 className="font-heading text-lg font-semibold text-ink">
+            {copy.feesTitle}
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-ink-muted">
+            {copy.feesIntro}
+          </p>
+        </div>
+        <StatGrid columns={4}>
+          <StatCard
+            label={copy.feesTaken}
+            value={formatMoney(fees.taken)}
+            hint={copy.feesTakenHint}
+            icon={Receipt}
+            tone="primary"
+          />
+          <StatCard
+            label={copy.feesPending}
+            value={formatMoney(fees.pending)}
+            hint={fill(copy.feesPendingHint, { count: fees.pendingMembers })}
+            icon={Clock}
+            tone={fees.pendingMembers > 0 ? "warning" : "success"}
+          />
+          <StatCard
+            label={copy.feesOwedToPlatform}
+            value={formatMoney(fees.owedToPlatform)}
+            hint={fill(copy.feesOwedToPlatformHint, {
+              amount: formatMoney(fees.paidOver),
+            })}
+            icon={Landmark}
+          />
+          <StatCard
+            label={copy.savingsAfterFees}
+            value={formatMoney(subtract(summary.savings.totalBalance, fees.pending))}
+            hint={copy.savingsAfterFeesHint}
+            icon={Wallet}
+            tone="success"
+          />
+        </StatGrid>
+      </section>
 
       <ReportsView data={reports} />
     </div>

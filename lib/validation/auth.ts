@@ -159,6 +159,21 @@ export const resetPasswordSchema = z
     path: ["confirmPassword"],
   });
 
+/**
+ * An administrator setting a member's password at the desk. The same rules as
+ * any other password, typed twice so a slip of the finger does not lock the
+ * member out.
+ */
+export const adminSetPasswordSchema = z
+  .object({
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Enter your current password"),

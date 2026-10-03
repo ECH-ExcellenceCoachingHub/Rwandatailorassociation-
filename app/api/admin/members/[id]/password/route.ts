@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db/prisma";
 import { requireApiPermission, assertSameAssociation } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { resetMemberPassword } from "@/lib/services/members";
+import { adminSetPasswordSchema } from "@/lib/validation/auth";
+import { assessPasswordStrength } from "@/lib/auth/password.shared";
 import {
   apiBadRequest,
   apiNotFound,
@@ -14,15 +16,15 @@ import { RATE_LIMITS, checkRateLimit, getClientIp } from "@/lib/api/rate-limit";
 /**
  * POST /api/admin/members/[id]/password
  *
- * Gives a member a new temporary password, for when the self-service reset
- * link is no use to them. The password is returned ONCE, for the
- * administrator to hand over; only its hash is kept, and the member must
- * replace it at their next sign-in. Every session they have is revoked.
+ * Sets a member's password to the one the administrator typed, for when the
+ * self-service reset link is no use to them. Body: `{ password,
+ * confirmPassword }`. Only the hash is kept, the member is not asked to change
+ * it again, and every session they have is revoked.
  *
  * Needs `members.update`. Staff logins are refused — see `resetMemberPassword`.
  */
 export const POST = withErrorHandling(
-  async (_request: Request, { params }: { params: Promise<{ id: string }> }) => {
+  async (request: Request, { params }: { params: Promise<{ id: string }> }) => {
     const context = await requireApiPermission(PERMISSIONS.MEMBERS_UPDATE);
     const { id } = await params;
 
@@ -35,6 +37,24 @@ export const POST = withErrorHandling(
       return apiTooManyRequests("Too many password resets. Please wait before trying again.", limit.retryAfter);
     }
 
+    const body = await request.json().catch(() => null);
+    const parsed = adminSetPasswordSchema.safeParse(body ?? {});
+    if (!parsed.success) {
+      const details: Record<string, string[]> = {};
+      for (const issue of parsed.error.issues) {
+        const path = issue.path.join(".") || "_";
+        (details[path] ??= []).push(issue.message);
+      }
+      return apiBadRequest("Please correct the highlighted fields", details);
+    }
+
+    const strength = assessPasswordStrength(parsed.data.password);
+    if (!strength.acceptable) {
+      return apiBadRequest("Please choose a stronger password", {
+        password: strength.issues,
+      });
+    }
+
     const member = await prisma.member.findUnique({
       where: { id },
       select: { id: true, associationId: true },
@@ -45,10 +65,14 @@ export const POST = withErrorHandling(
     // Cross-tenant guard: an admin must not take over another association's member.
     assertSameAssociation(context, member, "Member");
 
-    const result = await resetMemberPassword({ memberId: id, actorId: context.user.id });
+    const result = await resetMemberPassword({
+      memberId: id,
+      password: parsed.data.password,
+      actorId: context.user.id,
+    });
 
     if (!result.ok) return apiBadRequest(result.message);
 
-    return apiSuccess({ temporaryPassword: result.temporaryPassword });
+    return apiSuccess({ ok: true });
   }
 );

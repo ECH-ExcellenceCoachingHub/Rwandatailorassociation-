@@ -15,6 +15,7 @@ import {
   RWANDA_PROVINCES,
   districtsInProvince,
   provinceForDistrict,
+  provinceLabel,
 } from "@/lib/rwanda";
 
 /**
@@ -38,9 +39,11 @@ import {
  * Renders two `<Field>`s and nothing else, so the calling form owns the layout
  * and these sit in its grid like any other pair of fields.
  *
- * The labels are translated; the place names are not. Rwanda's districts have
- * one official spelling each, and a member looking for Kicukiro looks for
- * "Kicukiro" in either language.
+ * The labels and the province names are translated — "Intara y'Amajyepfo"
+ * reads as "Southern Province" in English — but the value submitted is always
+ * the English canonical name, so reports group the same either way. District
+ * names are not translated: each has one official spelling, and a member
+ * looking for Kicukiro looks for "Kicukiro" in either language.
  */
 
 /** Radix rejects an empty item value, so "not recorded" needs a stand-in. */
@@ -81,7 +84,7 @@ export function RwandaLocationFields({
   withHiddenInputs,
   idPrefix = "",
 }: RwandaLocationFieldsProps) {
-  const { d } = useLanguage();
+  const { d, locale } = useLanguage();
   const copy = d.forms;
 
   const provinceId = `${idPrefix}province`;
@@ -131,7 +134,7 @@ export function RwandaLocationFields({
               )}
               {RWANDA_PROVINCES.map((entry) => (
                 <SelectItem key={entry.name} value={entry.name}>
-                  {entry.name}
+                  {provinceLabel(entry.name, locale)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -163,7 +166,7 @@ export function RwandaLocationFields({
               {grouped
                 ? RWANDA_PROVINCES.map((entry) => (
                     <SelectGroup key={entry.name}>
-                      <SelectLabel>{entry.name}</SelectLabel>
+                      <SelectLabel>{provinceLabel(entry.name, locale)}</SelectLabel>
                       {entry.districts.map((name) => (
                         <SelectItem key={name} value={name}>
                           {name}

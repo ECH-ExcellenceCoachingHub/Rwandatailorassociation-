@@ -34,6 +34,7 @@ export async function PaymentsView({
   status,
   suspiciousOnly,
   unmatchedPath,
+  memberPaymentsPath,
 }: {
   data: Awaited<ReturnType<typeof listPayments>>;
   basePath: string;
@@ -42,6 +43,9 @@ export async function PaymentsView({
   suspiciousOnly?: boolean;
   /// Where the unmatched queue lives, if this role has one.
   unmatchedPath?: string;
+  /// Where one member's payment history lives. Clicking a member's name opens
+  /// it; without it the name opens their member file.
+  memberPaymentsPath?: string;
 }) {
   const { d, locale } = await getDashboardCopy();
   const copy = d.views.payments;
@@ -182,7 +186,11 @@ export async function PaymentsView({
                     {payment.memberId ? (
                       <>
                         <Link
-                          href={`/admin/members/${payment.memberId}`}
+                          href={
+                            memberPaymentsPath
+                              ? `${memberPaymentsPath}/${payment.memberId}`
+                              : `/admin/members/${payment.memberId}`
+                          }
                           className="block font-medium text-ink hover:text-primary"
                         >
                           {payment.memberName}

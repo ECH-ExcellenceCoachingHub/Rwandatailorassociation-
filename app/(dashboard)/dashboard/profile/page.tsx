@@ -7,6 +7,7 @@ import { getMemberSelfProfile } from "@/lib/services/member-queries";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { fill } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
+import { provinceLabel } from "@/lib/rwanda";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Alert } from "@/components/ui/alert";
@@ -139,7 +140,7 @@ export default async function MemberProfilePage() {
           <Row label={field.occupation} value={profile.occupation ?? "—"} />
           <Row label={copy.business} value={profile.businessName ?? "—"} />
           <Row label={field.district} value={profile.district ?? "—"} />
-          <Row label={field.province} value={profile.province ?? "—"} />
+          <Row label={field.province} value={provinceLabel(profile.province, locale) || "—"} />
           <Row
             label={field.address}
             value={

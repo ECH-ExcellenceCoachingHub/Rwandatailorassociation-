@@ -111,11 +111,15 @@ export interface AuthCopy {
     keepReference: string;
     backToWebsite: string;
   };
-  /// The strength meter. Keyed by score, and by the codes the assessment emits.
+  /// The password requirements checklist, keyed by the codes the assessment
+  /// emits, and the line that sums up what is still missing.
   password: {
-    strengthLabel: string;
-    strength: [string, string, string, string, string];
-    issue: Record<PasswordIssue, string>;
+    requirementsTitle: string;
+    requirement: Record<PasswordIssue, string>;
+    met: string;
+    missing: string;
+    /// "Your password is missing: {items}" — the error under the field.
+    missingList: string;
   };
 }
 
@@ -177,7 +181,7 @@ export const auth: Record<Locale, AuthCopy> = {
       subtitle:
         "Choose a password you have not used elsewhere. Signing in on your other devices will be required again.",
       newPassword: "New password",
-      newPasswordPlaceholder: "At least 10 characters",
+      newPasswordPlaceholder: "At least 6 characters, with a letter and a number",
       confirmPassword: "Confirm new password",
       confirmPasswordPlaceholder: "Re-enter your new password",
       mismatch: "Passwords do not match",
@@ -195,7 +199,7 @@ export const auth: Record<Locale, AuthCopy> = {
       title: "Change your password",
       currentPassword: "Current password",
       newPassword: "New password",
-      newPasswordPlaceholder: "At least 10 characters",
+      newPasswordPlaceholder: "At least 6 characters, with a letter and a number",
       confirmPassword: "Confirm new password",
       mismatch: "Passwords do not match",
       showPasswords: "Show passwords",
@@ -215,17 +219,15 @@ export const auth: Record<Locale, AuthCopy> = {
       backToWebsite: "Back to the website",
     },
     password: {
-      strengthLabel: "Password strength: {label}",
-      strength: ["Very weak", "Weak", "Fair", "Strong", "Very strong"],
-      issue: {
-        length: "Use at least 10 characters",
-        lowercase: "Add a lowercase letter",
-        uppercase: "Add an uppercase letter",
-        number: "Add a number",
-        symbol: "Add a symbol",
-        repeated: "Avoid repeated characters",
-        common: "Avoid common words and predictable patterns",
+      requirementsTitle: "Your password needs:",
+      requirement: {
+        length: "At least 6 characters",
+        letter: "At least one letter",
+        number: "At least one number",
       },
+      met: "done",
+      missing: "missing",
+      missingList: "Your password is missing: {items}",
     },
   },
 
@@ -288,7 +290,7 @@ export const auth: Record<Locale, AuthCopy> = {
       subtitle:
         "Hitamo ijambobanga utakoresheje ahandi. Uzasabwa kongera kwinjira ku bindi byuma byawe.",
       newPassword: "Ijambobanga rishya",
-      newPasswordPlaceholder: "Byibuze inyuguti 10",
+      newPasswordPlaceholder: "Nibura inyuguti 6, harimo inyuguti n'umubare",
       confirmPassword: "Emeza ijambobanga rishya",
       confirmPasswordPlaceholder: "Ongera wandike ijambobanga rishya",
       mismatch: "Amagambobanga ntaba amwe",
@@ -307,7 +309,7 @@ export const auth: Record<Locale, AuthCopy> = {
       title: "Hindura ijambobanga ryawe",
       currentPassword: "Ijambobanga rya none",
       newPassword: "Ijambobanga rishya",
-      newPasswordPlaceholder: "Byibuze inyuguti 10",
+      newPasswordPlaceholder: "Nibura inyuguti 6, harimo inyuguti n'umubare",
       confirmPassword: "Emeza ijambobanga rishya",
       mismatch: "Amagambobanga ntaba amwe",
       showPasswords: "Erekana amagambobanga",
@@ -327,23 +329,15 @@ export const auth: Record<Locale, AuthCopy> = {
       backToWebsite: "Subira ku rubuga",
     },
     password: {
-      strengthLabel: "Imbaraga z'ijambobanga: {label}",
-      strength: [
-        "Rifite intege nke cyane",
-        "Rifite intege nke",
-        "Rirambaye",
-        "Rikomeye",
-        "Rikomeye cyane",
-      ],
-      issue: {
-        length: "Koresha byibuze inyuguti 10",
-        lowercase: "Ongeraho inyuguti nto",
-        uppercase: "Ongeraho inyuguti nkuru",
-        number: "Ongeraho umubare",
-        symbol: "Ongeraho ikimenyetso",
-        repeated: "Irinde inyuguti zisubiranamo",
-        common: "Irinde amagambo azwi n'imikorere yoroshye kumenya",
+      requirementsTitle: "Ijambobanga rigomba kugira:",
+      requirement: {
+        length: "Nibura inyuguti 6",
+        letter: "Nibura inyuguti imwe",
+        number: "Nibura umubare umwe",
       },
+      met: "byujujwe",
+      missing: "birabura",
+      missingList: "Ijambobanga ryawe ribura: {items}",
     },
   },
 };

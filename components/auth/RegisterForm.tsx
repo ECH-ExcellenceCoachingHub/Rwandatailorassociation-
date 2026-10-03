@@ -15,13 +15,15 @@ import { Button } from "@/components/ui/button";
 import { Input, NativeSelect } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
 import { Alert } from "@/components/ui/alert";
-import { PasswordStrength } from "@/components/ui/password-strength";
+import {
+  PasswordStrength,
+  passwordMissingMessage,
+} from "@/components/ui/password-strength";
 import { PhotoField } from "@/components/ui/photo-field";
 import { RwandaLocationFields } from "@/components/ui/rwanda-location-fields";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill } from "@/lib/i18n/fill";
 import { add, formatMoney, multiply } from "@/lib/money";
-import { assessPasswordStrength } from "@/lib/auth/password.shared";
 import { isValidRwandanPhone } from "@/lib/phone";
 import {
   MAX_APPLICATION_SHARES,
@@ -72,6 +74,35 @@ const INITIAL = {
   password: "",
   confirmPassword: "",
 };
+
+/**
+ * The fields in the order they appear on the page, so a failed submit can take
+ * the applicant to the first one that needs attention rather than leaving them
+ * at the bottom of a long form wondering why nothing happened.
+ */
+const FIELD_ORDER = [
+  "firstName",
+  "lastName",
+  "email",
+  "phone",
+  "nationalId",
+  "province",
+  "district",
+  "photo",
+  "sharesSubscribed",
+  "hasCompany",
+  "hasProfessionalCertificate",
+  "acceptsInterns",
+  "internCapacity",
+  "successorName",
+  "successorPhone",
+  "successorNationalId",
+  "successorRelation",
+  "successorPhoto",
+  "password",
+  "confirmPassword",
+  "acceptedTerms",
+] as const;
 
 const SHARE_OPTIONS = Array.from({ length: MAX_APPLICATION_SHARES }, (_, i) => i + 1);
 
@@ -195,23 +226,67 @@ export default function RegisterForm({
       next.successorPhone = [copy.error.phone];
     }
 
-    // The strength assessment reports its own reasons, which are English-only
-    // because they are shared with the server. The translated line stands in
-    // for them rather than beside them, so the message is never half a
-    // language behind.
-    const strength = assessPasswordStrength(values.password);
-    if (!strength.acceptable) {
-      next.password = [copy.error.password];
+    // Names what is missing, in the reader's language — the assessment's own
+    // reasons are English-only because they are shared with the server.
+    const passwordProblem = passwordMissingMessage(values.password, d);
+    if (passwordProblem) {
+      next.password = [passwordProblem];
     }
-    if (values.password !== values.confirmPassword) {
+    if (!values.confirmPassword) {
+      next.confirmPassword = [copy.error.confirmPasswordEmpty];
+    } else if (values.password !== values.confirmPassword) {
       next.confirmPassword = [copy.error.confirmPassword];
     }
     if (!acceptedTerms) {
       next.acceptedTerms = [copy.error.terms];
     }
 
-    setErrors(next);
+    showErrors(next);
     return Object.keys(next).length === 0;
+  }
+
+  /** Shows the errors, says so above the form, and goes to the first one. */
+  function showErrors(next: Record<string, string[]>) {
+    setErrors(next);
+    if (Object.keys(next).length === 0) return;
+
+    setFormError(copy.error.fixHighlighted);
+    const first = FIELD_ORDER.find((name) => next[name]);
+    // After the render that marks the fields, so the scroll lands on them.
+    requestAnimationFrame(() => {
+      const target =
+        (first && document.getElementById(first)) ??
+        document.querySelector<HTMLElement>("[aria-invalid='true']");
+      target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.focus({ preventScroll: true });
+    });
+  }
+
+  /**
+   * The server answers in English. Every field it can object to once the
+   * browser's own checks have passed is put back into the reader's language
+   * here, so a Kinyarwanda form never ends on an English error.
+   */
+  function translateServerErrors(details: Record<string, string[]>) {
+    const known: Record<string, string> = {
+      firstName: copy.error.firstName,
+      lastName: copy.error.lastName,
+      email: copy.error.emailTaken,
+      phone: copy.error.phoneTaken,
+      nationalId: copy.error.nationalIdTaken,
+      successorNationalId: copy.error.successorNationalId,
+      successorPhone: copy.error.phone,
+      photo: d.forms.photo.failed,
+      successorPhoto: d.forms.photo.failed,
+      password: passwordMissingMessage(values.password, d) ?? copy.error.checkField,
+      confirmPassword: copy.error.confirmPassword,
+      acceptedTerms: copy.error.terms,
+    };
+    const translated: Record<string, string[]> = {};
+    for (const name of Object.keys(details)) {
+      translated[name] = [known[name] ?? copy.error.checkField];
+    }
+    return translated;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -229,12 +304,19 @@ export default function RegisterForm({
         body: JSON.stringify({ ...values, acceptedTerms }),
       });
 
-      const payload = await response.json();
+      const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        if (payload?.error?.details) setErrors(payload.error.details);
-        setFormError(payload?.error?.message ?? copy.failed);
         setSubmitting(false);
+        if (payload?.error?.details) {
+          showErrors(translateServerErrors(payload.error.details));
+        } else if (response.status === 429) {
+          setFormError(copy.error.tooMany);
+        } else if (response.status === 503) {
+          setFormError(copy.error.unavailable);
+        } else {
+          setFormError(copy.failed);
+        }
         return;
       }
 
@@ -713,12 +795,14 @@ export default function RegisterForm({
           </Field>
         </div>
 
-        {values.password && <PasswordStrength password={values.password} />}
+        <PasswordStrength password={values.password} />
 
         <div className="space-y-2">
           <label className="flex cursor-pointer items-start gap-3">
             <input
+              id="acceptedTerms"
               type="checkbox"
+              aria-invalid={errors.acceptedTerms ? true : undefined}
               checked={acceptedTerms}
               onChange={(e) => {
                 setAcceptedTerms(e.target.checked);

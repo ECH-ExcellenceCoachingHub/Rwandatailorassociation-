@@ -182,3 +182,19 @@ export function districtBelongsToProvince(
   if (!canonicalD || !canonicalP) return true;
   return provinceForDistrict(canonicalD) === canonicalP;
 }
+
+/**
+ * A province's name in the reader's language. The stored value stays the
+ * English canonical name; this is only for what goes on screen. Anything that
+ * is not a recognised province is shown as it was recorded.
+ */
+export function provinceLabel(
+  value: string | null | undefined,
+  locale: "en" | "rw"
+): string {
+  if (!value) return "";
+  const canonical = canonicalProvince(value);
+  const entry = RWANDA_PROVINCES.find((province) => province.name === canonical);
+  if (!entry) return value;
+  return locale === "rw" ? entry.kinyarwanda : entry.name;
+}
