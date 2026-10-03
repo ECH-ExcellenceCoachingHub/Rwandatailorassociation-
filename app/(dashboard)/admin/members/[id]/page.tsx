@@ -122,7 +122,7 @@ export default async function AdminMemberDetailPage({
 
   const canManage = allowed.length > 0;
   const canCorrect = {
-    deposit: context.permissions.has(PERMISSIONS.SAVINGS_ADJUST),
+    deposit: context.permissions.has(PERMISSIONS.SAVINGS_POST_MANUAL),
     setBalance: context.permissions.has(PERMISSIONS.SAVINGS_ADJUST),
     loans: context.permissions.has(PERMISSIONS.LOANS_ADJUST),
   };

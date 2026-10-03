@@ -1,7 +1,7 @@
 import { type NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
-import { requireApiPermission, assertSameAssociation } from "@/lib/auth/guards";
+import { requireApiAuth, requireApiPermission, assertSameAssociation } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { LedgerError } from "@/lib/services/ledger";
 import {
@@ -48,14 +48,17 @@ const schema = z.discriminatedUnion("kind", [
  *
  * Puts a member's savings right by hand when the automatic matching got them
  * wrong: either records a deposit it missed, or sets the balance to a stated
- * figure by ADJUSTMENT. Needs `savings.adjust`.
+ * figure by ADJUSTMENT.
+ *
+ * A deposit needs `savings.post_manual`, which admins hold: it is new money
+ * coming in, recorded as an ordinary DEPOSIT row with a reason and an audit
+ * entry, and it rewrites nothing. Setting the balance needs `savings.adjust`,
+ * which only a super admin holds by default, because it can move a balance
+ * down as well as up.
  */
 export const POST = withErrorHandling(
   async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
-    // Both kinds need `savings.adjust`, which only a super admin holds by
-    // default: a hand-entered deposit changes a balance as surely as an
-    // adjustment does.
-    const context = await requireApiPermission(PERMISSIONS.SAVINGS_ADJUST);
+    await requireApiAuth();
     const { id } = await params;
 
     const body = await request.json().catch(() => null);
@@ -64,6 +67,10 @@ export const POST = withErrorHandling(
       return apiBadRequest(parsed.error.issues[0]?.message ?? "The request was not valid");
     }
     const input = parsed.data;
+
+    const context = await requireApiPermission(
+      input.kind === "deposit" ? PERMISSIONS.SAVINGS_POST_MANUAL : PERMISSIONS.SAVINGS_ADJUST
+    );
 
     const ip = await getClientIp();
     const limit = checkRateLimit(
