@@ -86,9 +86,10 @@ export async function buildImportPreview(
   });
   const existingIds = new Set(existing.map((p) => p.externalTransactionId));
 
-  const previewRows: ImportPreviewRow[] = [];
-
-  for (const row of rows) {
+  // Rows are matched several at a time: each match is a couple of database
+  // round trips, and doing hundreds of them one after another is what made a
+  // long statement slow to preview. Order is preserved.
+  const previewRows = await mapWithConcurrency(rows, PREVIEW_CONCURRENCY, async (row) => {
     const externalTransactionId = importedTransactionId(row);
     const alreadyImported = existingIds.has(externalTransactionId);
 
@@ -134,7 +135,7 @@ export async function buildImportPreview(
       matchEvidence = "Already imported from a previous upload — will be skipped";
     }
 
-    previewRows.push({
+    const previewRow: ImportPreviewRow = {
       ...row,
       externalTransactionId,
       alreadyImported,
@@ -148,8 +149,9 @@ export async function buildImportPreview(
         !alreadyImported &&
         matchConfidence >= autoMatchThreshold &&
         matchedMemberName !== null,
-    });
-  }
+    };
+    return previewRow;
+  });
 
   const importable = previewRows.filter(
     (r) => r.direction === "CREDIT" && !r.alreadyImported
@@ -331,4 +333,27 @@ export async function commitStatementImport(params: {
   paymentLogger.info({ ...result, batchId }, "statement import complete");
 
   return result;
+}
+
+/** How many statement rows are matched at once while building a preview. */
+const PREVIEW_CONCURRENCY = 8;
+
+/** `Promise.all` over `items`, with at most `limit` in flight. Keeps order. */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+
+  async function worker() {
+    while (next < items.length) {
+      const index = next++;
+      results[index] = await fn(items[index]);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
 }

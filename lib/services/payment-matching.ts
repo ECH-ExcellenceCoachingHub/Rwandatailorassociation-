@@ -8,39 +8,41 @@ import type { ProviderTransaction } from "@/lib/jenga/types";
 /**
  * MEMBER IDENTIFICATION FOR INBOUND PAYMENTS.
  *
- * The rule this module exists to enforce: money is credited to a member only
- * when the system can say WHY it belongs to them, with a named piece of
- * evidence. Everything else waits for a human.
+ * Most members do not quote a reference. They send money from their phone, and
+ * what reaches us is a phone number and a sender name. Those two together are
+ * therefore the primary way a payment is attributed, and when they agree the
+ * payment is credited automatically — no reference needed.
  *
- * AMOUNT is deliberately absent, and its absence is the point: two members
- * paying the same monthly contribution are indistinguishable by amount, and it
- * is the most common value in the data. Matching on it is a coin flip dressed
- * up as a decision.
+ * Order of evidence:
+ *   1. A quoted payment reference or membership number. Free to check, and
+ *      unambiguous when present.
+ *   2. PHONE NUMBER, corroborated by the SENDER NAME. The phone picks the
+ *      member; the name confirms it. Phone + agreeing name credits
+ *      automatically. A phone whose sender name names somebody else is held for
+ *      review — that is what a recycled or borrowed number looks like.
+ *   3. Registered bank account.
+ *   4. SENDER NAME alone. Credits automatically only when it matches exactly one
+ *      member, word for word, and no other member even partially. Anything
+ *      looser is a suggestion for review.
  *
- * PAYER NAME is present, but only as a SUGGESTION. Bank statements and cash
- * deposits frequently carry no reference at all — the payer simply did not
- * quote one — and the sender's name is then the only lead there is. So the
- * name strategies run last and are scored deliberately BELOW the auto-credit
- * threshold: they can never move money on their own. What they do is put a
- * named candidate in front of the administrator in the review queue, instead
- * of an anonymous "unmatched" row they must research by hand.
+ * AMOUNT is deliberately absent: two members paying the same monthly
+ * contribution are indistinguishable by amount.
  *
- * This is the reason the scoring is not a matter of taste. "J. Uwimana"
- * matches several members in any association of size, and a payer types
- * whatever they like; crediting on a name alone is how one member's savings
- * end up in another's account. Suggesting on a name costs nothing and is
- * reviewed by a human before it binds.
+ * Where more than one member fits and nothing separates them the result is
+ * AMBIGUOUS with zero confidence — never "pick the first". An ambiguous
+ * payment is safer in the unmatched queue than in the wrong account.
  *
- * Strategies are tried strongest first and stop at the first confident hit.
- * Where a strategy finds MORE THAN ONE candidate the result is AMBIGUOUS with
- * zero confidence — never "pick the first". An ambiguous payment is safer in
- * the unmatched queue than in the wrong account.
+ * SPEED. Each step is a single indexed query and steps stop at the first
+ * confident hit, so a typical phone payment costs one or two round trips.
+ * Phone lookups compare against every stored format with an exact `IN` rather
+ * than a suffix `LIKE`, which would scan the table.
  */
 
 export interface MatchCandidate {
   memberId: string;
   memberNumber: string;
   fullName: string;
+  paymentReference: string;
   savingsAccountId: string | null;
 }
 
@@ -56,31 +58,31 @@ export interface MatchResult {
 }
 
 /**
- * Confidence by strategy.
- *
- * Calibrated against the default threshold of 90:
- *   • A payment reference, a bank account or a registered mobile money number
- *     is specific enough to credit automatically.
- *   • A bare phone number scores 88 and therefore lands in the review queue.
- *     Phone numbers get recycled by networks and shared within families, and
- *     the payer's number is not always the member's.
- *   • Both name scores sit far below the threshold ON PURPOSE. Raising either
- *     above it would let a statement narration move money into an account
- *     chosen by string similarity, which is precisely what the review queue
- *     exists to prevent. They are ranked relative to each other only so the
- *     stronger suggestion sorts first for the administrator.
+ * Confidence by evidence, calibrated against the default threshold of 90.
+ * Everything at or above 90 credits automatically; everything below waits for
+ * an administrator.
  */
-const CONFIDENCE = {
+export const MATCH_CONFIDENCE = {
   MEMBER_PAYMENT_REFERENCE: 100,
+  /// Phone matches one member and the sender name is that member's name.
+  PHONE_AND_FULL_NAME: 99,
   EXTERNAL_CUSTOMER_REFERENCE: 96,
+  /// Phone matches one member and the sender name shares part of it, e.g. the
+  /// surname, or a name the bank truncated.
+  PHONE_AND_PARTIAL_NAME: 96,
   BANK_ACCOUNT: 95,
-  MOBILE_MONEY_ACCOUNT: 92,
-  PHONE_NUMBER: 88,
-  /// Every name token matches one member exactly, and only one member.
-  PAYER_NAME_EXACT: 80,
-  /// The member's full name appears within a longer payer string, e.g. the
-  /// narration carried a middle name the register does not hold.
-  PAYER_NAME_PARTIAL: 65,
+  /// Several members share the phone, and the sender name picks out one.
+  SHARED_PHONE_NAME_DECIDES: 95,
+  /// Phone matches one member and no sender name came with the payment.
+  PHONE_ONLY: 93,
+  /// No phone match; the sender name matches exactly one member exactly.
+  PAYER_NAME_EXACT: 90,
+  /// The exact name match has a partial look-alike — review.
+  PAYER_NAME_EXACT_WITH_LOOKALIKE: 80,
+  /// Truncated or extra-word name, one candidate — review.
+  PAYER_NAME_PARTIAL: 75,
+  /// Phone matches one member but the sender name is somebody else — review.
+  PHONE_NAME_CONFLICT: 70,
 } as const;
 
 const NO_MATCH: MatchResult = {
@@ -102,45 +104,27 @@ export async function matchPaymentToMember(
   associationId: string,
   associationCode: string
 ): Promise<MatchResult> {
-  // 1 — Member payment reference ------------------------------------------
-  // The strongest signal: issued by us, unique, and printed on every payment
-  // instruction the member receives.
+  // 1 — Quoted reference or membership number ------------------------------
   const searchText = [transaction.narration, transaction.transactionReference]
     .filter(Boolean)
     .join(" ");
 
-  const references = extractPaymentReferences(searchText, associationCode);
+  const byReference = await matchByQuotedReference(searchText, associationId, associationCode);
+  if (byReference) return byReference;
 
-  for (const reference of references) {
-    const member = await findByPaymentReference(reference, associationId);
-    if (member) {
-      return {
-        strategy: "MEMBER_PAYMENT_REFERENCE",
-        confidence: CONFIDENCE.MEMBER_PAYMENT_REFERENCE,
-        member,
-        candidates: [member],
-        evidence: `Payment reference "${reference}" found in the narration`,
-      };
-    }
-  }
-
-  // 2 — Membership number quoted instead of the payment reference ----------
-  // Members frequently quote their membership number, which is close enough
-  // in form to be worth a second look and is equally unique.
-  const memberNumbers = extractMemberNumbers(searchText, associationCode);
-
-  for (const memberNumber of memberNumbers) {
-    const member = await findByMemberNumber(memberNumber, associationId);
-    if (member) {
-      return {
-        strategy: "EXTERNAL_CUSTOMER_REFERENCE",
-        confidence: CONFIDENCE.EXTERNAL_CUSTOMER_REFERENCE,
-        member,
-        candidates: [member],
-        evidence: `Membership number "${memberNumber}" found in the narration`,
-      };
-    }
-  }
+  // 2 — Phone number, confirmed by the sender name --------------------------
+  // The name is taken from the provider's payer field where there is one, and
+  // otherwise from the narration — which is where a PDF statement import puts
+  // it, since a bank statement line has no structured payer field.
+  const byPhone = await matchByPhoneAndName(
+    {
+      phone: transaction.payerPhone ?? transaction.payerAccount,
+      payerName: transaction.payerName,
+      narration: transaction.narration,
+    },
+    associationId
+  );
+  if (byPhone) return byPhone;
 
   // 3 — Bank account -------------------------------------------------------
   if (transaction.payerAccount) {
@@ -149,7 +133,7 @@ export async function matchPaymentToMember(
     if (matches.length === 1) {
       return {
         strategy: "BANK_ACCOUNT",
-        confidence: CONFIDENCE.BANK_ACCOUNT,
+        confidence: MATCH_CONFIDENCE.BANK_ACCOUNT,
         member: matches[0],
         candidates: matches,
         evidence: `Payer bank account ${transaction.payerAccount} is registered to this member`,
@@ -160,53 +144,11 @@ export async function matchPaymentToMember(
     }
   }
 
-  // 4 — Mobile money / phone ----------------------------------------------
-  const phoneKey = phoneMatchKey(transaction.payerPhone ?? transaction.payerAccount);
-
-  if (phoneKey) {
-    const mobileMoneyMatches = await findByMobileMoney(phoneKey, associationId);
-
-    if (mobileMoneyMatches.length === 1) {
-      return {
-        strategy: "MOBILE_MONEY_ACCOUNT",
-        confidence: CONFIDENCE.MOBILE_MONEY_ACCOUNT,
-        member: mobileMoneyMatches[0],
-        candidates: mobileMoneyMatches,
-        evidence: `Payer mobile money number matches this member's registered number`,
-      };
-    }
-    if (mobileMoneyMatches.length > 1) {
-      return ambiguous("MOBILE_MONEY_ACCOUNT", mobileMoneyMatches, "mobile money number");
-    }
-
-    const phoneMatches = await findByPhone(phoneKey, associationId);
-
-    if (phoneMatches.length === 1) {
-      return {
-        strategy: "PHONE_NUMBER",
-        // Below the auto-credit threshold by design — see CONFIDENCE above.
-        confidence: CONFIDENCE.PHONE_NUMBER,
-        member: phoneMatches[0],
-        candidates: phoneMatches,
-        evidence:
-          "Payer phone number matches this member's account phone, but no payment reference was quoted",
-      };
-    }
-    if (phoneMatches.length > 1) {
-      return ambiguous("PHONE_NUMBER", phoneMatches, "phone number");
-    }
-  }
-
-  // 5 — Payer name --------------------------------------------------------
-  // Last resort, and never decisive. Scored below the auto-credit threshold so
-  // the outcome is always a named suggestion in the review queue rather than a
-  // ledger entry. See the note at the top of this file.
-  //
-  // The name is taken from the provider's payer field where there is one, and
-  // otherwise from the narration — which is where a PDF statement import puts
-  // it, since a bank statement line has no structured payer field.
-  const payerName = transaction.payerName ?? transaction.narration;
-  const nameMatch = await matchByPayerName(payerName, associationId);
+  // 4 — Sender name alone --------------------------------------------------
+  const nameMatch = await matchByPayerName(
+    transaction.payerName ?? transaction.narration,
+    associationId
+  );
   if (nameMatch) return nameMatch;
 
   paymentLogger.info(
@@ -223,58 +165,266 @@ export async function matchPaymentToMember(
 }
 
 /**
- * Suggests a member from the payer's name.
- *
- * Returns null rather than NO_MATCH when nothing usable is found, so the
- * caller can fall through to its own logging.
+ * Looks up every payment reference and membership number quoted in the text
+ * in one query. A payment reference wins over a membership number.
  */
-async function matchByPayerName(
+async function matchByQuotedReference(
+  text: string,
+  associationId: string,
+  associationCode: string
+): Promise<MatchResult | null> {
+  const references = extractPaymentReferences(text, associationCode);
+  const memberNumbers = extractMemberNumbers(text, associationCode);
+  if (references.length === 0 && memberNumbers.length === 0) return null;
+
+  const members = await prisma.member.findMany({
+    where: {
+      associationId,
+      ...CREDITABLE_STATUS,
+      OR: [
+        { paymentReference: { in: references } },
+        { memberNumber: { in: memberNumbers } },
+      ],
+    },
+    select: MEMBER_SELECT,
+  });
+
+  for (const reference of references) {
+    const member = members.find((m) => m.paymentReference === reference);
+    if (member) {
+      const candidate = toCandidate(member);
+      return {
+        strategy: "MEMBER_PAYMENT_REFERENCE",
+        confidence: MATCH_CONFIDENCE.MEMBER_PAYMENT_REFERENCE,
+        member: candidate,
+        candidates: [candidate],
+        evidence: `Payment reference "${reference}" found in the narration`,
+      };
+    }
+  }
+
+  for (const memberNumber of memberNumbers) {
+    const member = members.find((m) => m.memberNumber === memberNumber);
+    if (member) {
+      const candidate = toCandidate(member);
+      return {
+        strategy: "EXTERNAL_CUSTOMER_REFERENCE",
+        confidence: MATCH_CONFIDENCE.EXTERNAL_CUSTOMER_REFERENCE,
+        member: candidate,
+        candidates: [candidate],
+        evidence: `Membership number "${memberNumber}" found in the narration`,
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Identifies a member by the paying phone number, using the sender name to
+ * confirm the match or to pick between members who share the number.
+ *
+ * Returns null when the phone matches nobody, so the caller can move on to
+ * weaker evidence.
+ *
+ * `payerName` is a structured sender-name field. `narration` is free text that
+ * may or may not contain the name: a name found there confirms the match, but
+ * a name NOT found there is not a contradiction, because most narrations
+ * simply do not carry one.
+ */
+export async function matchByPhoneAndName(
+  payer: { phone: string | null; payerName: string | null; narration?: string | null },
+  associationId: string
+): Promise<MatchResult | null> {
+  const variants = phoneVariants(payer.phone);
+  if (variants.length === 0) return null;
+
+  const rows = await prisma.member.findMany({
+    where: {
+      associationId,
+      ...CREDITABLE_STATUS,
+      OR: [
+        { mobileMoneyNumber: { in: variants } },
+        { user: { phone: { in: variants } } },
+      ],
+    },
+    select: { ...MEMBER_SELECT, mobileMoneyNumber: true },
+    take: 10,
+  });
+  if (rows.length === 0) return null;
+
+  const tokens = nameTokens(payer.payerName ?? payer.narration ?? null);
+  const nameIsStructured = nameTokens(payer.payerName).length > 0;
+  const senderName = tokens.join(" ");
+
+  const scored = rows.map((row) => ({
+    candidate: toCandidate(row),
+    viaMobileMoney: row.mobileMoneyNumber !== null && variants.includes(row.mobileMoneyNumber),
+    agreement: nameAgreement(`${row.user.firstName} ${row.user.lastName}`, tokens),
+  }));
+
+  const strategyFor = (s: (typeof scored)[number]): MatchStrategy =>
+    s.viaMobileMoney ? "MOBILE_MONEY_ACCOUNT" : "PHONE_NUMBER";
+  const phoneLabel = (s: (typeof scored)[number]) =>
+    s.viaMobileMoney ? "registered mobile money number" : "account phone number";
+
+  // One member owns this number ---------------------------------------------
+  if (scored.length === 1) {
+    const [only] = scored;
+    const base = {
+      strategy: strategyFor(only),
+      member: only.candidate,
+      candidates: [only.candidate],
+    };
+
+    if (only.agreement === "full") {
+      return {
+        ...base,
+        confidence: MATCH_CONFIDENCE.PHONE_AND_FULL_NAME,
+        evidence: `Payer phone matches this member's ${phoneLabel(only)} and the sender name "${senderName}" is theirs`,
+      };
+    }
+    if (only.agreement === "some") {
+      return {
+        ...base,
+        confidence: MATCH_CONFIDENCE.PHONE_AND_PARTIAL_NAME,
+        evidence: `Payer phone matches this member's ${phoneLabel(only)} and the sender name "${senderName}" shares their name`,
+      };
+    }
+    if (nameIsStructured) {
+      // The number is theirs but the person sending is named as somebody
+      // else: a recycled, borrowed or mistyped number. A human decides.
+      return {
+        ...base,
+        confidence: MATCH_CONFIDENCE.PHONE_NAME_CONFLICT,
+        evidence:
+          `Payer phone matches ${only.candidate.fullName}'s ${phoneLabel(only)}, ` +
+          `but the sender name "${senderName}" does not match — review required`,
+      };
+    }
+    return {
+      ...base,
+      confidence: MATCH_CONFIDENCE.PHONE_ONLY,
+      evidence: `Payer phone matches this member's ${phoneLabel(only)}; no sender name was given`,
+    };
+  }
+
+  // Several members share this number — let the name decide -----------------
+  const rank = { full: 2, some: 1, none: 0 } as const;
+  const best = Math.max(...scored.map((s) => rank[s.agreement]));
+  const leaders = scored.filter((s) => rank[s.agreement] === best);
+
+  if (best > 0 && leaders.length === 1) {
+    const [winner] = leaders;
+    return {
+      strategy: strategyFor(winner),
+      confidence: MATCH_CONFIDENCE.SHARED_PHONE_NAME_DECIDES,
+      member: winner.candidate,
+      candidates: scored.map((s) => s.candidate),
+      evidence:
+        `${scored.length} members share this phone number; the sender name ` +
+        `"${senderName}" identifies ${winner.candidate.fullName}`,
+    };
+  }
+
+  return ambiguous(
+    strategyFor(scored[0]),
+    scored.map((s) => s.candidate),
+    "phone number"
+  );
+}
+
+/**
+ * Identifies a member from the sender name alone.
+ *
+ * Credits automatically only for an exact name that belongs to exactly one
+ * member, with no partial look-alike. Returns null rather than NO_MATCH when
+ * nothing usable is found, so the caller can fall through to its own logging.
+ */
+export async function matchByPayerName(
   payerName: string | null,
   associationId: string
 ): Promise<MatchResult | null> {
   const tokens = nameTokens(payerName);
 
   // One token is not a person. "JOHN" or "UWIMANA" alone will match several
-  // members in any association of size, and suggesting the wrong one wastes
-  // more of an administrator's time than suggesting nobody.
+  // members in any association of size.
   if (tokens.length < 2) return null;
 
   const { exact, partial } = await findByName(tokens, associationId);
+  const sender = tokens.join(" ");
 
   if (exact.length === 1) {
+    const lookalike = partial.length > 0;
     return {
       strategy: "PAYER_NAME",
-      confidence: CONFIDENCE.PAYER_NAME_EXACT,
+      confidence: lookalike
+        ? MATCH_CONFIDENCE.PAYER_NAME_EXACT_WITH_LOOKALIKE
+        : MATCH_CONFIDENCE.PAYER_NAME_EXACT,
       member: exact[0],
-      candidates: exact,
-      evidence:
-        `Sender name "${tokens.join(" ")}" matches this member exactly. ` +
-        `No reference was quoted, so this is a suggestion for review — not proof.`,
+      candidates: [...exact, ...partial],
+      evidence: lookalike
+        ? `Sender name "${sender}" matches this member exactly, but ${partial.length} other member(s) have a similar name — review required`
+        : `Sender name "${sender}" matches this member exactly, and no other member`,
     };
   }
 
   if (exact.length > 1) {
-    return ambiguous("PAYER_NAME", exact, `name "${tokens.join(" ")}"`);
+    return ambiguous("PAYER_NAME", exact, `name "${sender}"`);
   }
 
   if (partial.length === 1) {
     return {
       strategy: "PAYER_NAME",
-      confidence: CONFIDENCE.PAYER_NAME_PARTIAL,
+      confidence: MATCH_CONFIDENCE.PAYER_NAME_PARTIAL,
       member: partial[0],
       candidates: partial,
       evidence:
-        `The sender name "${tokens.join(" ")}" corresponds to ${partial[0].fullName}. ` +
-        `Banks truncate this field, so it may be cut short. No reference was ` +
-        `quoted — this is a suggestion for review, not proof.`,
+        `The sender name "${sender}" corresponds to ${partial[0].fullName}, ` +
+        `but not word for word (banks truncate this field) — review required`,
     };
   }
 
   if (partial.length > 1) {
-    return ambiguous("PAYER_NAME", partial, `name "${tokens.join(" ")}"`);
+    return ambiguous("PAYER_NAME", partial, `name "${sender}"`);
   }
 
   return null;
+}
+
+/**
+ * Every stored form a Rwandan mobile number may take. Members' numbers are
+ * normalised to E.164 on save, but older and seeded rows carry the local
+ * "07…" form, so the lookup tries each form with an exact (indexed) match.
+ */
+export function phoneVariants(input: string | null | undefined): string[] {
+  const key = phoneMatchKey(input);
+  if (!key) return [];
+  return [`+250${key}`, `250${key}`, `0${key}`, key];
+}
+
+/**
+ * How far a sender name agrees with a member's name.
+ *
+ *   "full" — every word of the member's name is accounted for (see
+ *            `compareNames`), in any order, allowing for truncation.
+ *   "some" — at least one word of the member's name appears outright, or as a
+ *            prefix of four letters or more. Enough to CONFIRM a phone match,
+ *            never enough to make one.
+ *   "none" — no shared word at all.
+ */
+export function nameAgreement(
+  memberFullName: string,
+  payerTokens: string[]
+): "full" | "some" | "none" {
+  if (payerTokens.length === 0) return "none";
+  if (compareNames(memberFullName, payerTokens) !== null) return "full";
+
+  const payerSet = new Set(payerTokens);
+  for (const token of new Set(nameTokens(memberFullName))) {
+    if (token.length >= 3 && coversMemberToken(token, payerSet)) return "some";
+  }
+  return "none";
 }
 
 function ambiguous(
@@ -383,6 +533,7 @@ export function nameTokens(value: string | null): string[] {
 const MEMBER_SELECT = {
   id: true,
   memberNumber: true,
+  paymentReference: true,
   user: { select: { firstName: true, lastName: true } },
   savingsAccounts: {
     where: { isActive: true },
@@ -395,6 +546,7 @@ const MEMBER_SELECT = {
 type MemberRow = {
   id: string;
   memberNumber: string;
+  paymentReference: string;
   user: { firstName: string; lastName: string };
   savingsAccounts: { id: string }[];
 };
@@ -403,6 +555,7 @@ function toCandidate(member: MemberRow): MatchCandidate {
   return {
     memberId: member.id,
     memberNumber: member.memberNumber,
+    paymentReference: member.paymentReference,
     fullName: `${member.user.firstName} ${member.user.lastName}`.trim(),
     savingsAccountId: member.savingsAccounts[0]?.id ?? null,
   };
@@ -410,28 +563,6 @@ function toCandidate(member: MemberRow): MatchCandidate {
 
 /** Members who may receive money. A suspended member's payment is held. */
 const CREDITABLE_STATUS = { status: "ACTIVE" } satisfies Prisma.MemberWhereInput;
-
-async function findByPaymentReference(
-  reference: string,
-  associationId: string
-): Promise<MatchCandidate | null> {
-  const member = await prisma.member.findFirst({
-    where: { associationId, paymentReference: reference, ...CREDITABLE_STATUS },
-    select: MEMBER_SELECT,
-  });
-  return member ? toCandidate(member) : null;
-}
-
-async function findByMemberNumber(
-  memberNumber: string,
-  associationId: string
-): Promise<MatchCandidate | null> {
-  const member = await prisma.member.findFirst({
-    where: { associationId, memberNumber, ...CREDITABLE_STATUS },
-    select: MEMBER_SELECT,
-  });
-  return member ? toCandidate(member) : null;
-}
 
 async function findByBankAccount(
   accountNumber: string,
@@ -442,40 +573,6 @@ async function findByBankAccount(
 
   const members = await prisma.member.findMany({
     where: { associationId, bankAccountNumber: cleaned, ...CREDITABLE_STATUS },
-    select: MEMBER_SELECT,
-    take: 5,
-  });
-  return members.map(toCandidate);
-}
-
-async function findByMobileMoney(
-  phoneKey: string,
-  associationId: string
-): Promise<MatchCandidate[]> {
-  // Stored numbers may carry a country code or not; comparing the last nine
-  // digits makes the lookup format-independent.
-  const members = await prisma.member.findMany({
-    where: {
-      associationId,
-      mobileMoneyNumber: { endsWith: phoneKey },
-      ...CREDITABLE_STATUS,
-    },
-    select: MEMBER_SELECT,
-    take: 5,
-  });
-  return members.map(toCandidate);
-}
-
-async function findByPhone(
-  phoneKey: string,
-  associationId: string
-): Promise<MatchCandidate[]> {
-  const members = await prisma.member.findMany({
-    where: {
-      associationId,
-      user: { phone: { endsWith: phoneKey } },
-      ...CREDITABLE_STATUS,
-    },
     select: MEMBER_SELECT,
     take: 5,
   });

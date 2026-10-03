@@ -1,15 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { compareNames, nameTokens } from "@/lib/services/payment-matching";
+import {
+  compareNames,
+  nameAgreement,
+  nameTokens,
+  phoneVariants,
+} from "@/lib/services/payment-matching";
 
 /**
  * Matching a member by the name on a payment.
  *
- * This is the weakest identifier the system will act on, and it is scored
- * below the auto-credit threshold precisely so a human confirms it. These
- * tests fix the boundary between "worth suggesting" and "two different
- * people", because both mistakes are expensive: too strict and a member's
- * payment sits unattributed with no lead, too loose and an administrator is
- * invited to credit the wrong account.
+ * The name confirms a phone match, and on its own credits only when it is
+ * word for word one member's. These tests fix the boundary between "the same
+ * person" and "two different people", because both mistakes are expensive:
+ * too strict and a member's payment sits unattributed, too loose and money
+ * reaches the wrong account.
  */
 
 const tokens = (value: string) => nameTokens(value);
@@ -93,5 +97,41 @@ describe("tokenising a name", () => {
   it("returns nothing for a blank name", () => {
     expect(nameTokens(null)).toEqual([]);
     expect(nameTokens("   ")).toEqual([]);
+  });
+});
+
+describe("sender name confirming a phone match", () => {
+  it("is full when the whole name is there", () => {
+    expect(nameAgreement("Jean Uwimana", tokens("UWIMANA JEAN"))).toBe("full");
+  });
+
+  it("is some when only the surname is there", () => {
+    expect(nameAgreement("Jean Claude Uwimana", tokens("UWIMANA J"))).toBe("some");
+  });
+
+  it("is none for a different person", () => {
+    expect(nameAgreement("Jean Uwimana", tokens("GRACE MUKAMANA"))).toBe("none");
+  });
+
+  it("is none when there is no name", () => {
+    expect(nameAgreement("Jean Uwimana", [])).toBe("none");
+  });
+});
+
+describe("phone variants", () => {
+  it("covers every stored form of a number", () => {
+    for (const input of ["0788123456", "+250 788 123 456", "250788123456"]) {
+      expect(phoneVariants(input), input).toEqual([
+        "+250788123456",
+        "250788123456",
+        "0788123456",
+        "788123456",
+      ]);
+    }
+  });
+
+  it("returns nothing for something that is not a phone number", () => {
+    expect(phoneVariants("12345")).toEqual([]);
+    expect(phoneVariants(null)).toEqual([]);
   });
 });

@@ -159,9 +159,9 @@ enum MatchStrategy {
   MOBILE_MONEY_ACCOUNT
   BANK_ACCOUNT
   PHONE_NUMBER
-  /// Suggested from the sender's name because no reference was quoted.
-  /// Deliberately scored below the auto-credit threshold — it identifies a
-  /// candidate for an administrator to confirm, and never credits on its own.
+  /// Matched from the sender's name because no reference or phone matched.
+  /// Credits automatically only when the name is word for word one member's
+  /// and no other member's; anything looser is a suggestion for review.
   PAYER_NAME
   MANUAL_ADMIN
   NONE

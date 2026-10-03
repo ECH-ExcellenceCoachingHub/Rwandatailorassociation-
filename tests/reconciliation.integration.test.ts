@@ -174,9 +174,67 @@ describe("member matching", () => {
     expect(result.evidence).toMatch(/manual review/i);
   });
 
-  it("never matches on payer name alone", async () => {
+  it("credits on phone + matching sender name, no reference needed", async () => {
     const result = await matchPaymentToMember(
-      transaction({ payerName: "Alice Test", narration: "Alice Test" }),
+      transaction({ payerName: "BOB TESTER", payerPhone: "0788200002" }),
+      associationId,
+      CODE
+    );
+
+    expect(result.confidence).toBeGreaterThanOrEqual(90);
+    expect(result.member?.memberId).toBe(members.bob.memberId);
+    expect(result.evidence).toMatch(/sender name/i);
+  });
+
+  it("holds a phone match whose sender name is somebody else", async () => {
+    const result = await matchPaymentToMember(
+      transaction({ payerName: "GRACE MUKAMANA", payerPhone: "0788200002" }),
+      associationId,
+      CODE
+    );
+
+    expect(result.member?.memberId).toBe(members.bob.memberId);
+    expect(result.confidence).toBeLessThan(90);
+    expect(result.evidence).toMatch(/review/i);
+  });
+
+  it("lets the sender name pick between members sharing a phone", async () => {
+    const result = await matchPaymentToMember(
+      transaction({ payerName: "TWINB TESTER", payerPhone: "0788200009" }),
+      associationId,
+      CODE
+    );
+
+    expect(result.confidence).toBeGreaterThanOrEqual(90);
+    expect(result.member?.memberId).toBe(members.twinB.memberId);
+  });
+
+  it("credits on an exact sender name that belongs to one member only", async () => {
+    const result = await matchPaymentToMember(
+      transaction({ payerName: "Alice Tester" }),
+      associationId,
+      CODE
+    );
+
+    expect(result.strategy).toBe("PAYER_NAME");
+    expect(result.confidence).toBeGreaterThanOrEqual(90);
+    expect(result.member?.memberId).toBe(members.alice.memberId);
+  });
+
+  it("only suggests a sender name that is not word for word", async () => {
+    const result = await matchPaymentToMember(
+      transaction({ payerName: "Alice Marie Tester" }),
+      associationId,
+      CODE
+    );
+
+    expect(result.strategy).toBe("PAYER_NAME");
+    expect(result.confidence).toBeLessThan(90);
+  });
+
+  it("never matches on a name that fits nobody", async () => {
+    const result = await matchPaymentToMember(
+      transaction({ payerName: "Grace Mukamana", narration: "Grace Mukamana" }),
       associationId,
       CODE
     );

@@ -3,7 +3,6 @@ import { prisma, Prisma, isUniqueConstraintError } from "@/lib/db/prisma";
 import { getEnv } from "@/lib/env";
 import { bkLogger, serialiseError } from "@/lib/logger";
 import { recordAudit, AUDIT_ACTIONS } from "@/lib/audit";
-import { phoneMatchKey } from "@/lib/phone";
 import {
   fetchBkTransactions,
   type NormalisedBkTransaction,
@@ -12,17 +11,21 @@ import {
   type BkSyncResult,
 } from "@/lib/bk";
 import { BkApiError } from "@/lib/bk/types";
-import { extractPaymentReferences, extractMemberNumbers } from "@/lib/services/payment-matching";
+import {
+  extractPaymentReferences,
+  extractMemberNumbers,
+  matchByPayerName,
+  matchByPhoneAndName,
+  type MatchResult,
+} from "@/lib/services/payment-matching";
 
 const CONFIDENCE = {
   MEMBER_PAYMENT_REFERENCE: 100,
   EXTERNAL_REFERENCE: 96,
   PAYMENT_CODE: 94,
   BANK_ACCOUNT: 92,
-  MOBILE_MONEY_ACCOUNT: 88,
-  PHONE_NUMBER: 85,
-  PAYER_NAME_EXACT: 75,
-  PAYER_NAME_PARTIAL: 60,
+  // Phone and payer-name confidences come from MATCH_CONFIDENCE in
+  // payment-matching.ts, shared with every other channel.
 } as const;
 
 export interface SyncOptions {
@@ -492,24 +495,13 @@ export async function matchBkTransactionToMember(
     }
   }
 
-  if (tx.payerContact) {
-    const phoneKey = phoneMatchKey(tx.payerContact);
-    if (phoneKey) {
-      const matches = await findMembersByPhone(phoneKey, associationId);
-      if (matches.length === 1) {
-        return {
-          strategy: "PHONE_NUMBER",
-          confidence: CONFIDENCE.PHONE_NUMBER,
-          member: matches[0],
-          candidates: matches,
-          evidence: `Payer contact matches member's registered phone`,
-        };
-      }
-      if (matches.length > 1) {
-        return ambiguous("PHONE_NUMBER", matches, "phone number");
-      }
-    }
-  }
+  // Phone first, confirmed by the sender name — the same rules as every other
+  // payment channel (see payment-matching.ts).
+  const byPhone = await matchByPhoneAndName(
+    { phone: tx.payerContact, payerName: tx.payerNames, narration: tx.narration },
+    associationId
+  );
+  if (byPhone) return toBkResult(byPhone);
 
   if (tx.payerAccount) {
     const matches = await findMembersByBankAccount(tx.payerAccount, associationId);
@@ -527,10 +519,8 @@ export async function matchBkTransactionToMember(
     }
   }
 
-  if (tx.payerNames) {
-    const nameMatch = await matchByPayerName(tx.payerNames, associationId);
-    if (nameMatch) return nameMatch;
-  }
+  const byName = await matchByPayerName(tx.payerNames, associationId);
+  if (byName) return toBkResult(byName);
 
   bkLogger.debug(
     { bkTransactionId: tx.bkTransactionId },
@@ -546,92 +536,14 @@ export async function matchBkTransactionToMember(
   };
 }
 
-async function matchByPayerName(
-  payerName: string | null,
-  associationId: string
-): Promise<BkMatchResult | null> {
-  if (!payerName) return null;
-
-  const tokens = payerName
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toUpperCase()
-    .replace(/[^A-Z\s]/g, " ")
-    .split(/\s+/)
-    .filter((t) => t.length >= 2);
-
-  if (tokens.length < 2) return null;
-
-  const insensitive = "insensitive" as const;
-
-  // One `in` clause covers every token, so it belongs outside the loop; the
-  // prefix clauses are the only per-token part.
-  const nameFilters: Prisma.UserWhereInput[] = [
-    { firstName: { in: tokens, mode: insensitive } },
-    { lastName: { in: tokens, mode: insensitive } },
-  ];
-
-  for (const token of tokens) {
-    if (token.length >= 4) {
-      nameFilters.push({ firstName: { startsWith: token, mode: insensitive } });
-      nameFilters.push({ lastName: { startsWith: token, mode: insensitive } });
-    }
-  }
-
-  const members = await prisma.member.findMany({
-    where: {
-      associationId,
-      status: "ACTIVE",
-      user: { OR: nameFilters },
-    },
-    select: {
-      id: true,
-      memberNumber: true,
-      paymentReference: true,
-      user: { select: { firstName: true, lastName: true } },
-      savingsAccounts: {
-        where: { isActive: true },
-        take: 1,
-        select: { id: true },
-      },
-    },
-    take: 10,
-  });
-
-  const candidates = members.map((m) => ({
-    memberId: m.id,
-    memberNumber: m.memberNumber,
-    fullName: `${m.user.firstName} ${m.user.lastName}`.trim(),
-    paymentReference: m.paymentReference,
-    savingsAccountId: m.savingsAccounts[0]?.id ?? null,
-  }));
-
-  const exact = candidates.filter((c) => {
-    const memberTokens = c.fullName
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .toUpperCase()
-      .replace(/[^A-Z\s]/g, " ")
-      .split(/\s+/)
-      .filter((t) => t.length >= 2);
-    return tokens.every((t) => memberTokens.includes(t));
-  });
-
-  if (exact.length === 1) {
-    return {
-      strategy: "PAYER_NAME",
-      confidence: CONFIDENCE.PAYER_NAME_EXACT,
-      member: exact[0],
-      candidates: exact,
-      evidence: `Payer name "${payerName}" matches member exactly`,
-    };
-  }
-
-  if (exact.length > 1) {
-    return ambiguous("PAYER_NAME", exact, "payer name");
-  }
-
-  return null;
+/**
+ * Converts a shared matcher result to the BK shape. The BK strategy enum has
+ * no separate mobile money value; a mobile money hit is a phone hit here.
+ */
+function toBkResult(match: MatchResult): BkMatchResult {
+  const strategy: BkMatchResult["strategy"] =
+    match.strategy === "PAYER_NAME" ? "PAYER_NAME" : "PHONE_NUMBER";
+  return { ...match, strategy };
 }
 
 function ambiguous(
@@ -743,35 +655,6 @@ async function findMemberByPaymentCode(
         savingsAccountId: member.savingsAccounts[0]?.id ?? null,
       }
     : null;
-}
-
-async function findMembersByPhone(
-  phoneKey: string,
-  associationId: string
-): Promise<BkMatchCandidate[]> {
-  const members = await prisma.member.findMany({
-    where: {
-      associationId,
-      status: "ACTIVE",
-      user: { phone: { endsWith: phoneKey } },
-    },
-    select: {
-      id: true,
-      memberNumber: true,
-      paymentReference: true,
-      user: { select: { firstName: true, lastName: true } },
-      savingsAccounts: { where: { isActive: true }, take: 1, select: { id: true } },
-    },
-    take: 5,
-  });
-
-  return members.map((m) => ({
-    memberId: m.id,
-    memberNumber: m.memberNumber,
-    fullName: `${m.user.firstName} ${m.user.lastName}`.trim(),
-    paymentReference: m.paymentReference,
-    savingsAccountId: m.savingsAccounts[0]?.id ?? null,
-  }));
 }
 
 async function findMembersByBankAccount(
