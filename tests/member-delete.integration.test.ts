@@ -43,7 +43,10 @@ let otherAccountId: string;
 let otherBalanceBefore: string;
 let otherTransactionsBefore: number;
 
-async function createMember(n: number, role: "MEMBER" | "SUPER_ADMIN" = "MEMBER") {
+async function createMember(
+  n: number,
+  role: "MEMBER" | "ADMIN" | "SUPER_ADMIN" = "MEMBER"
+) {
   const user = await prisma.user.create({
     data: {
       associationId,
@@ -450,6 +453,43 @@ describe("deleting a member with a history", () => {
     const metadata = audit.metadata as { erased: { loans: number; warehouse: number } };
     expect(metadata.erased.loans).toBe(1);
     expect(metadata.erased.warehouse).toBe(2);
+  });
+});
+
+describe("an administrator removing their own record", () => {
+  it("erases the member record but keeps the login", async () => {
+    const staff = await createMember(4, "ADMIN");
+
+    const result = await deleteMember({
+      memberId: staff.memberId,
+      actorId: staff.userId,
+      reason: "Enrolled myself by mistake",
+    });
+    expect(result).toEqual({ ok: true });
+
+    expect(await prisma.member.findUnique({ where: { id: staff.memberId } })).toBeNull();
+    expect(
+      await prisma.savingsAccount.findUnique({ where: { id: staff.accountId } })
+    ).toBeNull();
+    expect(await prisma.user.findUnique({ where: { id: staff.userId } })).not.toBeNull();
+
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { entityId: staff.memberId, action: "MEMBER_DELETED" },
+    });
+    expect((audit.metadata as { login: string }).login).toBe("kept");
+  });
+
+  it("will not let a plain member delete themselves", async () => {
+    const self = await createMember(5);
+
+    const result = await deleteMember({
+      memberId: self.memberId,
+      actorId: self.userId,
+      reason: "Trying to erase my own record",
+    });
+
+    expect(result.ok).toBe(false);
+    expect(await prisma.member.findUnique({ where: { id: self.memberId } })).not.toBeNull();
   });
 });
 

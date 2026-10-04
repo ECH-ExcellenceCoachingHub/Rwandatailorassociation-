@@ -154,6 +154,7 @@ export function MembersRegister({
     memberNumber: m.memberNumber,
     paymentReference: m.paymentReference,
     isStaff: m.isStaff,
+    isSelf: m.userId === viewerId,
     savingsBalance: formatMoney(m.balance),
     loansOwing: formatMoney(m.outstandingLoan),
   });

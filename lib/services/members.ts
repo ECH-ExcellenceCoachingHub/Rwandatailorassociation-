@@ -1573,9 +1573,15 @@ export async function getMemberRemovalHistory(
  * WHAT STAYS: the audit log, which gains a full copy of the file first,
  * because afterwards it is the only place the member exists.
  *
- * Two refusals only, neither about history: nobody deletes themselves, and a
- * super administrator's account is only deleted by another super
- * administrator.
+ * REMOVING YOURSELF. A member of staff may take their own member record off
+ * the register — an administrator who enrolled by mistake, or who no longer
+ * saves with the association. Only the member record and its history go; the
+ * login is kept, because erasing it would sign the administrator out of the
+ * account they are using to run the association.
+ *
+ * Two refusals only, neither about history: a plain member does not delete
+ * themselves, and a super administrator's account is only deleted by another
+ * super administrator.
  */
 export async function deleteMember(params: {
   memberId: string;
@@ -1590,14 +1596,15 @@ export async function deleteMember(params: {
   const member = await loadForRemoval(params.memberId);
   if (!member) return { ok: false, message: "Member not found" };
 
-  if (member.userId === params.actorId) {
+  const isSelf = member.userId === params.actorId;
+  if (isSelf && member.user.role === "MEMBER") {
     return {
       ok: false,
-      message: "You cannot delete your own member record. Another administrator must do it.",
+      message: "You cannot delete your own member record. An administrator must do it.",
     };
   }
 
-  if (member.user.role === "SUPER_ADMIN") {
+  if (member.user.role === "SUPER_ADMIN" && !isSelf) {
     const actor = await prisma.user.findUnique({
       where: { id: params.actorId },
       select: { role: true },
@@ -1648,7 +1655,8 @@ export async function deleteMember(params: {
           metadata: {
             userId: member.userId,
             role: member.user.role,
-            login: "erased",
+            login: isSelf ? "kept" : "erased",
+            selfRemoval: isSelf,
             erased: { ...history, savingsBalance: toMoneyString(history.savingsBalance) },
             notesWrittenOnOtherFiles: member.user._count.memberNotes,
           },
@@ -1658,7 +1666,11 @@ export async function deleteMember(params: {
         tx
       );
 
-      return eraseMemberWithin(tx, member, { actorId: params.actorId, reason });
+      return eraseMemberWithin(tx, member, {
+        actorId: params.actorId,
+        reason,
+        keepLogin: isSelf,
+      });
     },
     // A test account used in earnest can carry thousands of rows, and every
     // one of them goes in this single transaction.
@@ -1688,7 +1700,7 @@ export async function deleteMember(params: {
 async function eraseMemberWithin(
   tx: TxClient,
   member: RemovalRecord,
-  params: { actorId: string; reason: string }
+  params: { actorId: string; reason: string; keepLogin?: boolean }
 ) {
   const memberId = member.id;
   const userId = member.userId;
@@ -1784,15 +1796,19 @@ async function eraseMemberWithin(
   // standing cascade with the member.
   await tx.member.delete({ where: { id: memberId } });
 
-  // The login. Notes it wrote on other files hold it with Restrict. The two
-  // tables that carry a user id without a foreign key are cleared by hand;
+  // The login, unless a member of staff is removing their own record and
+  // keeps signing in to run the association. Notes it wrote on other files
+  // hold it with Restrict. The two tables that carry a user id without a
+  // foreign key are cleared by hand;
   // sessions, sign-in codes, photograph, permissions and notifications
   // cascade, and everything this user posted or approved elsewhere keeps its
   // row and loses the name.
-  await tx.memberNote.deleteMany({ where: { authorId: userId } });
-  await tx.idempotencyKey.deleteMany({ where: { userId } });
-  await tx.notificationPreference.deleteMany({ where: { userId } });
-  await tx.user.delete({ where: { id: userId } });
+  if (!params.keepLogin) {
+    await tx.memberNote.deleteMany({ where: { authorId: userId } });
+    await tx.idempotencyKey.deleteMany({ where: { userId } });
+    await tx.notificationPreference.deleteMany({ where: { userId } });
+    await tx.user.delete({ where: { id: userId } });
+  }
 
   return {
     stockReturned,

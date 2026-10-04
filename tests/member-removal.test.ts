@@ -119,11 +119,14 @@ describe("which decisions the screens offer", () => {
     expect(canTake("verify", { ...member, kycStatus: "VERIFIED" })).toBe(false);
   });
 
-  it("never lets administrators suspend, close or delete themselves", () => {
+  it("never lets administrators suspend or close themselves", () => {
     const self = { ...member, isSelf: true };
     expect(canTake("suspend", self)).toBe(false);
     expect(canTake("close", self)).toBe(false);
-    expect(canTake("delete", self)).toBe(false);
+  });
+
+  it("lets administrators take their own record off the register", () => {
+    expect(canTake("delete", { ...member, isSelf: true })).toBe(true);
   });
 
   it("follows the permission behind each action", () => {

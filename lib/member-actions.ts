@@ -48,9 +48,9 @@ export interface MemberActionState {
   status: MemberStatus;
   kycStatus: KycStatus;
   hasNationalId: boolean;
-  /// The viewer's own membership. Nobody suspends, closes or deletes
-  /// themselves: those are the actions that could leave an administrator
-  /// unable to undo what they just did.
+  /// The viewer's own membership. Nobody suspends or closes themselves: those
+  /// are the actions that could leave an administrator unable to undo what
+  /// they just did. Deleting is allowed, because it keeps their login.
   isSelf: boolean;
 }
 
@@ -74,8 +74,9 @@ export function canTake(kind: MemberActionKind, member: MemberActionState): bool
       return CLOSABLE_STATUSES.has(member.status) && !member.isSelf;
     case "delete":
       // Whether they have a history that rules it out is the server's call;
-      // the register does not load it for every row.
-      return !member.isSelf;
+      // the register does not load it for every row. Staff may remove their
+      // own record; the server keeps their login when they do.
+      return true;
     case "resetSavings":
       // Only somebody who is expected to contribute has a clock running.
       return member.status === "ACTIVE" || member.status === "SUSPENDED";

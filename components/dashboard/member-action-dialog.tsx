@@ -37,6 +37,8 @@ export interface MemberTarget {
   /// carry it, and falls back to a sentence without the number.
   nationalId?: string | null;
   isStaff: boolean;
+  /// The viewer's own record. Deleting it keeps their login.
+  isSelf?: boolean;
   /// Formatted, for the one-member closing dialog.
   savingsBalance: string;
   loansOwing: string;
@@ -122,7 +124,7 @@ export function describeMemberAction(
   // Only the actions that touch a login say what happens to a staff one.
   // Suspending and closing leave it alone; deleting takes it with the member,
   // which is worth a louder warning.
-  const staffCount = targets.filter((t) => t.isStaff).length;
+  const staffCount = targets.filter((t) => t.isStaff && !t.isSelf).length;
   const staffNote =
     staffCount === 0 ? null : kind === "delete" ? (
       <Note key="staff" tone="warning">
@@ -226,7 +228,9 @@ export function describeMemberAction(
         ...base,
         title: one ? fill(copy.deleteConfirmTitle, { name }) : pluralize(bulk.deleteTitle, count),
         description: one
-          ? fill(copy.deleteConfirmBody, { number: one.memberNumber })
+          ? fill(one.isSelf ? copy.selfDeleteConfirmBody : copy.deleteConfirmBody, {
+              number: one.memberNumber,
+            })
           : bulk.deleteBody,
         confirmLabel: copy.deleteConfirm,
         reasonLabel: one ? copy.deleteReasonLabel : undefined,

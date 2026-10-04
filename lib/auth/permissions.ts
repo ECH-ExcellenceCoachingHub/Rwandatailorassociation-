@@ -107,7 +107,7 @@ export const PERMISSIONS = {
   /// Handing goods to a member, and taking them back.
   WAREHOUSE_ISSUE: "warehouse.issue",
   /// Correcting the count, and writing stock off to loss. Kept apart for the
-  /// same reason as SAVINGS_ADJUST: this is the permission that can make a
+  /// same reason as SAVINGS_REVERSE: this is the permission that can make a
   /// discrepancy disappear.
   WAREHOUSE_ADJUST: "warehouse.adjust",
 
@@ -292,9 +292,13 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionCode[]> = {
     PERMISSIONS.SAVINGS_VIEW_ALL,
     PERMISSIONS.SAVINGS_POST_MANUAL,
     PERMISSIONS.SAVINGS_EXPORT,
-    // SAVINGS_ADJUST and SAVINGS_REVERSE are deliberately withheld from the
-    // default admin role. They rewrite financial history and must be granted
-    // deliberately, per person, by a super admin.
+    // Admins set a member's balance by hand. Each change is posted as an
+    // ADJUSTMENT with a written reason and a CRITICAL audit entry, so nothing
+    // is rewritten silently. A super admin can still revoke it per person.
+    PERMISSIONS.SAVINGS_ADJUST,
+    // SAVINGS_REVERSE is deliberately withheld from the default admin role.
+    // It rewrites financial history and must be granted deliberately, per
+    // person, by a super admin.
 
     PERMISSIONS.WITHDRAWALS_VIEW_ALL,
     PERMISSIONS.WITHDRAWALS_REVIEW,
@@ -307,7 +311,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionCode[]> = {
     PERMISSIONS.LOANS_REJECT,
     PERMISSIONS.LOANS_DISBURSE,
     PERMISSIONS.LOANS_RECORD_REPAYMENT,
-    // LOANS_ADJUST is withheld for the same reason as SAVINGS_ADJUST.
+    // LOANS_ADJUST is withheld: it rewrites loan history and is granted per
+    // person.
     PERMISSIONS.LOAN_PRODUCTS_MANAGE,
 
     PERMISSIONS.PAYMENTS_VIEW,
@@ -337,7 +342,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionCode[]> = {
     PERMISSIONS.WAREHOUSE_MANAGE,
     PERMISSIONS.WAREHOUSE_ISSUE,
     // WAREHOUSE_ADJUST is deliberately withheld from the default admin role,
-    // for the same reason as SAVINGS_ADJUST: the person who issues stock
+    // because the person who issues stock
     // should not also be the person who can quietly correct the count that
     // would reveal a shortfall. Granted per person.
 
@@ -348,7 +353,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionCode[]> = {
     // PLATFORM_FEES_REMIT is deliberately withheld from the default admin
     // role. Declaring the operator's fee paid is a statement about money that
     // left the association's hands, and it should be made by whoever actually
-    // makes that payment — granted per person, like SAVINGS_ADJUST.
+    // makes that payment — granted per person, like SAVINGS_REVERSE.
 
     PERMISSIONS.ASSOCIATION_VIEW,
     PERMISSIONS.ASSOCIATION_UPDATE,

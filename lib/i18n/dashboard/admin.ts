@@ -283,6 +283,9 @@ export interface AdminCopy {
     /// Shown instead of deleteBody when the member has a history; {items} is
     /// the list built from `history` below.
     deleteWithHistory: string;
+    /// The delete row and dialog body on the viewer's own file.
+    selfDeleteBody: string;
+    selfDeleteConfirmBody: string;
     deleteConfirmTitle: string;
     deleteConfirmBody: string;
     deleteConfirm: string;
@@ -1471,7 +1474,7 @@ export const admin: Record<Locale, AdminCopy> = {
 
       removeTitle: "Take off the register",
       selfBlocked:
-        "This is your own membership. Another administrator must close or delete it.",
+        "This is your own membership. Another administrator must close it, but you can take yourself off the register here.",
       closeTitle: "Close membership",
       closeBody:
         "For a member who is leaving. Every transaction, loan and fine stays on record. They can no longer sign in, and daily contributions, fines and service fees stop. It can be reopened later.",
@@ -1488,6 +1491,10 @@ export const admin: Record<Locale, AdminCopy> = {
       deleteButton: "Delete member",
       deleteWithHistory:
         "For a test account or a record made in error. Erases the member and their login together with everything recorded against them: {items}. Goods they still hold go back into stock, and payments matched to them return to the unmatched queue. A real member who is leaving should be closed instead, which keeps the association's accounts intact. This cannot be undone.",
+      selfDeleteBody:
+        "Removes your member record, savings account and everything recorded against it. Your administrator login is kept, so you can go on running the association. This cannot be undone.",
+      selfDeleteConfirmBody:
+        "Member {number} and every record against it — savings, loans, fines and service fees — will be erased. Your login stays and you remain an administrator. This cannot be undone.",
       deleteConfirmTitle: "Delete {name} permanently?",
       deleteConfirmBody:
         "Member {number}, their login and every record against them — savings, loans, fines, service fees and warehouse issues — will be erased. Only the audit log will record that they existed. This cannot be undone.",
@@ -2816,7 +2823,7 @@ export const admin: Record<Locale, AdminCopy> = {
 
       removeTitle: "Gukura ku rutonde",
       selfBlocked:
-        "Ubu ni ubunyamuryango bwawe. Undi muyobozi ni we ugomba kubusoza cyangwa kubusiba.",
+        "Ubu ni ubunyamuryango bwawe. Undi muyobozi ni we ugomba kubusoza, ariko ushobora kwikura ku rutonde hano.",
       closeTitle: "Soza ubunyamuryango",
       closeBody:
         "Ku munyamuryango uvuye mu ihuriro. Ibikorwa byose, inguzanyo n'amahazabu biguma byanditswe. Ntazongera kwinjira, kandi imisanzu ya buri munsi, amahazabu n'amafaranga ya serivisi birahagarara. Bishobora kongera gufungurwa nyuma.",
@@ -2834,6 +2841,10 @@ export const admin: Record<Locale, AdminCopy> = {
       deleteButton: "Siba umunyamuryango",
       deleteWithHistory:
         "Kuri konti y'igerageza cyangwa inyandiko yakozwe mu makosa. Bisiba umunyamuryango na konti ye yo kwinjira, hamwe n'ibyanditswe byose bimwerekeyeho: {items}. Ibikoresho agifite bisubizwa mu bubiko, kandi ubwishyu bwamuhujweho busubizwa ku rutonde rw'ubwishyu butahujwe. Umunyamuryango nyakuri uvuye mu ihuriro akwiye gusozerwa ubunyamuryango aho gusibwa, kugira ngo imari y'ihuriro igume uko iri. Ntibishobora gusubizwa inyuma.",
+      selfDeleteBody:
+        "Bisiba dosiye yawe y'umunyamuryango, konti y'ubuzigame n'ibyanditswe byose biyerekeyeho. Konti yawe yo kwinjira nk'umuyobozi iraguma, ku buryo ukomeza kuyobora ihuriro. Ntibishobora gusubizwa inyuma.",
+      selfDeleteConfirmBody:
+        "Umunyamuryango {number} n'ibyanditswe byose bimwerekeyeho — ubuzigame, inguzanyo, amahazabu n'amafaranga ya serivisi — bizasibwa. Konti yawe yo kwinjira iraguma kandi ukomeza kuba umuyobozi. Ntibishobora gusubizwa inyuma.",
       deleteConfirmTitle: "Gusiba {name} burundu?",
       deleteConfirmBody:
         "Umunyamuryango {number}, konti ye yo kwinjira n'ibyanditswe byose bimwerekeyeho — ubuzigame, inguzanyo, amahazabu, amafaranga ya serivisi n'ibyo yahawe mu bubiko — bizasibwa. Ibyakozwe byose ni byo byonyine bizagaragaza ko yabayeho. Ntibishobora gusubizwa inyuma.",

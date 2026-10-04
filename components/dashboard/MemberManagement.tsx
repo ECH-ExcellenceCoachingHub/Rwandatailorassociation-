@@ -205,9 +205,9 @@ export function MemberManagement({
             {copy.removeTitle}
           </h3>
 
-          {isSelf ? (
-            <p className="mt-2 text-sm text-ink-muted">{copy.selfBlocked}</p>
-          ) : (
+          {isSelf && <p className="mt-2 text-sm text-ink-muted">{copy.selfBlocked}</p>}
+
+          {(!isSelf || offers("delete")) && (
             <div className="mt-1 divide-y divide-red-100">
               {offers("close") && (
                 <ActionRow label={copy.closeTitle} text={copy.closeBody}>
@@ -219,9 +219,11 @@ export function MemberManagement({
                 <ActionRow
                   label={copy.deleteTitle}
                   text={
-                    history.length > 0
-                      ? fill(copy.deleteWithHistory, { items: historyList })
-                      : copy.deleteBody
+                    isSelf
+                      ? copy.selfDeleteBody
+                      : history.length > 0
+                        ? fill(copy.deleteWithHistory, { items: historyList })
+                        : copy.deleteBody
                   }
                 >
                   {[actionButton("delete")]}
@@ -236,7 +238,7 @@ export function MemberManagement({
         <ConfirmDialog
           open
           onOpenChange={(next) => !next && setOpen(null)}
-          {...describeMemberAction(open, [member], d)}
+          {...describeMemberAction(open, [{ ...member, isSelf }], d)}
           onConfirm={(reason) => confirm(open, reason)}
         />
       )}
