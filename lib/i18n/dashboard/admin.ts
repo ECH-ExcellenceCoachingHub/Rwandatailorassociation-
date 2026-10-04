@@ -439,6 +439,21 @@ export interface AdminCopy {
     matchMemberLabel: string;
     matchMemberPlaceholder: string;
     narrationOnPayment: string;
+    pickerSearchPlaceholder: string;
+    pickerSortLabel: string;
+    pickerSortBest: string;
+    pickerSortName: string;
+    pickerSortNumber: string;
+    /// {count} is how many members the payment's details point at.
+    pickerLikelyOnly: string;
+    pickerNoResults: string;
+    pickerShowing: string;
+    pickerSelected: string;
+    pickerEvidenceReference: string;
+    pickerEvidencePhone: string;
+    pickerEvidenceFullName: string;
+    pickerEvidenceName: string;
+    pickerEvidenceMatcher: string;
 
     deleteTitle: string;
     deleteBody: string;
@@ -673,6 +688,34 @@ export interface AdminCopy {
   reports: {
     title: string;
     description: string;
+
+    districtTitle: string;
+    districtIntro: string;
+    districtDownloadPdf: string;
+    districtDownloadCsv: string;
+    districtRowPdf: string;
+    districtNone: string;
+    districtAllAssociations: string;
+    /// {date}, {members}, {districts}
+    districtSubtitle: string;
+    districtSummary: string;
+    districtColDistrict: string;
+    districtColProvince: string;
+    districtColMembers: string;
+    districtColActive: string;
+    districtColSavings: string;
+    districtColAverage: string;
+    districtColNumber: string;
+    districtColName: string;
+    districtColPhone: string;
+    districtColStatus: string;
+    districtColJoined: string;
+    districtNotRecorded: string;
+    districtUnrecognised: string;
+    /// "{count} member|{count} members"; {savings} is the district's total.
+    districtSection: string;
+    /// {page}, {pages}
+    districtPage: string;
     savingsHeld: string;
     activeMembers: string;
     loansOutstanding: string;
@@ -1684,6 +1727,20 @@ export const admin: Record<Locale, AdminCopy> = {
       matchMemberLabel: "Member",
       matchMemberPlaceholder: "Select the member…",
       narrationOnPayment: "Narration on the payment:",
+      pickerSearchPlaceholder: "Search by name, member number, reference or phone",
+      pickerSortLabel: "Sort:",
+      pickerSortBest: "Best match",
+      pickerSortName: "Name",
+      pickerSortNumber: "Member number",
+      pickerLikelyOnly: "Likely matches only ({count})",
+      pickerNoResults: "No active member matches this search.",
+      pickerShowing: "{count} member shown|{count} members shown",
+      pickerSelected: "Selected: {name} ({number})",
+      pickerEvidenceReference: "Reference in narration",
+      pickerEvidencePhone: "Phone matches",
+      pickerEvidenceFullName: "Full name in narration",
+      pickerEvidenceName: "Name in narration",
+      pickerEvidenceMatcher: "Suggested by matcher",
 
       deleteTitle: "Delete this payment",
       deleteBody:
@@ -1968,6 +2025,32 @@ export const admin: Record<Locale, AdminCopy> = {
     reports: {
       title: "Reports",
       description: "Where the association's money is, and how it moved.",
+
+      districtTitle: "Savings and members by district",
+      districtIntro:
+        "Where members live and what they hold, by the district on each member's file. Download the whole report, or one district's member list, as a PDF.",
+      districtDownloadPdf: "Download PDF",
+      districtDownloadCsv: "Download CSV",
+      districtRowPdf: "PDF",
+      districtNone: "No registered members yet.",
+      districtAllAssociations: "All associations",
+      districtSubtitle: "As of {date} - {members} members in {districts} districts",
+      districtSummary: "Summary by district",
+      districtColDistrict: "District",
+      districtColProvince: "Province",
+      districtColMembers: "Members",
+      districtColActive: "Active",
+      districtColSavings: "Savings",
+      districtColAverage: "Average",
+      districtColNumber: "Member no.",
+      districtColName: "Name",
+      districtColPhone: "Phone",
+      districtColStatus: "Status",
+      districtColJoined: "Joined",
+      districtNotRecorded: "District not recorded",
+      districtUnrecognised: "(not a recognised district)",
+      districtSection: "{count} member - {savings} saved|{count} members - {savings} saved",
+      districtPage: "Page {page} of {pages}",
       savingsHeld: "Savings held",
       activeMembers: "{count} active member|{count} active members",
       loansOutstanding: "Loans outstanding",
@@ -3055,6 +3138,20 @@ export const admin: Record<Locale, AdminCopy> = {
       matchMemberLabel: "Umunyamuryango",
       matchMemberPlaceholder: "Toranya umunyamuryango…",
       narrationOnPayment: "Ibisobanuro biri ku bwishyu:",
+      pickerSearchPlaceholder: "Shakisha ukoresheje izina, nimero y'umunyamuryango, kode cyangwa telefoni",
+      pickerSortLabel: "Tondeka:",
+      pickerSortBest: "Abahuye cyane",
+      pickerSortName: "Izina",
+      pickerSortNumber: "Nimero y'umunyamuryango",
+      pickerLikelyOnly: "Abashobora kuba ari bo gusa ({count})",
+      pickerNoResults: "Nta munyamuryango ukora uhuye n'ibyo washakishije.",
+      pickerShowing: "Umunyamuryango {count} ugaragara|Abanyamuryango {count} bagaragara",
+      pickerSelected: "Wahisemo: {name} ({number})",
+      pickerEvidenceReference: "Kode iri mu bisobanuro",
+      pickerEvidencePhone: "Telefoni irahuye",
+      pickerEvidenceFullName: "Amazina yose ari mu bisobanuro",
+      pickerEvidenceName: "Izina riri mu bisobanuro",
+      pickerEvidenceMatcher: "Byatanzwe na sisitemu",
 
       deleteTitle: "Siba ubu bwishyu",
       deleteBody:
@@ -3348,6 +3445,33 @@ export const admin: Record<Locale, AdminCopy> = {
     reports: {
       title: "Raporo",
       description: "Aho amafaranga y'ihuriro ari, n'uko yagenze.",
+
+      districtTitle: "Ubuzigame n'abanyamuryango ku karere",
+      districtIntro:
+        "Aho abanyamuryango batuye n'ubuzigame bafite, hakurikijwe akarere kari kuri dosiye ya buri munyamuryango. Kuramo raporo yose, cyangwa urutonde rw'abanyamuryango b'akarere kamwe, nka PDF.",
+      districtDownloadPdf: "Kuramo PDF",
+      districtDownloadCsv: "Kuramo CSV",
+      districtRowPdf: "PDF",
+      districtNone: "Nta banyamuryango banditswe barahari.",
+      districtAllAssociations: "Amahuriro yose",
+      districtSubtitle: "Kugeza ku wa {date} - abanyamuryango {members} mu turere {districts}",
+      districtSummary: "Incamake ku karere",
+      districtColDistrict: "Akarere",
+      districtColProvince: "Intara",
+      districtColMembers: "Abanyamuryango",
+      districtColActive: "Abakora",
+      districtColSavings: "Ubuzigame",
+      districtColAverage: "Impuzandengo",
+      districtColNumber: "Nimero",
+      districtColName: "Amazina",
+      districtColPhone: "Telefoni",
+      districtColStatus: "Uko ahagaze",
+      districtColJoined: "Yinjiye",
+      districtNotRecorded: "Akarere ntikanditswe",
+      districtUnrecognised: "(si akarere kazwi)",
+      districtSection:
+        "Umunyamuryango {count} - {savings} yazigamwe|Abanyamuryango {count} - {savings} yazigamwe",
+      districtPage: "Urupapuro {page} kuri {pages}",
       savingsHeld: "Ubuzigame bufitwe",
       activeMembers:
         "Umunyamuryango {count} ukora|Abanyamuryango {count} bakora",

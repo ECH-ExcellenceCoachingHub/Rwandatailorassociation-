@@ -8,13 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Pagination } from "@/components/ui/pagination";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { PaymentMemberPicker, type PickerMember } from "@/components/dashboard/PaymentMemberPicker";
 import {
   TableWrapper,
   Table,
@@ -80,13 +74,6 @@ interface UnmatchedPayment {
   candidates: Candidate[];
 }
 
-interface MemberOption {
-  id: string;
-  label: string;
-  paymentReference: string;
-  phone: string | null;
-}
-
 export function UnmatchedPaymentsTable({
   payments,
   members,
@@ -98,7 +85,7 @@ export function UnmatchedPaymentsTable({
   totalPages,
 }: {
   payments: UnmatchedPayment[];
-  members: MemberOption[];
+  members: PickerMember[];
   canMatch: boolean;
   /// `payments.reconcile`. Separate from canMatch so the two can diverge.
   canDelete: boolean;
@@ -479,18 +466,15 @@ export function UnmatchedPaymentsTable({
             {copy.matchMemberLabel}
           </label>
 
-          <Select value={selectedMember} onValueChange={setSelectedMember}>
-            <SelectTrigger id="match-member">
-              <SelectValue placeholder={copy.matchMemberPlaceholder} />
-            </SelectTrigger>
-            <SelectContent>
-              {members.map((member) => (
-                <SelectItem key={member.id} value={member.id}>
-                  {member.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {active && (
+            <PaymentMemberPicker
+              key={active.id}
+              members={members}
+              payment={active}
+              value={selectedMember}
+              onChange={setSelectedMember}
+            />
+          )}
 
           {active && active.narration && (
             <p className="flex items-start gap-1.5 rounded-lg bg-background p-2.5 text-xs text-ink-muted">

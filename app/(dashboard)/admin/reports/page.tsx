@@ -10,6 +10,8 @@ import { fill, pluralize } from "@/lib/i18n/fill";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { ReportsView } from "@/components/dashboard/ReportsView";
+import { DistrictReportPanel } from "@/components/dashboard/DistrictReportPanel";
+import { buildDistrictReport } from "@/lib/services/district-report";
 import {
   AlertTriangle,
   Clock,
@@ -44,11 +46,17 @@ export default async function AdminReportsPage() {
   const { d } = await getDashboardCopy();
   const copy = d.admin.reports;
 
-  const [summary, reports, fees] = await Promise.all([
+  const [summary, reports, fees, districts] = await Promise.all([
     getAdminDashboard(associationId),
     getReportBundle(associationId),
     getServiceFeeSummary(associationId),
+    buildDistrictReport(associationId),
   ]);
+  // The downloads name every member's balance, so they need what the route
+  // checks: export, and sight of all savings.
+  const canDownloadDistricts =
+    context.permissions.has(PERMISSIONS.REPORTS_EXPORT) &&
+    context.permissions.has(PERMISSIONS.SAVINGS_VIEW_ALL);
 
   return (
     <div className="space-y-7">
@@ -132,6 +140,10 @@ export default async function AdminReportsPage() {
           />
         </StatGrid>
       </section>
+
+      {districts && (
+        <DistrictReportPanel report={districts} canDownload={canDownloadDistricts} />
+      )}
 
       <ReportsView data={reports} />
     </div>

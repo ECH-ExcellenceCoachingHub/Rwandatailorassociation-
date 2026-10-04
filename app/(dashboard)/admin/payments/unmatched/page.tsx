@@ -53,7 +53,8 @@ export default async function UnmatchedPaymentsPage({
   const [data, members] = await Promise.all([
     getUnmatchedPayments(associationId, page),
     // The member list for the manual-match picker. Only ACTIVE members can
-    // receive money, so only they are offered.
+    // receive money, so only they are offered. Searched in the browser, so
+    // the cap is set well above any association's size.
     prisma.member.findMany({
       where: {
         ...(associationId ? { associationId } : {}),
@@ -66,7 +67,7 @@ export default async function UnmatchedPaymentsPage({
         user: { select: { firstName: true, lastName: true, phone: true } },
       },
       orderBy: { memberNumber: "asc" },
-      take: 500,
+      take: 5000,
     }),
   ]);
 
@@ -102,7 +103,8 @@ export default async function UnmatchedPaymentsPage({
             payments={data.payments}
             members={members.map((m) => ({
               id: m.id,
-              label: `${m.memberNumber} — ${m.user.firstName} ${m.user.lastName}`,
+              memberNumber: m.memberNumber,
+              fullName: `${m.user.firstName} ${m.user.lastName}`.trim(),
               paymentReference: m.paymentReference,
               phone: m.user.phone,
             }))}
