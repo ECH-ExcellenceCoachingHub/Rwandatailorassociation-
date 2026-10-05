@@ -56,6 +56,8 @@ export interface ViewsCopy {
     inactive: string;
     rejected: string;
     exited: string;
+    account: string;
+    allAccounts: string;
   };
   transactions: {
     matching: string;
@@ -243,6 +245,8 @@ export const views: Record<Locale, ViewsCopy> = {
       inactive: "Inactive",
       rejected: "Rejected",
       exited: "Exited",
+      account: "Account",
+      allAccounts: "All accounts",
     },
     transactions: {
       matching: "Matching transactions",
@@ -441,6 +445,8 @@ export const views: Record<Locale, ViewsCopy> = {
       inactive: "Ntakora",
       rejected: "Yanzwe",
       exited: "Yavuye mu ihuriro",
+      account: "Konti",
+      allAccounts: "Konti zose",
     },
     transactions: {
       matching: "Ibikorwa bihuye",

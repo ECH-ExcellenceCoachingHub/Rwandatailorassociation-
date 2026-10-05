@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLanguage } from "@/components/LanguageProvider";
+import { statusLabel } from "@/lib/i18n/dashboard/status";
 
 /**
  * Search and status filter for the member register. State lives in the URL.
@@ -21,13 +22,19 @@ import { useLanguage } from "@/components/LanguageProvider";
  * register shows everyone; the card register shows active members only, so
  * there choosing "All statuses" has to be written into the URL as ALL rather
  * than dropped, or the page would quietly fall back to active.
+ *
+ * `showAccountFilter` adds a second filter on the login account's status
+ * (`account` in the URL), which is independent of the membership status: a
+ * member can be active in the association with a locked sign-in.
  */
 export function MemberSearch({
   basePath,
   defaultStatus = "ALL",
+  showAccountFilter = false,
 }: {
   basePath: string;
   defaultStatus?: string;
+  showAccountFilter?: boolean;
 }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -46,10 +53,19 @@ export function MemberSearch({
     { value: "EXITED", label: copy.exited },
   ];
 
+  // Values are the UserStatus enum; labels come from the shared status words.
+  const accountStatuses = [
+    { value: "ALL", label: copy.allAccounts },
+    ...(["ACTIVE", "PENDING_VERIFICATION", "LOCKED", "SUSPENDED", "DISABLED"] as const).map(
+      (value) => ({ value, label: statusLabel(value, d.status) })
+    ),
+  ];
+
   function apply(next: Record<string, string | undefined>) {
     const search = new URLSearchParams(params.toString());
     for (const [key, value] of Object.entries(next)) {
-      const isDefault = key === "status" ? value === defaultStatus : false;
+      const isDefault =
+        key === "status" ? value === defaultStatus : key === "account" ? value === "ALL" : false;
       if (!value || isDefault) search.delete(key);
       else search.set(key, value);
     }
@@ -62,7 +78,7 @@ export function MemberSearch({
     apply({ q: query.trim() || undefined });
   }
 
-  const hasFilters = Boolean(params.get("q") || params.get("status"));
+  const hasFilters = Boolean(params.get("q") || params.get("status") || params.get("account"));
 
   return (
     <form
@@ -108,6 +124,29 @@ export function MemberSearch({
           </SelectContent>
         </Select>
       </div>
+
+      {showAccountFilter && (
+        <div className="sm:w-52">
+          <label htmlFor="member-account" className="mb-1.5 block text-xs font-semibold text-ink">
+            {copy.account}
+          </label>
+          <Select
+            value={params.get("account") ?? "ALL"}
+            onValueChange={(value) => apply({ account: value })}
+          >
+            <SelectTrigger id="member-account">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {accountStatuses.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="flex gap-2">
         <Button type="submit" size="sm">

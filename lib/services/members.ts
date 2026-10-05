@@ -37,6 +37,9 @@ import type { MemberStatus, UserStatus } from "@/lib/generated/prisma/enums";
 export interface MemberListFilters {
   associationId: string | null;
   status?: MemberStatus;
+  /// The login account's status, separate from the membership's: a member can
+  /// be ACTIVE in the association while their sign-in is LOCKED.
+  userStatus?: UserStatus;
   search?: string;
   page?: number;
   pageSize?: number;
@@ -49,6 +52,7 @@ export async function listMembers(filters: MemberListFilters) {
   const where: Prisma.MemberWhereInput = {
     ...(filters.associationId ? { associationId: filters.associationId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.userStatus ? { user: { status: filters.userStatus } } : {}),
     ...(filters.search
       ? {
           OR: [

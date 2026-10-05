@@ -42,7 +42,7 @@ import {
   type MemberActionKind,
 } from "@/lib/member-actions";
 import { cn } from "@/lib/utils";
-import type { KycStatus, MemberStatus } from "@/lib/generated/prisma/enums";
+import type { KycStatus, MemberStatus, UserStatus } from "@/lib/generated/prisma/enums";
 
 export interface RegisterMember {
   id: string;
@@ -54,6 +54,8 @@ export interface RegisterMember {
   phone: string | null;
   status: MemberStatus;
   kycStatus: KycStatus;
+  /// The login account's status (locked, disabled…), not the membership's.
+  userStatus: UserStatus;
   hasNationalId: boolean;
   isStaff: boolean;
   balance: string;
@@ -305,6 +307,7 @@ export function MembersRegister({
               <TableHead align="right">{copy.colLoanOwing}</TableHead>
               <TableHead>{d.common.status}</TableHead>
               <TableHead>{copy.colKyc}</TableHead>
+              <TableHead>{copy.colAccount}</TableHead>
               <TableHead>{copy.colJoined}</TableHead>
               <TableHead className="w-12">
                 <span className="sr-only">{d.common.actions}</span>
@@ -374,6 +377,10 @@ export function MembersRegister({
 
                   <TableCell>
                     <StatusBadge status={member.kycStatus} size="sm" />
+                  </TableCell>
+
+                  <TableCell>
+                    <StatusBadge status={member.userStatus} size="sm" />
                   </TableCell>
 
                   <TableCell className="whitespace-nowrap text-sm text-ink-muted">

@@ -78,6 +78,7 @@ export interface AdminCopy {
     colSavings: string;
     colLoanOwing: string;
     colKyc: string;
+    colAccount: string;
     colJoined: string;
     overdue: string;
 
@@ -1326,6 +1327,7 @@ export const admin: Record<Locale, AdminCopy> = {
       colSavings: "Savings",
       colLoanOwing: "Loan owing",
       colKyc: "KYC",
+      colAccount: "Account",
       colJoined: "Joined",
       overdue: "overdue",
 
@@ -2718,6 +2720,7 @@ export const admin: Record<Locale, AdminCopy> = {
       colSavings: "Ubuzigame",
       colLoanOwing: "Umwenda w'inguzanyo",
       colKyc: "Umwirondoro",
+      colAccount: "Konti",
       colJoined: "Yinjiye",
       overdue: "byarengeje igihe",
 

@@ -13,7 +13,7 @@ import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { EmptyState } from "@/components/ui/empty-state";
 import { MemberSearch } from "@/components/dashboard/MemberSearch";
 import { MembersRegister } from "@/components/dashboard/MembersRegister";
-import type { MemberStatus } from "@/lib/generated/prisma/enums";
+import type { MemberStatus, UserStatus } from "@/lib/generated/prisma/enums";
 
 /**
  * The browser tab follows the reader's language like the rest of the page.
@@ -38,10 +38,18 @@ const VALID_STATUS = new Set([
   "REJECTED",
 ]);
 
+const VALID_ACCOUNT_STATUS = new Set([
+  "PENDING_VERIFICATION",
+  "ACTIVE",
+  "SUSPENDED",
+  "LOCKED",
+  "DISABLED",
+]);
+
 export default async function AdminMembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string; status?: string }>;
+  searchParams: Promise<{ page?: string; q?: string; status?: string; account?: string }>;
 }) {
   const context = await requirePermission(PERMISSIONS.MEMBERS_VIEW, "/admin/members");
   const associationId = resolveAssociationScope(context);
@@ -56,6 +64,10 @@ export default async function AdminMembersPage({
     status:
       params.status && VALID_STATUS.has(params.status)
         ? (params.status as MemberStatus)
+        : undefined,
+    userStatus:
+      params.account && VALID_ACCOUNT_STATUS.has(params.account)
+        ? (params.account as UserStatus)
         : undefined,
   });
 
@@ -118,7 +130,7 @@ export default async function AdminMembersPage({
         }
       />
 
-      <MemberSearch basePath="/admin/members" />
+      <MemberSearch basePath="/admin/members" showAccountFilter />
 
       {data.members.length === 0 ? (
         <EmptyState
