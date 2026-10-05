@@ -98,6 +98,7 @@ export class LedgerError extends Error {
       | "INVALID_AMOUNT"
       | "REASON_REQUIRED"
       | "DUPLICATE_SOURCE"
+      | "ALREADY_REMITTED"
   ) {
     super(message);
     this.name = "LedgerError";
@@ -332,81 +333,166 @@ export async function reverseSavingsTransaction(
   reason: string,
   reversedById: string
 ): Promise<PostedTransaction> {
+  return withFinancialTransaction((tx) =>
+    reverseSavingsTransactionWithin(tx, { transactionId, reason, reversedById })
+  );
+}
+
+/**
+ * `reverseSavingsTransaction` inside a transaction the caller already holds,
+ * for a reversal that must land together with other writes.
+ *
+ * The contra entry itself touches no running total (see `rollingTotalColumn`),
+ * so the total the ORIGINAL row added to is taken back down here, where its
+ * type is known. Without that, a reversed deposit would still count as
+ * contributed and a refunded fine would still count as a fee taken.
+ *
+ * A reversed service fee also cancels its PlatformFeeCharge, so the money stops
+ * being owed to the operator. One already paid over cannot be reversed here.
+ *
+ * Reversing a DEPOSIT lowers `totalDeposits` but does not void the service fee
+ * charged on the days it paid for; that needs the association's rulebook and
+ * is done by the balance correction in balance-corrections.ts.
+ */
+export async function reverseSavingsTransactionWithin(
+  tx: TxClient,
+  params: {
+    transactionId: string;
+    reason: string;
+    reversedById: string;
+    description?: string;
+  }
+): Promise<PostedTransaction> {
+  const { transactionId, reason, reversedById } = params;
   if (!reason?.trim()) {
     throw new LedgerError("A reversal requires a written reason", "REASON_REQUIRED");
   }
 
-  return withFinancialTransaction(async (tx) => {
-    const original = await tx.savingsTransaction.findUnique({
-      where: { id: transactionId },
-      select: {
-        id: true,
-        savingsAccountId: true,
-        associationId: true,
-        reference: true,
-        type: true,
-        direction: true,
-        amount: true,
-        status: true,
-        reversedBy: { select: { id: true } },
-      },
-    });
+  const original = await tx.savingsTransaction.findUnique({
+    where: { id: transactionId },
+    select: {
+      id: true,
+      savingsAccountId: true,
+      associationId: true,
+      reference: true,
+      type: true,
+      direction: true,
+      amount: true,
+      status: true,
+      reversedBy: { select: { id: true } },
+      platformFeeCharge: { select: { id: true, status: true, remittedAt: true } },
+    },
+  });
 
-    if (!original) {
-      throw new LedgerError("Transaction not found", "ACCOUNT_NOT_FOUND");
-    }
-    if (original.status === "REVERSED" || original.reversedBy) {
-      throw new LedgerError(
-        `Transaction ${original.reference} has already been reversed`,
-        "DUPLICATE_SOURCE"
-      );
-    }
-
-    const reversal = await postWithin(tx, {
-      savingsAccountId: original.savingsAccountId,
-      type: "REVERSAL",
-      // Opposite direction, same amount — that is what makes it a contra entry.
-      direction: original.direction === "CREDIT" ? "DEBIT" : "CREDIT",
-      amount: original.amount,
-      description: `Reversal of ${original.reference}: ${reason}`,
-      postedById: reversedById,
-      adjustmentReason: reason,
-      // A reversal must always be postable, even if it takes the balance
-      // negative — refusing to undo an erroneous credit because the member has
-      // since spent it would leave the books wrong permanently.
-      allowOverdraft: true,
-    });
-
-    await tx.savingsTransaction.update({
-      where: { id: reversal.id },
-      data: { reversalOfId: original.id, reversalReason: reason },
-    });
-
-    await tx.savingsTransaction.update({
-      where: { id: original.id },
-      data: {
-        status: "REVERSED",
-        reversedById,
-        reversalReason: reason,
-      },
-    });
-
-    await recordAudit(
-      {
-        action: AUDIT_ACTIONS.SAVINGS_TRANSACTION_REVERSED,
-        entityType: "SavingsTransaction",
-        entityId: original.id,
-        associationId: original.associationId,
-        oldValue: { status: original.status },
-        newValue: { status: "REVERSED", reversalReference: reversal.reference },
-        reason,
-        severity: "CRITICAL",
-      },
-      { id: reversedById },
-      tx
+  if (!original) {
+    throw new LedgerError("Transaction not found", "ACCOUNT_NOT_FOUND");
+  }
+  if (original.status === "REVERSED" || original.reversedBy) {
+    throw new LedgerError(
+      `Transaction ${original.reference} has already been reversed`,
+      "DUPLICATE_SOURCE"
     );
+  }
+  const feeCharge =
+    original.platformFeeCharge?.status === "CHARGED" ? original.platformFeeCharge : null;
+  if (feeCharge?.remittedAt) {
+    throw new LedgerError(
+      `The service fee ${original.reference} has already been paid over to the platform operator`,
+      "ALREADY_REMITTED"
+    );
+  }
 
-    return reversal;
+  const reversal = await postWithin(tx, {
+    savingsAccountId: original.savingsAccountId,
+    type: "REVERSAL",
+    // Opposite direction, same amount — that is what makes it a contra entry.
+    direction: original.direction === "CREDIT" ? "DEBIT" : "CREDIT",
+    amount: original.amount,
+    description: params.description ?? `Reversal of ${original.reference}: ${reason}`,
+    postedById: reversedById,
+    adjustmentReason: reason,
+    // A reversal must always be postable, even if it takes the balance
+    // negative — refusing to undo an erroneous credit because the member has
+    // since spent it would leave the books wrong permanently.
+    allowOverdraft: true,
+  });
+
+  // Whitelisted column, as in postWithin. Floored at zero so a total that was
+  // already understated (rows posted before totals existed) cannot go negative.
+  const totalsColumn = rollingTotalColumn(original.type);
+  if (totalsColumn) {
+    const column = Prisma.raw(`"${totalsColumn}"`);
+    await tx.$executeRaw`
+      UPDATE savings_accounts
+      SET ${column} = GREATEST(0, ${column} - ${toMoneyString(original.amount)}::numeric)
+      WHERE id = ${original.savingsAccountId}
+    `;
+  }
+
+  await tx.savingsTransaction.update({
+    where: { id: reversal.id },
+    data: { reversalOfId: original.id, reversalReason: reason },
+  });
+
+  await tx.savingsTransaction.update({
+    where: { id: original.id },
+    data: {
+      status: "REVERSED",
+      reversedById,
+      reversalReason: reason,
+    },
+  });
+
+  if (feeCharge) {
+    await voidPlatformFeeCharge(tx, feeCharge.id, `Fee ${original.reference} reversed: ${reason}`);
+  }
+
+  await recordAudit(
+    {
+      action: AUDIT_ACTIONS.SAVINGS_TRANSACTION_REVERSED,
+      entityType: "SavingsTransaction",
+      entityId: original.id,
+      associationId: original.associationId,
+      oldValue: { status: original.status },
+      newValue: { status: "REVERSED", reversalReference: reversal.reference },
+      reason,
+      severity: "CRITICAL",
+    },
+    { id: reversedById },
+    tx
+  );
+
+  return reversal;
+}
+
+/**
+ * Marks a service-fee charge REVERSED, so it is no longer owed to the operator.
+ *
+ * `coveredThroughDay` is unique per member whatever the status, so a voided
+ * charge keeping its day would block the fee run from charging that day again
+ * once the member really pays it — the collision is swallowed as "already
+ * charged", forever. Voided charges therefore move to negative days, which the
+ * fee run never reaches; the original range is kept in the waiver reason.
+ */
+export async function voidPlatformFeeCharge(tx: TxClient, chargeId: string, reason: string) {
+  const charge = await tx.platformFeeCharge.findUniqueOrThrow({
+    where: { id: chargeId },
+    select: { memberId: true, coveredThroughDay: true, daysCovered: true },
+  });
+  const lowest = await tx.platformFeeCharge.aggregate({
+    where: { memberId: charge.memberId },
+    _min: { coveredThroughDay: true },
+  });
+  const parkedDay = Math.min(0, lowest._min.coveredThroughDay ?? 0) - 1;
+  const firstDay = charge.coveredThroughDay - charge.daysCovered + 1;
+
+  await tx.platformFeeCharge.update({
+    where: { id: chargeId },
+    data: {
+      status: "REVERSED",
+      coveredThroughDay: parkedDay,
+      waiverReason: `${reason} (covered days ${firstDay}–${charge.coveredThroughDay})`,
+    },
   });
 }
 
@@ -506,7 +592,8 @@ async function prisma_findTransactions(savingsAccountId: string) {
  * Returns a column name that is interpolated into SQL, so the return values
  * are a fixed whitelist and never derived from input. A reversal deliberately
  * touches no total: which one the original contributed to is not knowable from
- * the reversal alone, and guessing would corrupt the figure.
+ * the reversal alone, and guessing would corrupt the figure. The original's
+ * total is taken back down by `reverseSavingsTransactionWithin`, which knows.
  */
 function rollingTotalColumn(type: TransactionType): string | null {
   switch (type) {

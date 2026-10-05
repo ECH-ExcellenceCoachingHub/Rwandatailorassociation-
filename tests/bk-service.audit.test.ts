@@ -78,6 +78,7 @@ afterAll(async () => {
   await prisma.bkTransaction.deleteMany({ where: { associationId: scope } });
   await prisma.bkSyncLog.deleteMany({ where: { triggeredById: adminUserId } });
   await prisma.auditLog.deleteMany({ where: { associationId: scope } });
+  await prisma.platformFeeCharge.deleteMany({ where: { associationId: scope } });
   await prisma.savingsAccount.deleteMany({ where: { associationId: scope } });
   await prisma.member.deleteMany({ where: { associationId: scope } });
   await prisma.user.deleteMany({ where: { associationId: scope } });

@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { HandCoins, PiggyBank, Wrench } from "lucide-react";
+import { HandCoins, PiggyBank, Undo2, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, NativeSelect } from "@/components/ui/input";
 import { Field } from "@/components/ui/field";
@@ -23,6 +23,15 @@ export interface CorrectableLoan {
   penalty: string;
 }
 
+export interface ReversibleDeposit {
+  id: string;
+  reference: string;
+  amount: string;
+  /// Already formatted for the reader's locale.
+  date: string;
+  description: string | null;
+}
+
 type Bucket = "principal" | "interest" | "fees" | "penalty";
 const BUCKETS: Bucket[] = ["principal", "interest", "fees", "penalty"];
 const AMOUNT = /^\d+(\.\d{1,2})?$/;
@@ -36,12 +45,14 @@ export function BalanceCorrections({
   memberId,
   savingsBalance,
   loans,
+  deposits,
   can,
 }: {
   memberId: string;
   /// Null when the member has no open savings account.
   savingsBalance: string | null;
   loans: CorrectableLoan[];
+  deposits: ReversibleDeposit[];
   can: { deposit: boolean; setBalance: boolean; loans: boolean };
 }) {
   const { d } = useLanguage();
@@ -49,6 +60,7 @@ export function BalanceCorrections({
 
   const tabs = [
     can.deposit && savingsBalance !== null && "deposit",
+    can.setBalance && savingsBalance !== null && "reverse",
     can.setBalance && savingsBalance !== null && "balance",
     can.loans && "loan",
   ].filter(Boolean) as string[];
@@ -70,6 +82,7 @@ export function BalanceCorrections({
       <Tabs defaultValue={tabs[0]} className="mt-4">
         <TabsList>
           {tabs.includes("deposit") && <TabsTrigger value="deposit">{copy.tabDeposit}</TabsTrigger>}
+          {tabs.includes("reverse") && <TabsTrigger value="reverse">{copy.tabReverse}</TabsTrigger>}
           {tabs.includes("balance") && <TabsTrigger value="balance">{copy.tabBalance}</TabsTrigger>}
           {tabs.includes("loan") && <TabsTrigger value="loan">{copy.tabLoan}</TabsTrigger>}
         </TabsList>
@@ -77,6 +90,15 @@ export function BalanceCorrections({
         {tabs.includes("deposit") && (
           <TabsContent value="deposit" className="pt-4">
             <DepositForm memberId={memberId} balance={savingsBalance ?? "0"} />
+          </TabsContent>
+        )}
+        {tabs.includes("reverse") && (
+          <TabsContent value="reverse" className="pt-4">
+            <ReverseDepositForm
+              memberId={memberId}
+              balance={savingsBalance ?? "0"}
+              deposits={deposits}
+            />
           </TabsContent>
         )}
         {tabs.includes("balance") && (
@@ -224,6 +246,87 @@ function DepositForm({ memberId, balance }: { memberId: string; balance: string 
           label={d.admin.file.savingsBalance}
           from={balance}
           to={valid ? add(balance, amount.trim()).toFixed(2) : balance}
+        />
+      </ConfirmDialog>
+    </form>
+  );
+}
+
+function ReverseDepositForm({
+  memberId,
+  balance,
+  deposits,
+}: {
+  memberId: string;
+  balance: string;
+  deposits: ReversibleDeposit[];
+}) {
+  const { d } = useLanguage();
+  const copy = d.admin.corrections;
+  const state = useCorrection();
+
+  const [depositId, setDepositId] = useState(deposits[0]?.id ?? "");
+  const deposit = deposits.find((entry) => entry.id === depositId) ?? null;
+
+  if (!deposit) {
+    return <p className="text-sm text-ink-muted">{copy.noDeposits}</p>;
+  }
+
+  function review(event: FormEvent) {
+    event.preventDefault();
+    state.setError(null);
+    state.setConfirming(true);
+  }
+
+  return (
+    <form onSubmit={review} className="space-y-4">
+      <p className="text-sm text-ink-muted">{copy.reverseHint}</p>
+      <Field id="corr-rev-deposit" label={copy.depositToReverse} required>
+        {(props) => (
+          <NativeSelect {...props} value={depositId} onChange={(e) => setDepositId(e.target.value)}>
+            {deposits.map((entry) => (
+              <option key={entry.id} value={entry.id}>
+                {entry.date} · {formatMoney(entry.amount)} · {entry.reference}
+              </option>
+            ))}
+          </NativeSelect>
+        )}
+      </Field>
+      {deposit.description && (
+        <p className="text-sm text-ink-muted">{deposit.description}</p>
+      )}
+
+      <Feedback error={state.error} done={state.done} />
+      <Button type="submit" size="sm" variant="outline">
+        <Undo2 className="size-3.5" aria-hidden="true" />
+        {copy.review}
+      </Button>
+
+      <ConfirmDialog
+        open={state.confirming}
+        onOpenChange={state.setConfirming}
+        title={fill(copy.reverseConfirmTitle, { reference: deposit.reference })}
+        description={copy.reverseConfirmBody}
+        confirmLabel={copy.reverseConfirm}
+        tone="danger"
+        requireReason
+        reasonMinLength={5}
+        reasonLabel={copy.reasonLabel}
+        reasonPlaceholder={copy.reverseReasonPlaceholder}
+        onConfirm={(reason) =>
+          state.run(() =>
+            submit(
+              `/api/admin/members/${memberId}/savings-correction`,
+              { kind: "reverse-deposit", transactionId: deposit.id, reason },
+              d.admin.manage.actionFailed
+            )
+          )
+        }
+      >
+        <Change
+          label={d.admin.file.savingsBalance}
+          from={balance}
+          to={subtract(balance, deposit.amount).toFixed(2)}
         />
       </ConfirmDialog>
     </form>

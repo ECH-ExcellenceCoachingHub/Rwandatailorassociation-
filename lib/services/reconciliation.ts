@@ -3,8 +3,9 @@ import { prisma, isUniqueConstraintError, withFinancialTransaction } from "@/lib
 import { getEnv } from "@/lib/env";
 import { paymentLogger, serialiseError } from "@/lib/logger";
 import { recordAudit, AUDIT_ACTIONS } from "@/lib/audit";
-import { equals, toMoneyString } from "@/lib/money";
+import { equals, subtract, toMoneyString } from "@/lib/money";
 import { postSavingsTransaction } from "@/lib/services/ledger";
+import { chargeMemberFeeWithin } from "@/lib/services/contributions";
 import { matchPaymentToMember } from "@/lib/services/payment-matching";
 import { getPaymentProvider } from "@/lib/jenga";
 import { notify, NOTIFICATION_EVENTS } from "@/lib/notifications";
@@ -529,6 +530,7 @@ async function creditMember(params: {
 }): Promise<void> {
   let creditedReference = "";
   let balanceAfter = "0.00";
+  let feeDeducted = "0.00";
 
   await withFinancialTransaction(async (tx) => {
     const posted = await postSavingsTransaction(
@@ -544,6 +546,10 @@ async function creditMember(params: {
       },
       tx
     );
+
+    // In the same transaction, so the member is never shown a balance with
+    // the service fee still in it.
+    const fee = await chargeMemberFeeWithin(tx, params.memberId);
 
     await tx.payment.update({
       where: { id: params.paymentId },
@@ -601,7 +607,8 @@ async function creditMember(params: {
     );
 
     creditedReference = posted.reference;
-    balanceAfter = posted.balanceAfter;
+    feeDeducted = fee.status === "CHARGED" ? fee.amount : "0.00";
+    balanceAfter = toMoneyString(subtract(posted.balanceAfter, feeDeducted));
   });
 
   // ---- 5. Tell the member -----------------------------------------------
@@ -623,6 +630,9 @@ async function creditMember(params: {
       event: NOTIFICATION_EVENTS.PAYMENT_RECEIVED,
       context: {
         amount: params.amount,
+        // Named in the message so a balance lower than the payment is
+        // explained rather than queried.
+        fee: feeDeducted,
         balance: balanceAfter,
         reference: creditedReference,
       },
@@ -950,6 +960,7 @@ export async function manuallyMatchPayment(params: {
       },
       tx
     );
+    await chargeMemberFeeWithin(tx, member.id, { actorId: params.adminUserId });
 
     reference = posted.reference;
 

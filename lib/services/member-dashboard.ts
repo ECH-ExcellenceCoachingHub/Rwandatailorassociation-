@@ -4,6 +4,7 @@ import { add, subtract, toMoneyString } from "@/lib/money";
 import { availableBalance } from "@/lib/services/ledger";
 import { getMemberStanding, type ContributionStatus } from "@/lib/services/contributions";
 import { listMemberFines, type MemberFines } from "@/lib/services/fines";
+import { getServiceFeesDeducted } from "@/lib/services/member-queries";
 
 /**
  * Member dashboard data.
@@ -23,6 +24,8 @@ export interface MemberDashboardData {
     locked: string;
     totalDeposits: string;
     totalWithdrawals: string;
+    /// Platform service fee already taken out of `balance`.
+    serviceFeesDeducted: string;
     accountNumber: string;
     currency: string;
     lastTransactionAt: Date | null;
@@ -138,6 +141,7 @@ export async function getMemberDashboard(
     unread,
     standing,
     fines,
+    serviceFeesDeducted,
   ] = await Promise.all([
       accountActivity,
       prisma.loan.findFirst({
@@ -194,6 +198,7 @@ export async function getMemberDashboard(
       // fines and no standing record — an empty position, not a failure.
       getMemberStanding(memberId),
       listMemberFines(memberId),
+      getServiceFeesDeducted(memberId),
     ]);
 
   if (!activity) return null;
@@ -217,6 +222,7 @@ export async function getMemberDashboard(
       locked: account.lockedBalance.toFixed(2),
       totalDeposits: account.totalDeposits.toFixed(2),
       totalWithdrawals: account.totalWithdrawals.toFixed(2),
+      serviceFeesDeducted,
       accountNumber: account.accountNumber,
       currency: account.currency,
       lastTransactionAt: account.lastTransactionAt,

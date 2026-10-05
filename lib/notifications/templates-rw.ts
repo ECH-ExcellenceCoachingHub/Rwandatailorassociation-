@@ -32,6 +32,9 @@ const smsMoney = (amount?: string): string =>
 
 const NOT_STATED = "Ntiyatanzwe";
 
+/** True when a service fee was actually taken, so the message names it. */
+const hasFee = (fee?: string): fee is string => Number(fee ?? 0) > 0;
+
 export function renderKinyarwanda(
   event: NotificationEvent,
   context: TemplateContext
@@ -69,10 +72,14 @@ export function renderKinyarwanda(
     case NOTIFICATION_EVENTS.PAYMENT_RECEIVED:
       return {
         title: "Ubwishyu bwakiriwe",
-        body: `Twakiriye ${formatMoney(context.amount)}. Ubuzigame bwawe ubu ni ${formatMoney(context.balance)}.`,
-        sms: `${associationName}: twakiriye ${smsMoney(context.amount)}. Ubuzigame ubu ${smsMoney(context.balance)}. Ref ${context.reference}.`,
+        body: hasFee(context.fee)
+          ? `Twakiriye ${formatMoney(context.amount)}. Havuyemo amafaranga y'serivisi ${formatMoney(context.fee)}, ubuzigame bwawe ubu ni ${formatMoney(context.balance)}.`
+          : `Twakiriye ${formatMoney(context.amount)}. Ubuzigame bwawe ubu ni ${formatMoney(context.balance)}.`,
+        sms: hasFee(context.fee)
+          ? `${associationName}: twakiriye ${smsMoney(context.amount)}, havuyemo serivisi ${smsMoney(context.fee)}. Ubuzigame ubu ${smsMoney(context.balance)}. Ref ${context.reference}.`
+          : `${associationName}: twakiriye ${smsMoney(context.amount)}. Ubuzigame ubu ${smsMoney(context.balance)}. Ref ${context.reference}.`,
         emailSubject: `Ubwishyu bwakiriwe - ${formatMoney(context.amount)}`,
-        emailText: `${dear}\n\nTwakiriye umusanzu wawe wa ${formatMoney(context.amount)}.\n\nNimero y'igikorwa: ${context.reference}\nUbuzigame bwawe ubu ni ${formatMoney(context.balance)}.\n\nMurakoze.\n\n${associationName}`,
+        emailText: `${dear}\n\nTwakiriye umusanzu wawe wa ${formatMoney(context.amount)}.\n\nNimero y'igikorwa: ${context.reference}\n${hasFee(context.fee) ? `Amafaranga y'serivisi yavuyemo: ${formatMoney(context.fee)}\n` : ""}Ubuzigame bwawe ubu ni ${formatMoney(context.balance)}.\n\nMurakoze.\n\n${associationName}`,
       };
 
     case NOTIFICATION_EVENTS.CONTRIBUTION_DUE_WARNING:

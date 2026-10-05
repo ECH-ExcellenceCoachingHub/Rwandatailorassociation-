@@ -182,6 +182,14 @@ export interface AdminCopy {
     tabDeposit: string;
     tabBalance: string;
     tabLoan: string;
+    tabReverse: string;
+    reverseHint: string;
+    depositToReverse: string;
+    noDeposits: string;
+    reverseConfirmTitle: string;
+    reverseConfirmBody: string;
+    reverseConfirm: string;
+    reverseReasonPlaceholder: string;
     depositHint: string;
     balanceHint: string;
     loanHint: string;
@@ -377,6 +385,9 @@ export interface AdminCopy {
     colLocked: string;
     colAvailable: string;
     colDeposits: string;
+    /// The platform service fee already taken out of the balance.
+    colServiceFees: string;
+    afterServiceFees: string;
     colWithdrawn: string;
     colLastActivity: string;
     transactionCount: string;
@@ -1425,8 +1436,16 @@ export const admin: Record<Locale, AdminCopy> = {
       tabDeposit: "Record missed deposit",
       tabBalance: "Set savings balance",
       tabLoan: "Correct a loan",
+      tabReverse: "Reverse a deposit",
+      reverseHint: "For a deposit that should never have been credited — entered twice, or credited to the wrong member. The deposit is marked reversed and taken back in full, it stops counting as a contribution, and the service fee charged on the days it paid for is refunded. To credit the right member, record it on their file as a missed deposit.",
+      depositToReverse: "Deposit",
+      noDeposits: "This member has no deposit that can be reversed.",
+      reverseConfirmTitle: "Reverse deposit {reference}?",
+      reverseConfirmBody: "The deposit stays on the statement, marked reversed, beside the entry that takes it back. The member may fall behind on their contributions and be fined for the days it paid for.",
+      reverseConfirm: "Reverse deposit",
+      reverseReasonPlaceholder: "e.g. Credited to the wrong member; belongs to RTA-M000021",
       depositHint: "For money the member paid that never reached their account — cash at the office, or a transfer the statement import missed. It counts as a contribution, so it also clears the arrears the missing payment caused.",
-      balanceHint: "Enter the balance the account should hold. The difference is posted as one adjustment. Use this for errors that are not a missed payment — an adjustment does not count as a contribution.",
+      balanceHint: "Enter the balance the account should hold. The difference is posted as one adjustment. Use this for errors that are not a missed payment — raising a balance does not count as a contribution. Lowering it removes that money from the member's contributions too, along with any service fee taken from it.",
       loanHint: "Enter what the member should still owe in each part of the loan. The repayment schedule is reshaped to match, and a loan corrected to zero is closed and its guarantors released.",
       channel: "Paid by",
       channelCash: "Cash",
@@ -1658,6 +1677,8 @@ export const admin: Record<Locale, AdminCopy> = {
       colLocked: "Locked",
       colAvailable: "Available",
       colDeposits: "Deposits",
+      colServiceFees: "Service fees",
+      afterServiceFees: "after {amount} in service fees",
       colWithdrawn: "Withdrawn",
       colLastActivity: "Last activity",
       transactionCount: "{count} transaction|{count} transactions",
@@ -2809,8 +2830,16 @@ export const admin: Record<Locale, AdminCopy> = {
       tabDeposit: "Andika ubwizigame bwabuze",
       tabBalance: "Shyiraho amafaranga ari kuri konti",
       tabLoan: "Kosora inguzanyo",
+      tabReverse: "Gusubiza inyuma ubwizigame",
+      reverseHint: "Ku mafaranga yashyizwe kuri konti atagombaga kuhajya — yanditswe kabiri, cyangwa yashyizwe ku munyamuryango utari we. Ayo mafaranga yandikwa ko yasubijwe inyuma agakurwaho yose, ntakomeze kubarwa nk'umusanzu, kandi amafaranga y'serivisi yari yakuwe ku minsi yishyuye agasubizwa. Kugira ngo ashyirwe ku munyamuryango nyawe, yandike kuri dosiye ye nk'ubwishyu bwabuze.",
+      depositToReverse: "Amafaranga yashyizweho",
+      noDeposits: "Uyu munyamuryango nta mafaranga yashyizweho ashobora gusubizwa inyuma.",
+      reverseConfirmTitle: "Gusubiza inyuma {reference}?",
+      reverseConfirmBody: "Ayo mafaranga aguma kuri raporo ya konti, yanditseho ko yasubijwe inyuma, iruhande rw'icyanditswe kiyakuraho. Umunyamuryango ashobora gusigara inyuma ku misanzu agacibwa amande ku minsi yari yishyuye.",
+      reverseConfirm: "Subiza inyuma",
+      reverseReasonPlaceholder: "urugero: Yashyizwe ku munyamuryango utari we; ni aya RTA-M000021",
       depositHint: "Ku mafaranga umunyamuryango yishyuye ariko ntagere kuri konti ye — amafaranga yatanzwe ku biro, cyangwa ayoherejwe atagaragaye muri raporo ya banki. Abarwa nk'umusanzu, bityo akuraho n'ibirarane byatewe n'ubwishyu bwabuze.",
-      balanceHint: "Andika amafaranga konti igomba kuba ifite. Itandukaniro ryandikwa nk'ikosora rimwe. Koresha ibi ku makosa atari ubwishyu bwabuze — ikosora ntiribarwa nk'umusanzu.",
+      balanceHint: "Andika amafaranga konti igomba kuba ifite. Itandukaniro ryandikwa nk'ikosora rimwe. Koresha ibi ku makosa atari ubwishyu bwabuze — kongera amafaranga ntibibarwa nk'umusanzu. Kuyagabanya biyakura no ku misanzu y'umunyamuryango, hamwe n'amafaranga y'serivisi yari yakuwemo.",
       loanHint: "Andika ayo umunyamuryango agomba kuba agisigayemo kuri buri gice cy'inguzanyo. Gahunda yo kwishyura ihindurwa ikajyana na yo, kandi inguzanyo ikosowe ikagera kuri zeru irafungwa, abishingizi bayo bakarekurwa.",
       channel: "Yishyuwe hakoreshejwe",
       channelCash: "Amafaranga mu ntoki",
@@ -3066,6 +3095,8 @@ export const admin: Record<Locale, AdminCopy> = {
       colLocked: "Yafatiriwe",
       colAvailable: "Ashobora gukoreshwa",
       colDeposits: "Ubwitso",
+      colServiceFees: "Serivisi",
+      afterServiceFees: "hamaze kuvamo {amount} ya serivisi",
       colWithdrawn: "Yabikujwe",
       colLastActivity: "Igikorwa giheruka",
       transactionCount: "Igikorwa {count}|Ibikorwa {count}",

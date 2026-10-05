@@ -1,5 +1,5 @@
 import "server-only";
-import { prisma, withFinancialTransaction } from "@/lib/db/prisma";
+import { prisma, withFinancialTransaction, type TxClient } from "@/lib/db/prisma";
 import { logger } from "@/lib/logger";
 import { recordAudit, AUDIT_ACTIONS } from "@/lib/audit";
 import {
@@ -13,8 +13,14 @@ import {
   LedgerError,
   buildTransactionReference,
   postSavingsTransaction,
+  reverseSavingsTransactionWithin,
 } from "@/lib/services/ledger";
-import { getPolicy, policyFromRules, type AssociationPolicy } from "@/lib/services/rulebook";
+import {
+  getPolicy,
+  getPolicyWithin,
+  policyFromRules,
+  type AssociationPolicy,
+} from "@/lib/services/rulebook";
 import { notify, NOTIFICATION_EVENTS } from "@/lib/notifications";
 
 /**
@@ -920,12 +926,6 @@ export async function chargePlatformFees(
   // the platform for free — and must not produce a run of zero-value debits.
   if (!gt(policy.platformFeePerDay, 0)) return result;
 
-  const association = await prisma.association.findUnique({
-    where: { id: associationId },
-    select: { timezone: true },
-  });
-  const timeZone = association?.timezone ?? "Africa/Kigali";
-
   const members = await prisma.member.findMany({
     where: {
       associationId,
@@ -934,22 +934,11 @@ export async function chargePlatformFees(
     },
     select: {
       id: true,
-      joinedAt: true,
-      approvedAt: true,
-      createdAt: true,
       contributionStanding: true,
-      sharesSubscribed: true,
       savingsAccounts: {
         where: { isActive: true },
-        orderBy: { openedAt: "asc" },
         take: 1,
-        select: { id: true, totalDeposits: true },
-      },
-      platformFeeCharges: {
-        where: { status: "CHARGED" },
-        orderBy: { coveredThroughDay: "desc" },
-        take: 1,
-        select: { coveredThroughDay: true },
+        select: { id: true },
       },
     },
   });
@@ -963,82 +952,18 @@ export async function chargePlatformFees(
 
     result.membersConsidered++;
 
-    const chargedThrough = member.platformFeeCharges[0]?.coveredThroughDay ?? 0;
-
-    const standing = computeStanding({
-      policy,
-      timeZone,
-      obligationStart: resolveObligationStart(member),
-      shares: member.sharesSubscribed ?? 1,
-      asOf,
-      totalContributed: toMoneyString(account.totalDeposits),
-      feeChargedThroughDay: chargedThrough,
-      priorFines: [],
-      outstandingFineAmount: "0.00",
-      isExempt: false,
-    });
-
-    if (standing.feeDaysOwed <= 0) continue;
-
-    const coveredThroughDay = chargedThrough + standing.feeDaysOwed;
-
     try {
-      await withFinancialTransaction(async (tx) => {
-        const posted = await postSavingsTransaction(
-          {
-            savingsAccountId: account.id,
-            type: "FEE",
-            direction: "DEBIT",
-            amount: standing.feeAmountOwed,
-            description: `Platform service fee for ${standing.feeDaysOwed} contribution day(s)`,
-            postedById: options.actorId ?? null,
-            // Never. A member cannot be pushed into the red by a fee.
-            allowOverdraft: false,
-          },
-          tx
-        );
+      const outcome = await withFinancialTransaction((tx) =>
+        chargeMemberFeeWithin(tx, member.id, { actorId: options.actorId, asOf })
+      );
 
-        await tx.platformFeeCharge.create({
-          data: {
-            associationId,
-            memberId: member.id,
-            reference: buildTransactionReference("PSF"),
-            daysCovered: standing.feeDaysOwed,
-            coveredThroughDay,
-            feePerDay: standing.dailyFee,
-            amount: standing.feeAmountOwed,
-            savingsTransactionId: posted.id,
-            chargedById: options.actorId ?? null,
-          },
-        });
-
-        await recordAudit(
-          {
-            action: AUDIT_ACTIONS.PLATFORM_FEE_CHARGED,
-            entityType: "PlatformFeeCharge",
-            entityId: member.id,
-            associationId,
-            newValue: {
-              memberId: member.id,
-              days: standing.feeDaysOwed,
-              amount: standing.feeAmountOwed,
-              coveredThroughDay,
-            },
-            metadata: { savingsTransaction: posted.reference },
-          },
-          options.actorId ? { id: options.actorId } : null,
-          tx
-        );
-      });
-
-      result.charged++;
-      total = add(total, standing.feeAmountOwed);
-    } catch (error) {
-      if (error instanceof LedgerError && error.code === "INSUFFICIENT_FUNDS") {
+      if (outcome.status === "CHARGED") {
+        result.charged++;
+        total = add(total, outcome.amount);
+      } else if (outcome.status === "INSUFFICIENT_FUNDS") {
         result.skippedInsufficientFunds++;
-        continue;
       }
-
+    } catch (error) {
       // A unique-constraint collision means a concurrent run already charged
       // these days. That is the index doing its job, not a failure.
       if (isUniqueViolation(error)) continue;
@@ -1052,6 +977,155 @@ export async function chargePlatformFees(
 
   result.totalCharged = toMoneyString(total);
   return result;
+}
+
+export type MemberFeeOutcome =
+  | { status: "CHARGED"; amount: string; days: number; reference: string }
+  | { status: "NOTHING_OWED" | "INSUFFICIENT_FUNDS" | "NOT_CHARGEABLE" };
+
+/**
+ * Takes one member's service fee for the days they have paid for and not yet
+ * been charged, inside the caller's transaction.
+ *
+ * Called by every path that credits a deposit, in the same transaction as the
+ * credit, so a balance is never shown with the fee still in it: the statement
+ * reads DEPOSIT +1,050 then FEE −50 from the moment the money lands, not from
+ * the next nightly run. The nightly run calls it too, as the catch-up.
+ *
+ * NEVER THROWS for an ordinary reason not to charge — a balance too low to
+ * cover the fee, an exempt or inactive member, nothing owed. A deposit must
+ * never fail because its fee could not be taken; the nightly run catches up.
+ *
+ * Locks the account row before reading what is already charged, so a deposit
+ * and the nightly run cannot both charge the same days. Inside a deposit the
+ * lock is already held by the credit.
+ */
+export async function chargeMemberFeeWithin(
+  tx: TxClient,
+  memberId: string,
+  options: { actorId?: string | null; asOf?: Date } = {}
+): Promise<MemberFeeOutcome> {
+  const asOf = options.asOf ?? new Date();
+
+  const member = await tx.member.findUnique({
+    where: { id: memberId },
+    select: {
+      id: true,
+      associationId: true,
+      status: true,
+      joinedAt: true,
+      approvedAt: true,
+      createdAt: true,
+      contributionStanding: true,
+      sharesSubscribed: true,
+      association: { select: { timezone: true } },
+      savingsAccounts: {
+        where: { isActive: true },
+        orderBy: { openedAt: "asc" },
+        take: 1,
+        select: { id: true },
+      },
+    },
+  });
+  const accountId = member?.savingsAccounts[0]?.id;
+  if (!member || !accountId || member.status !== "ACTIVE") {
+    return { status: "NOT_CHARGEABLE" };
+  }
+  if (isCurrentlyExempt(member.contributionStanding, asOf)) {
+    return { status: "NOT_CHARGEABLE" };
+  }
+
+  const policy = await getPolicyWithin(tx, member.associationId);
+  // No fee configured is a legitimate configuration — an association running
+  // the platform for free — and must not produce zero-value debits.
+  if (!gt(policy.platformFeePerDay, 0)) return { status: "NOT_CHARGEABLE" };
+
+  const [locked] = await tx.$queryRaw<{ balance: string; totalDeposits: string }[]>`
+    SELECT balance::text AS balance, "totalDeposits"::text AS "totalDeposits"
+    FROM savings_accounts WHERE id = ${accountId} FOR UPDATE
+  `;
+  const latest = await tx.platformFeeCharge.findFirst({
+    where: { memberId, status: "CHARGED" },
+    orderBy: { coveredThroughDay: "desc" },
+    select: { coveredThroughDay: true },
+  });
+  const chargedThrough = latest?.coveredThroughDay ?? 0;
+
+  const standing = computeStanding({
+    policy,
+    timeZone: member.association.timezone ?? "Africa/Kigali",
+    obligationStart: resolveObligationStart(member),
+    shares: member.sharesSubscribed ?? 1,
+    asOf,
+    totalContributed: locked.totalDeposits,
+    feeChargedThroughDay: chargedThrough,
+    priorFines: [],
+    outstandingFineAmount: "0.00",
+    isExempt: false,
+  });
+
+  if (standing.feeDaysOwed <= 0) return { status: "NOTHING_OWED" };
+
+  // Checked here rather than left to the ledger's overdraft guard, whose
+  // error would abort the caller's transaction — and with it the deposit.
+  // Never overdrawn: a member cannot be pushed into the red by a fee.
+  if (toMoney(locked.balance).lessThan(standing.feeAmountOwed)) {
+    return { status: "INSUFFICIENT_FUNDS" };
+  }
+
+  const coveredThroughDay = chargedThrough + standing.feeDaysOwed;
+
+  const posted = await postSavingsTransaction(
+    {
+      savingsAccountId: accountId,
+      type: "FEE",
+      direction: "DEBIT",
+      amount: standing.feeAmountOwed,
+      description: `Platform service fee for ${standing.feeDaysOwed} contribution day(s)`,
+      postedById: options.actorId ?? null,
+      allowOverdraft: false,
+    },
+    tx
+  );
+
+  await tx.platformFeeCharge.create({
+    data: {
+      associationId: member.associationId,
+      memberId,
+      reference: buildTransactionReference("PSF"),
+      daysCovered: standing.feeDaysOwed,
+      coveredThroughDay,
+      feePerDay: standing.dailyFee,
+      amount: standing.feeAmountOwed,
+      savingsTransactionId: posted.id,
+      chargedById: options.actorId ?? null,
+    },
+  });
+
+  await recordAudit(
+    {
+      action: AUDIT_ACTIONS.PLATFORM_FEE_CHARGED,
+      entityType: "PlatformFeeCharge",
+      entityId: memberId,
+      associationId: member.associationId,
+      newValue: {
+        memberId,
+        days: standing.feeDaysOwed,
+        amount: standing.feeAmountOwed,
+        coveredThroughDay,
+      },
+      metadata: { savingsTransaction: posted.reference },
+    },
+    options.actorId ? { id: options.actorId } : null,
+    tx
+  );
+
+  return {
+    status: "CHARGED",
+    amount: toMoneyString(standing.feeAmountOwed),
+    days: standing.feeDaysOwed,
+    reference: posted.reference,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1627,31 +1701,14 @@ export async function resetSavingsClock(params: {
       const debit = fine.savingsTransaction;
       if (!debit || debit.status === "REVERSED") continue;
 
-      // The same contra entry reverseSavingsTransaction posts, written here so
-      // it lands in this transaction with the rest of the reset.
-      const reversal = await postSavingsTransaction(
-        {
-          savingsAccountId: debit.savingsAccountId,
-          type: "REVERSAL",
-          direction: "CREDIT",
-          amount: toMoneyString(fine.amount),
-          description: `Refund of contribution fine ${fine.reference}: saving clock reset`,
-          postedById: params.actorId,
-          adjustmentReason: waiverReason,
-        },
-        tx
-      );
-      await tx.savingsTransaction.update({
-        where: { id: reversal.id },
-        data: { reversalOfId: debit.id, reversalReason: waiverReason },
-      });
-      await tx.savingsTransaction.update({
-        where: { id: debit.id },
-        data: {
-          status: "REVERSED",
-          reversedById: params.actorId,
-          reversalReason: waiverReason,
-        },
+      // In this transaction with the rest of the reset. Also takes the fine
+      // back off the account's running fee total, which a bare contra entry
+      // would leave counting a fine that was refunded.
+      await reverseSavingsTransactionWithin(tx, {
+        transactionId: debit.id,
+        reason: waiverReason,
+        reversedById: params.actorId,
+        description: `Refund of contribution fine ${fine.reference}: saving clock reset`,
       });
       await tx.contributionFine.update({
         where: { id: fine.id },

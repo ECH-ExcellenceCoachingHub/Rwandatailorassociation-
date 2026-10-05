@@ -7,6 +7,7 @@ import { LedgerError } from "@/lib/services/ledger";
 import {
   CorrectionError,
   recordMissedDeposit,
+  reverseDeposit,
   setSavingsBalance,
 } from "@/lib/services/balance-corrections";
 import {
@@ -41,6 +42,11 @@ const schema = z.discriminatedUnion("kind", [
     targetBalance: amount,
     reason,
   }),
+  z.object({
+    kind: z.literal("reverse-deposit"),
+    transactionId: z.string().trim().min(1).max(64),
+    reason,
+  }),
 ]);
 
 /**
@@ -54,7 +60,7 @@ const schema = z.discriminatedUnion("kind", [
  * coming in, recorded as an ordinary DEPOSIT row with a reason and an audit
  * entry, and it rewrites nothing. Setting the balance needs `savings.adjust`,
  * which only a super admin holds by default, because it can move a balance
- * down as well as up.
+ * down as well as up. So does reversing a deposit, which always moves it down.
  */
 export const POST = withErrorHandling(
   async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
@@ -97,6 +103,16 @@ export const POST = withErrorHandling(
           actorId: context.user.id,
         });
         return apiSuccess({ message: `Deposit ${posted.reference} recorded.`, ...posted });
+      }
+
+      if (input.kind === "reverse-deposit") {
+        const posted = await reverseDeposit({
+          memberId: id,
+          transactionId: input.transactionId,
+          reason: input.reason,
+          actorId: context.user.id,
+        });
+        return apiSuccess({ message: `Deposit reversed (${posted.reference}).`, ...posted });
       }
 
       const posted = await setSavingsBalance({

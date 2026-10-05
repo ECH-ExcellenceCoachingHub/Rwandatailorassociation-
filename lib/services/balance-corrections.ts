@@ -8,7 +8,9 @@ import {
   isPositive,
   isZero,
   lte,
+  max,
   min,
+  multiply,
   subtract,
   toMoney,
   toMoneyString,
@@ -18,9 +20,13 @@ import {
 import {
   buildTransactionReference,
   postSavingsTransaction,
+  reverseSavingsTransactionWithin,
+  voidPlatformFeeCharge,
   type PostedTransaction,
 } from "@/lib/services/ledger";
 import { notifyReleasedGuarantors, releaseGuarantees } from "@/lib/services/guarantors";
+import { getPolicyWithin } from "@/lib/services/rulebook";
+import { chargeMemberFeeWithin } from "@/lib/services/contributions";
 import type { InstallmentStatus, LoanStatus } from "@/lib/generated/prisma/enums";
 
 /**
@@ -95,7 +101,7 @@ export async function recordMissedDeposit(params: {
 
   return withFinancialTransaction(async (tx) => {
     const savingsAccountId = await activeAccountId(params.memberId, tx);
-    return postSavingsTransaction(
+    const posted = await postSavingsTransaction(
       {
         savingsAccountId,
         type: "DEPOSIT",
@@ -112,7 +118,148 @@ export async function recordMissedDeposit(params: {
       },
       tx
     );
+    // The service fee comes off with the deposit, not at the nightly run.
+    await chargeMemberFeeWithin(tx, params.memberId, { actorId: params.actorId });
+    return posted;
   });
+}
+
+/**
+ * Takes back a deposit that should never have been credited — entered twice,
+ * or credited to the wrong member — by contra entry.
+ *
+ * Unlike setting the balance, this marks the deposit itself REVERSED, so it
+ * drops out of the deposit reports as well as the member's contributions. The
+ * service fee charged on the days it paid for is refunded and cancelled: the
+ * contra entry takes back the whole deposit, fee part included, so leaving the
+ * fee taken would charge the member for days nobody paid.
+ *
+ * A deposit that came from a provider payment marks that payment REVERSED too.
+ * Crediting the right member is a separate, deliberate step: record it on
+ * their file as a missed deposit.
+ */
+export async function reverseDeposit(params: {
+  memberId: string;
+  transactionId: string;
+  reason: string;
+  actorId: string;
+}): Promise<PostedTransaction & { feesRefunded: string }> {
+  const reason = requireReason(params.reason);
+
+  return withFinancialTransaction(async (tx) => {
+    const deposit = await tx.savingsTransaction.findUnique({
+      where: { id: params.transactionId },
+      select: {
+        memberId: true,
+        savingsAccountId: true,
+        reference: true,
+        type: true,
+        status: true,
+        paymentId: true,
+      },
+    });
+    if (!deposit || deposit.memberId !== params.memberId) {
+      throw new CorrectionError("Deposit not found", "NOT_FOUND");
+    }
+    if (deposit.type !== "DEPOSIT") {
+      throw new CorrectionError("Only a deposit can be reversed here", "INVALID_STATE");
+    }
+    if (deposit.status !== "COMPLETED") {
+      throw new CorrectionError(
+        `Deposit ${deposit.reference} has already been reversed`,
+        "INVALID_STATE"
+      );
+    }
+
+    // Locked so the fee run cannot charge against the deposit while it is
+    // being taken back.
+    await tx.$queryRaw`
+      SELECT id FROM savings_accounts WHERE id = ${deposit.savingsAccountId} FOR UPDATE
+    `;
+
+    const reversal = await reverseSavingsTransactionWithin(tx, {
+      transactionId: params.transactionId,
+      reason,
+      reversedById: params.actorId,
+      description: `Deposit ${deposit.reference} reversed by an officer: ${reason}`,
+    });
+
+    const feesRefunded = await refundFeesForUnpaidDays(tx, {
+      savingsAccountId: deposit.savingsAccountId,
+      reason: `Deposit ${deposit.reference} reversed: ${reason}`,
+      actorId: params.actorId,
+    });
+
+    if (deposit.paymentId) {
+      await tx.payment.update({
+        where: { id: deposit.paymentId },
+        data: { status: "REVERSED" },
+      });
+    }
+
+    return { ...reversal, feesRefunded: toMoneyString(feesRefunded) };
+  });
+}
+
+/**
+ * Refunds and cancels the service-fee charges for days the member's deposits
+ * no longer pay for, newest first. Never one already paid over to the
+ * operator, and only whole charges lying entirely beyond the days still paid
+ * for — a charge straddling that line stays, so no day is ever charged twice.
+ */
+async function refundFeesForUnpaidDays(
+  tx: TxClient,
+  params: { savingsAccountId: string; reason: string; actorId: string }
+): Promise<Money> {
+  const account = await tx.savingsAccount.findUniqueOrThrow({
+    where: { id: params.savingsAccountId },
+    select: {
+      associationId: true,
+      memberId: true,
+      totalDeposits: true,
+      member: { select: { sharesSubscribed: true } },
+    },
+  });
+
+  const policy = await getPolicyWithin(tx, account.associationId);
+  const dailyTotal = multiply(policy.dailyTotal, Math.max(1, account.member.sharesSubscribed ?? 1));
+  if (!isPositive(dailyTotal)) return toMoney(0);
+  const daysStillPaid = Math.floor(toMoney(account.totalDeposits).dividedBy(dailyTotal).toNumber());
+
+  const charges = await tx.platformFeeCharge.findMany({
+    where: { memberId: account.memberId, status: "CHARGED" },
+    orderBy: { coveredThroughDay: "desc" },
+    select: {
+      id: true,
+      amount: true,
+      daysCovered: true,
+      coveredThroughDay: true,
+      remittedAt: true,
+      savingsTransactionId: true,
+    },
+  });
+
+  let refunded = toMoney(0);
+  for (const charge of charges) {
+    if (charge.remittedAt) break;
+    if (charge.coveredThroughDay - charge.daysCovered < daysStillPaid) break;
+
+    if (charge.savingsTransactionId) {
+      // Refunds the fee and cancels the charge together.
+      await reverseSavingsTransactionWithin(tx, {
+        transactionId: charge.savingsTransactionId,
+        reason: params.reason,
+        reversedById: params.actorId,
+        description: "Service fee refunded: the deposit that paid for these days was reversed",
+      });
+      refunded = add(refunded, charge.amount);
+    } else {
+      // Its ledger row is gone, so there is nothing to refund; it is still no
+      // longer owed to the operator.
+      await voidPlatformFeeCharge(tx, charge.id, params.reason);
+    }
+  }
+  return refunded;
 }
 
 /**
@@ -168,8 +315,131 @@ export async function setSavingsBalance(params: {
       tx
     );
 
+    // Money corrected away was never really the member's, so it must stop
+    // counting as contributed too. Raising a balance does not add to the
+    // contributions: a payment that was missed is recorded as a deposit.
+    if (isNegative(delta)) {
+      await removeFromContributions(tx, {
+        savingsAccountId,
+        removed: abs(delta),
+        correctionReference: posted.reference,
+        reason,
+        actorId: params.actorId,
+      });
+    }
+
     return { ...posted, previousBalance: toMoneyString(current) };
   });
+}
+
+/**
+ * Takes money an officer has corrected off a balance back out of the member's
+ * contribution record as well.
+ *
+ * Contribution standing, the service fee and fines are all measured from
+ * `totalDeposits`, which an ADJUSTMENT does not touch. Without this, a balance
+ * set to zero leaves every franc that was removed still counting as paid: the
+ * member shows days ahead that nobody paid for, and is never fined for them.
+ *
+ * The service fee already taken out of the removed money is voided with it.
+ * That fee came out of money that never existed, so it is not refunded to the
+ * member — the correction already took the balance to the stated figure — it
+ * simply stops being owed to the platform operator. Concretely, removing a
+ * wrongly recorded 16,800 that had 800 of fee taken from it leaves a balance
+ * 16,000 lower and contributions 16,800 lower, and the 800 leaves the fee pot.
+ *
+ * Only whole charges lying entirely beyond the days still paid for are voided,
+ * newest first, and never one already paid over to the operator. A charge left
+ * standing over days no longer paid for means the member is not charged again
+ * for those days when they pay them: they are never charged twice.
+ */
+async function removeFromContributions(
+  tx: TxClient,
+  params: {
+    savingsAccountId: string;
+    removed: Money;
+    correctionReference: string;
+    reason: string;
+    actorId: string;
+  }
+) {
+  const account = await tx.savingsAccount.findUniqueOrThrow({
+    where: { id: params.savingsAccountId },
+    select: {
+      associationId: true,
+      memberId: true,
+      totalDeposits: true,
+      member: { select: { sharesSubscribed: true } },
+    },
+  });
+
+  const policy = await getPolicyWithin(tx, account.associationId);
+  const shares = Math.max(1, account.member.sharesSubscribed ?? 1);
+  const dailyTotal = multiply(policy.dailyTotal, shares);
+  const deposits = toMoney(account.totalDeposits);
+
+  const charges = await tx.platformFeeCharge.findMany({
+    where: { memberId: account.memberId, status: "CHARGED" },
+    orderBy: { coveredThroughDay: "desc" },
+    select: {
+      id: true,
+      reference: true,
+      amount: true,
+      daysCovered: true,
+      coveredThroughDay: true,
+      remittedAt: true,
+    },
+  });
+
+  let voidedFees = toMoney(0);
+  const voided: typeof charges = [];
+  for (const charge of charges) {
+    if (charge.remittedAt || !isPositive(dailyTotal)) break;
+    const remaining = max(0, subtract(subtract(deposits, params.removed), voidedFees));
+    const daysStillPaid = Math.floor(remaining.dividedBy(dailyTotal).toNumber());
+    const firstDay = charge.coveredThroughDay - charge.daysCovered;
+    if (firstDay < daysStillPaid) break;
+    voided.push(charge);
+    voidedFees = add(voidedFees, charge.amount);
+  }
+
+  const newDeposits = max(0, subtract(subtract(deposits, params.removed), voidedFees));
+
+  await tx.savingsAccount.update({
+    where: { id: params.savingsAccountId },
+    data: { totalDeposits: toMoneyString(newDeposits) },
+  });
+
+  for (const charge of voided) {
+    await voidPlatformFeeCharge(
+      tx,
+      charge.id,
+      `Voided by balance correction ${params.correctionReference}, taken from money that was removed: ${params.reason}`
+    );
+  }
+
+  await recordAudit(
+    {
+      action: AUDIT_ACTIONS.PLATFORM_FEE_WAIVED,
+      entityType: "SavingsAccount",
+      entityId: params.savingsAccountId,
+      associationId: account.associationId,
+      oldValue: { totalDeposits: toMoneyString(deposits) },
+      newValue: {
+        totalDeposits: toMoneyString(newDeposits),
+        feeChargesVoided: voided.map((charge) => charge.reference),
+        feeVoided: toMoneyString(voidedFees),
+      },
+      reason: params.reason,
+      metadata: {
+        memberId: account.memberId,
+        correction: params.correctionReference,
+      },
+      severity: "CRITICAL",
+    },
+    { id: params.actorId },
+    tx
+  );
 }
 
 // ---------------------------------------------------------------------------

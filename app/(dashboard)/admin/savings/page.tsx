@@ -6,7 +6,7 @@ import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listSavingsAccounts } from "@/lib/services/admin-queries";
 import { formatMoney, isPositive, subtract } from "@/lib/money";
 import { getDashboardCopy } from "@/lib/i18n/server";
-import { pluralize } from "@/lib/i18n/fill";
+import { fill, pluralize } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { StatCard, StatGrid } from "@/components/ui/stat-card";
@@ -63,7 +63,13 @@ export default async function AdminSavingsPage({
         <StatCard
           label={copy.totalHeld}
           value={formatMoney(data.totalBalance)}
-          hint={pluralize(copy.accountCount, data.total)}
+          hint={
+            isPositive(data.totalServiceFees)
+              ? `${pluralize(copy.accountCount, data.total)} · ${fill(copy.afterServiceFees, {
+                  amount: formatMoney(data.totalServiceFees),
+                })}`
+              : pluralize(copy.accountCount, data.total)
+          }
           icon={PiggyBank}
           tone="primary"
         />
@@ -106,6 +112,7 @@ export default async function AdminSavingsPage({
                 <TableHead align="right">{copy.colLocked}</TableHead>
                 <TableHead align="right">{copy.colAvailable}</TableHead>
                 <TableHead align="right">{copy.colDeposits}</TableHead>
+                <TableHead align="right">{copy.colServiceFees}</TableHead>
                 <TableHead align="right">{copy.colWithdrawn}</TableHead>
                 <TableHead>{copy.colLastActivity}</TableHead>
               </TableRow>
@@ -164,6 +171,14 @@ export default async function AdminSavingsPage({
 
                   <TableCell align="right" tabular className="text-ink-muted">
                     {formatMoney(account.totalDeposits, {
+                      currency: account.currency,
+                      showSymbol: false,
+                    })}
+                  </TableCell>
+
+                  <TableCell align="right" tabular className="text-ink-muted">
+                    {isPositive(account.serviceFeesDeducted) && "−"}
+                    {formatMoney(account.serviceFeesDeducted, {
                       currency: account.currency,
                       showSymbol: false,
                     })}

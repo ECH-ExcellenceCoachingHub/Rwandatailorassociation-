@@ -115,11 +115,30 @@ export async function getMemberTransactions(
   };
 }
 
-export async function getMemberSavingsAccount(memberId: string) {
-  const account = await prisma.savingsAccount.findFirst({
-    where: { memberId, isActive: true },
-    orderBy: { openedAt: "asc" },
+/**
+ * The platform service fee taken from a member's savings so far. Shown beside
+ * every balance so a member can see the fee has already come off it, rather
+ * than wonder why the balance is less than they paid in.
+ *
+ * Read from the fee charges rather than the account's `totalFees`, which also
+ * counts fines and goods paid for from savings.
+ */
+export async function getServiceFeesDeducted(memberId: string): Promise<string> {
+  const charged = await prisma.platformFeeCharge.aggregate({
+    where: { memberId, status: "CHARGED" },
+    _sum: { amount: true },
   });
+  return toMoneyString(charged._sum.amount ?? 0);
+}
+
+export async function getMemberSavingsAccount(memberId: string) {
+  const [account, serviceFeesDeducted] = await Promise.all([
+    prisma.savingsAccount.findFirst({
+      where: { memberId, isActive: true },
+      orderBy: { openedAt: "asc" },
+    }),
+    getServiceFeesDeducted(memberId),
+  ]);
 
   if (!account) return null;
 
@@ -137,6 +156,7 @@ export async function getMemberSavingsAccount(memberId: string) {
     totalWithdrawals: account.totalWithdrawals.toFixed(2),
     totalInterest: account.totalInterest.toFixed(2),
     totalFees: account.totalFees.toFixed(2),
+    serviceFeesDeducted,
     currency: account.currency,
     openedAt: account.openedAt,
     lastTransactionAt: account.lastTransactionAt,

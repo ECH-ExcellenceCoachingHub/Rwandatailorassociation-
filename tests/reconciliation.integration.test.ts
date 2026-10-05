@@ -74,6 +74,7 @@ beforeEach(() => {
 afterAll(async () => {
   setPaymentProvider(null);
   await prisma.auditLog.deleteMany({ where: { associationId } });
+  await prisma.platformFeeCharge.deleteMany({ where: { associationId } });
   await prisma.paymentReconciliation.deleteMany({
     where: { payment: { associationId } },
   });
@@ -288,7 +289,7 @@ describe("member matching", () => {
 
 describe("end-to-end processing", () => {
   it("credits a verified, referenced payment", async () => {
-    const before = await balanceOf(members.alice.accountId);
+    const before = await creditedTo(members.alice.accountId);
 
     const tx = adapter.inject({
       amount: "50000",
@@ -299,7 +300,7 @@ describe("end-to-end processing", () => {
     const outcome = await ingestAndProcess(tx, tenant(), "JENGA_SANDBOX");
     expect(outcome).toBe("PROCESSED");
 
-    expect(await balanceOf(members.alice.accountId)).toBe(before + 50000);
+    expect(await creditedTo(members.alice.accountId)).toBe(before + 50000);
 
     const payment = await prisma.payment.findFirstOrThrow({
       where: { externalTransactionId: tx.externalTransactionId },
@@ -326,7 +327,7 @@ describe("end-to-end processing", () => {
     });
 
     const first = await ingestAndProcess(tx, tenant(), "JENGA_SANDBOX");
-    const after = await balanceOf(members.bob.accountId);
+    const after = await creditedTo(members.bob.accountId);
 
     // Same transaction delivered four more times.
     for (let i = 0; i < 4; i++) {
@@ -335,7 +336,7 @@ describe("end-to-end processing", () => {
     }
 
     expect(first).toBe("PROCESSED");
-    expect(await balanceOf(members.bob.accountId)).toBe(after);
+    expect(await creditedTo(members.bob.accountId)).toBe(after);
 
     const rows = await prisma.payment.count({
       where: { externalTransactionId: tx.externalTransactionId },
@@ -355,7 +356,7 @@ describe("end-to-end processing", () => {
       status: "SUCCESS",
     });
 
-    const before = await balanceOf(members.alice.accountId);
+    const before = await creditedTo(members.alice.accountId);
 
     // Five webhook deliveries landing at once.
     const outcomes = await Promise.all(
@@ -365,7 +366,7 @@ describe("end-to-end processing", () => {
     );
 
     expect(outcomes.filter((o) => o === "PROCESSED").length).toBe(1);
-    expect(await balanceOf(members.alice.accountId)).toBe(before + 12000);
+    expect(await creditedTo(members.alice.accountId)).toBe(before + 12000);
 
     // The four losers must be recognised as DUPLICATE, not surface as errors.
     // Asserting only on the balance let a real bug hide here once already: the
@@ -377,7 +378,7 @@ describe("end-to-end processing", () => {
   });
 
   it("does not credit a transaction the provider reports as pending", async () => {
-    const before = await balanceOf(members.alice.accountId);
+    const before = await creditedTo(members.alice.accountId);
 
     const tx = adapter.inject({
       amount: "99000",
@@ -389,11 +390,11 @@ describe("end-to-end processing", () => {
     const outcome = await ingestAndProcess(tx, tenant(), "JENGA_SANDBOX");
 
     expect(outcome).toBe("PENDING");
-    expect(await balanceOf(members.alice.accountId)).toBe(before);
+    expect(await creditedTo(members.alice.accountId)).toBe(before);
   });
 
   it("does not credit a transaction the provider reports as failed", async () => {
-    const before = await balanceOf(members.alice.accountId);
+    const before = await creditedTo(members.alice.accountId);
 
     const tx = adapter.inject({
       amount: "77000",
@@ -405,7 +406,7 @@ describe("end-to-end processing", () => {
     const outcome = await ingestAndProcess(tx, tenant(), "JENGA_SANDBOX");
 
     expect(outcome).toBe("FAILED");
-    expect(await balanceOf(members.alice.accountId)).toBe(before);
+    expect(await creditedTo(members.alice.accountId)).toBe(before);
   });
 
   it("parks an unidentifiable payment instead of guessing", async () => {
@@ -467,7 +468,7 @@ describe("manual reconciliation", () => {
     });
     expect(payment.status).toBe("UNMATCHED");
 
-    const before = await balanceOf(members.bob.accountId);
+    const before = await creditedTo(members.bob.accountId);
 
     const result = await manuallyMatchPayment({
       paymentId: payment.id,
@@ -477,7 +478,7 @@ describe("manual reconciliation", () => {
     });
 
     expect(result.ok).toBe(true);
-    expect(await balanceOf(members.bob.accountId)).toBe(before + 18000);
+    expect(await creditedTo(members.bob.accountId)).toBe(before + 18000);
 
     const audit = await prisma.auditLog.findFirst({
       where: { entityId: payment.id, action: "PAYMENT_MATCHED_MANUALLY" },
@@ -595,6 +596,7 @@ describe("manual reconciliation", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.message).toMatch(/not found in this association/i);
 
+    await prisma.platformFeeCharge.deleteMany({ where: { associationId: other.id } });
     await prisma.member.deleteMany({ where: { associationId: other.id } });
     await prisma.user.deleteMany({ where: { associationId: other.id } });
     await prisma.association.delete({ where: { id: other.id } });
@@ -613,12 +615,12 @@ describe("retry safety", () => {
     const payment = await prisma.payment.findFirstOrThrow({
       where: { externalTransactionId: tx.externalTransactionId },
     });
-    const before = await balanceOf(members.alice.accountId);
+    const before = await creditedTo(members.alice.accountId);
 
     const outcome = await processPayment(payment.id, tenant());
 
     expect(outcome).toBe("PROCESSED");
-    expect(await balanceOf(members.alice.accountId)).toBe(before);
+    expect(await creditedTo(members.alice.accountId)).toBe(before);
   });
 });
 
@@ -646,12 +648,25 @@ function transaction(overrides: Partial<ProviderTransaction> = {}): ProviderTran
   };
 }
 
-async function balanceOf(accountId: string): Promise<number> {
+/**
+ * What has been credited to the account: its balance with the platform service
+ * fee added back. The fee now comes off as each payment is credited, and these
+ * tests are about crediting, not about the fee.
+ */
+async function creditedTo(accountId: string): Promise<number> {
   const account = await prisma.savingsAccount.findUniqueOrThrow({
     where: { id: accountId },
-    select: { balance: true },
+    select: { balance: true, memberId: true },
   });
-  return Number(account.balance.toFixed(2));
+  return Number(account.balance.toFixed(2)) + (await feesOf(account.memberId));
+}
+
+async function feesOf(memberId: string): Promise<number> {
+  const fees = await prisma.platformFeeCharge.aggregate({
+    where: { memberId, status: "CHARGED" },
+    _sum: { amount: true },
+  });
+  return Number(fees._sum.amount?.toFixed(2) ?? 0);
 }
 
 async function createMember(

@@ -101,7 +101,13 @@ export default async function MemberSavingsPage() {
         <StatCard
           label={copy.currentBalance}
           value={formatMoney(account.balance)}
-          hint={fill(copy.transactionCount, { count: account.transactionCount })}
+          hint={
+            Number(account.serviceFeesDeducted) > 0
+              ? fill(copy.afterServiceFees, {
+                  amount: formatMoney(account.serviceFeesDeducted),
+                })
+              : fill(copy.transactionCount, { count: account.transactionCount })
+          }
           icon={PiggyBank}
           tone="primary"
         />
@@ -120,7 +126,11 @@ export default async function MemberSavingsPage() {
         <StatCard
           label={copy.totalContributed}
           value={formatMoney(account.totalDeposits)}
-          hint={copy.lifetimeDeposits}
+          hint={
+            Number(account.serviceFeesDeducted) > 0
+              ? copy.beforeServiceFees
+              : copy.lifetimeDeposits
+          }
           icon={TrendingUp}
           tone="success"
         />

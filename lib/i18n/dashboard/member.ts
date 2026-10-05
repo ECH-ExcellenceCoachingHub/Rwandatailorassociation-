@@ -22,6 +22,8 @@ export interface MemberCopy {
     viewDetails: string;
     savingsBalance: string;
     availableHint: string;
+    /// The same, when a service fee has already come off the balance.
+    availableAfterFeesHint: string;
     activeLoan: string;
     noLoanRunning: string;
     outstandingLoan: string;
@@ -56,6 +58,10 @@ export interface MemberCopy {
     deposit: string;
     currentBalance: string;
     transactionCount: string;
+    /// Under every balance: the service fee has already come off it.
+    afterServiceFees: string;
+    /// Under the lifetime deposits, which are before the fee.
+    beforeServiceFees: string;
     available: string;
     pledged: string;
     nothingPledged: string;
@@ -572,6 +578,7 @@ export const member: Record<Locale, MemberCopy> = {
       viewDetails: "View details",
       savingsBalance: "Savings balance",
       availableHint: "Available: {amount}",
+      availableAfterFeesHint: "Available: {amount} · service fees of {fee} already deducted",
       activeLoan: "Active loan",
       noLoanRunning: "No loan currently running",
       outstandingLoan: "Outstanding loan",
@@ -610,6 +617,8 @@ export const member: Record<Locale, MemberCopy> = {
       deposit: "Deposit",
       currentBalance: "Current balance",
       transactionCount: "{count} transaction|{count} transactions",
+      afterServiceFees: "After {amount} in service fees, already deducted",
+      beforeServiceFees: "Everything paid in, before service fees",
       available: "Available",
       pledged: "{amount} pledged",
       nothingPledged: "Nothing pledged",
@@ -1171,6 +1180,7 @@ export const member: Record<Locale, MemberCopy> = {
       viewDetails: "Reba ibisobanuro",
       savingsBalance: "Amafaranga y'ubuzigame",
       availableHint: "Ashobora gukoreshwa: {amount}",
+      availableAfterFeesHint: "Ashobora gukoreshwa: {amount} · hamaze kuvamo {fee} ya serivisi",
       activeLoan: "Inguzanyo iriho",
       noLoanRunning: "Nta nguzanyo iriho ubu",
       outstandingLoan: "Inguzanyo isigaye",
@@ -1209,6 +1219,8 @@ export const member: Record<Locale, MemberCopy> = {
       deposit: "Bitsa",
       currentBalance: "Amafaranga ari kuri konti",
       transactionCount: "Igikorwa {count}|Ibikorwa {count}",
+      afterServiceFees: "Hamaze kuvamo {amount} y'amafaranga ya serivisi",
+      beforeServiceFees: "Ibyatanzwe byose, mbere yo gukuramo amafaranga ya serivisi",
       available: "Ashobora gukoreshwa",
       pledged: "{amount} yafatiriwe",
       nothingPledged: "Nta yafatiriwe",

@@ -181,9 +181,14 @@ export default async function MemberDashboardPage() {
         <StatCard
           label={copy.savingsBalance}
           value={formatMoney(savings.balance)}
-          hint={fill(copy.availableHint, {
-            amount: formatMoney(savings.available),
-          })}
+          hint={
+            Number(savings.serviceFeesDeducted) > 0
+              ? fill(copy.availableAfterFeesHint, {
+                  amount: formatMoney(savings.available),
+                  fee: formatMoney(savings.serviceFeesDeducted),
+                })
+              : fill(copy.availableHint, { amount: formatMoney(savings.available) })
+          }
           icon={PiggyBank}
           tone="primary"
           href="/dashboard/savings"

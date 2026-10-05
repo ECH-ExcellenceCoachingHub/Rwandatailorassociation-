@@ -19,9 +19,10 @@ import {
   resolveAssociationScope,
 } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
+import { prisma } from "@/lib/db/prisma";
 import { allowedMemberActions } from "@/lib/member-actions";
 import { getMemberProfile, getMemberRemovalHistory } from "@/lib/services/members";
-import { getMemberTransactions } from "@/lib/services/member-queries";
+import { getMemberTransactions, getServiceFeesDeducted } from "@/lib/services/member-queries";
 import { resolveObligationStart } from "@/lib/services/contributions";
 import { add, formatMoney, subtract } from "@/lib/money";
 import { getDashboardCopy } from "@/lib/i18n/server";
@@ -80,10 +81,21 @@ export default async function AdminMemberDetailPage({
   // answer — the removal counts, all at once rather than one after another.
   // Fetching the latter two before the tenant check below is safe: nothing is
   // rendered until that check passes, and it throws when it fails.
-  const [member, recent, removalHistory] = await Promise.all([
+  const canReverseDeposits = context.permissions.has(PERMISSIONS.SAVINGS_ADJUST);
+  const [member, recent, removalHistory, reversibleDeposits, serviceFeesDeducted] = await Promise.all([
     getMemberProfile(id),
     getMemberTransactions(id, { pageSize: 15 }),
     allowed.includes("delete") ? getMemberRemovalHistory(id) : Promise.resolve(null),
+    // Newest first; an older mistake is rare enough to fix by balance.
+    canReverseDeposits
+      ? prisma.savingsTransaction.findMany({
+          where: { memberId: id, type: "DEPOSIT", status: "COMPLETED" },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+          select: { id: true, reference: true, amount: true, createdAt: true, description: true },
+        })
+      : Promise.resolve([]),
+    getServiceFeesDeducted(id),
   ]);
   if (!member) notFound();
 
@@ -124,9 +136,16 @@ export default async function AdminMemberDetailPage({
   const canManage = allowed.length > 0;
   const canCorrect = {
     deposit: context.permissions.has(PERMISSIONS.SAVINGS_POST_MANUAL),
-    setBalance: context.permissions.has(PERMISSIONS.SAVINGS_ADJUST),
+    setBalance: canReverseDeposits,
     loans: context.permissions.has(PERMISSIONS.LOANS_ADJUST),
   };
+  const deposits = reversibleDeposits.map((deposit) => ({
+    id: deposit.id,
+    reference: deposit.reference,
+    amount: deposit.amount.toFixed(2),
+    date: date(deposit.createdAt),
+    description: deposit.description,
+  }));
   // The statuses the correction service accepts: a live schedule, or a loan
   // closed by mistake.
   const correctableLoans = member.loans
@@ -210,9 +229,14 @@ export default async function AdminMemberDetailPage({
           label={copy.savingsBalance}
           value={account ? formatMoney(account.balance) : "—"}
           hint={
-            account
-              ? fill(copy.accountNumber, { number: account.accountNumber })
-              : copy.noAccount
+            !account
+              ? copy.noAccount
+              : Number(serviceFeesDeducted) > 0
+                ? `${fill(copy.accountNumber, { number: account.accountNumber })} · ${fill(
+                    d.admin.savings.afterServiceFees,
+                    { amount: formatMoney(serviceFeesDeducted) }
+                  )}`
+                : fill(copy.accountNumber, { number: account.accountNumber })
           }
           icon={PiggyBank}
           tone="primary"
@@ -521,6 +545,7 @@ export default async function AdminMemberDetailPage({
         memberId={member.id}
         savingsBalance={account ? account.balance.toFixed(2) : null}
         loans={correctableLoans}
+        deposits={deposits}
         can={canCorrect}
       />
 

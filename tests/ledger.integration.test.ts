@@ -405,6 +405,10 @@ describe("reversal", () => {
 
     expect(reversal.balanceAfter).toBe("0.00");
 
+    // A reversed deposit stops counting as contributed.
+    const account = await prisma.savingsAccount.findUniqueOrThrow({ where: { id: scratch } });
+    expect(account.totalDeposits.toFixed(2)).toBe("0.00");
+
     const originalRow = await prisma.savingsTransaction.findUniqueOrThrow({
       where: { id: original.id },
     });

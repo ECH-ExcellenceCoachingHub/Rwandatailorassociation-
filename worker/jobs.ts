@@ -494,12 +494,12 @@ export async function dailyFinancialSummary(): Promise<JobResult> {
   for (const association of associations) {
     const [deposits, withdrawals, newMembers, unmatched] = await Promise.all([
       prisma.savingsTransaction.aggregate({
-        where: { associationId: association.id, type: "DEPOSIT", createdAt: { gte: since } },
+        where: { associationId: association.id, type: "DEPOSIT", status: "COMPLETED", createdAt: { gte: since } },
         _sum: { amount: true },
         _count: true,
       }),
       prisma.savingsTransaction.aggregate({
-        where: { associationId: association.id, type: "WITHDRAWAL", createdAt: { gte: since } },
+        where: { associationId: association.id, type: "WITHDRAWAL", status: "COMPLETED", createdAt: { gte: since } },
         _sum: { amount: true },
         _count: true,
       }),

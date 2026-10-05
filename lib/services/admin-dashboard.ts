@@ -117,7 +117,7 @@ export async function getAdminDashboard(
     }),
 
     prisma.savingsTransaction.aggregate({
-      where: { ...scope, type: "DEPOSIT", createdAt: { gte: startOfToday } },
+      where: { ...scope, type: "DEPOSIT", status: "COMPLETED", createdAt: { gte: startOfToday } },
       _sum: { amount: true },
     }),
 
@@ -126,12 +126,12 @@ export async function getAdminDashboard(
     }),
 
     prisma.savingsTransaction.aggregate({
-      where: { ...scope, type: "DEPOSIT", createdAt: { gte: startOfMonth } },
+      where: { ...scope, type: "DEPOSIT", status: "COMPLETED", createdAt: { gte: startOfMonth } },
       _sum: { amount: true },
     }),
 
     prisma.savingsTransaction.aggregate({
-      where: { ...scope, type: "WITHDRAWAL", createdAt: { gte: startOfMonth } },
+      where: { ...scope, type: "WITHDRAWAL", status: "COMPLETED", createdAt: { gte: startOfMonth } },
       _sum: { amount: true },
     }),
 
@@ -216,6 +216,7 @@ export async function getAdminDashboard(
             COALESCE(SUM(amount) FILTER (WHERE type = 'WITHDRAWAL'), 0)::text AS withdrawals
           FROM savings_transactions
           WHERE "associationId" = ${associationId}
+            AND status = 'COMPLETED'
             AND "createdAt" >= date_trunc('month', now()) - interval '11 months'
           GROUP BY date_trunc('month', "createdAt")
           ORDER BY month ASC
@@ -226,7 +227,8 @@ export async function getAdminDashboard(
             COALESCE(SUM(amount) FILTER (WHERE type = 'DEPOSIT'), 0)::text    AS deposits,
             COALESCE(SUM(amount) FILTER (WHERE type = 'WITHDRAWAL'), 0)::text AS withdrawals
           FROM savings_transactions
-          WHERE "createdAt" >= date_trunc('month', now()) - interval '11 months'
+          WHERE status = 'COMPLETED'
+            AND "createdAt" >= date_trunc('month', now()) - interval '11 months'
           GROUP BY date_trunc('month', "createdAt")
           ORDER BY month ASC
         `,

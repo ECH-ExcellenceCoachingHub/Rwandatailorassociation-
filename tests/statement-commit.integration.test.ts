@@ -67,6 +67,7 @@ afterAll(async () => {
   });
   await prisma.notification.deleteMany({ where: { associationId } });
   await prisma.auditLog.deleteMany({ where: { associationId } });
+  await prisma.platformFeeCharge.deleteMany({ where: { associationId } });
   await prisma.paymentReconciliation.deleteMany({ where: { payment: { associationId } } });
   await prisma.savingsTransaction.deleteMany({ where: { associationId } });
   await prisma.payment.deleteMany({ where: { associationId } });
@@ -142,16 +143,26 @@ describe("commit", () => {
     expect(result.failed).toBe(0);
 
     // Balances moved through the real ledger.
-    expect(await balanceOf(members.alice.accountId)).toBe(60000);
-    expect(await balanceOf(members.bob.accountId)).toBe(45000);
+    expect(await creditedTo(members.alice.accountId)).toBe(60000);
+    expect(await creditedTo(members.bob.accountId)).toBe(45000);
+
+    // The service fee came off as the payment was credited, not the next night.
+    const aliceFee = await prisma.platformFeeCharge.findFirst({
+      where: { memberId: members.alice.memberId, status: "CHARGED" },
+    });
+    expect(aliceFee).not.toBeNull();
+    const alice = await prisma.savingsAccount.findUniqueOrThrow({
+      where: { id: members.alice.accountId },
+    });
+    expect(alice.balance.toFixed(2)).toBe(alice.totalDeposits.minus(aliceFee!.amount).toFixed(2));
 
     // A savings transaction exists for each credited payment, linked to it.
     const posted = await prisma.savingsTransaction.findMany({
-      where: { associationId },
+      where: { associationId, type: "DEPOSIT" },
       select: { amount: true, type: true, paymentId: true },
     });
     expect(posted).toHaveLength(2);
-    expect(posted.every((t) => t.type === "DEPOSIT" && t.paymentId)).toBe(true);
+    expect(posted.every((t) => t.paymentId)).toBe(true);
 
     // Deliveries are dispatched fire-and-forget so the credit is not blocked
     // on an SMS gateway. Poll rather than sleeping a fixed time — under load a
@@ -164,8 +175,11 @@ describe("commit", () => {
     expect(recipients).toContain(members.bob.phone);
 
     const aliceSms = sentSms.find((m) => m.to === members.alice.phone);
+    // SMS is Kinyarwanda only (see lib/notifications/templates.ts), and names
+    // the service fee that came off, so the new balance is explained.
     expect(aliceSms?.body).toMatch(/60,000/);
-    expect(aliceSms?.body).toMatch(/received/i);
+    expect(aliceSms?.body).toMatch(/twakiriye/i);
+    expect(aliceSms?.body).toMatch(/serivisi/i);
 
     // The member with no reference is NOT told anything — nobody was credited.
     expect(sentSms).toHaveLength(2);
@@ -203,8 +217,8 @@ describe("commit", () => {
     sentSms.length = 0;
 
     const balancesBefore = {
-      alice: await balanceOf(members.alice.accountId),
-      bob: await balanceOf(members.bob.accountId),
+      alice: await creditedTo(members.alice.accountId),
+      bob: await creditedTo(members.bob.accountId),
     };
 
     const parsed = parseStatementRows(statementText());
@@ -223,8 +237,8 @@ describe("commit", () => {
     expect(result.credited).toBe(0);
     expect(result.skipped).toBe(3);
 
-    expect(await balanceOf(members.alice.accountId)).toBe(balancesBefore.alice);
-    expect(await balanceOf(members.bob.accountId)).toBe(balancesBefore.bob);
+    expect(await creditedTo(members.alice.accountId)).toBe(balancesBefore.alice);
+    expect(await creditedTo(members.bob.accountId)).toBe(balancesBefore.bob);
 
     // Deliberately a fixed pause: we are asserting that nothing arrives, so
     // there is no condition to poll for — only time to give it a chance to.
@@ -233,7 +247,9 @@ describe("commit", () => {
     expect(sentSms).toHaveLength(0);
 
     // Still exactly one ledger entry each.
-    expect(await prisma.savingsTransaction.count({ where: { associationId } })).toBe(2);
+    expect(
+      await prisma.savingsTransaction.count({ where: { associationId, type: "DEPOSIT" } })
+    ).toBe(2);
   });
 
   it("imports only the rows the administrator ticked", async () => {
@@ -247,7 +263,7 @@ describe("commit", () => {
     const parsed = parseStatementRows(text);
     const aliceRow = parsed.rows.find((r) => r.description.includes("ALICE"))!;
 
-    const before = await balanceOf(members.bob.accountId);
+    const before = await creditedTo(members.bob.accountId);
 
     const result = await commitStatementImport({
       rows: parsed.rows,
@@ -263,7 +279,7 @@ describe("commit", () => {
     expect(result.credited).toBe(1);
 
     // Bob's untouched row was never written.
-    expect(await balanceOf(members.bob.accountId)).toBe(before);
+    expect(await creditedTo(members.bob.accountId)).toBe(before);
   });
 });
 
@@ -278,12 +294,25 @@ async function waitFor(condition: () => boolean, timeoutMs: number): Promise<voi
   }
 }
 
-async function balanceOf(accountId: string): Promise<number> {
+/**
+ * What has been credited to the account: its balance with the platform service
+ * fee added back. The fee now comes off as each payment is credited, and these
+ * tests are about crediting, not about the fee.
+ */
+async function creditedTo(accountId: string): Promise<number> {
   const account = await prisma.savingsAccount.findUniqueOrThrow({
     where: { id: accountId },
-    select: { balance: true },
+    select: { balance: true, memberId: true },
   });
-  return Number(account.balance.toFixed(2));
+  return Number(account.balance.toFixed(2)) + (await feesOf(account.memberId));
+}
+
+async function feesOf(memberId: string): Promise<number> {
+  const fees = await prisma.platformFeeCharge.aggregate({
+    where: { memberId, status: "CHARGED" },
+    _sum: { amount: true },
+  });
+  return Number(fees._sum.amount?.toFixed(2) ?? 0);
 }
 
 async function createMember(slug: string, sequence: string, phone: string) {

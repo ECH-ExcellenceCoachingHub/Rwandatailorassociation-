@@ -112,11 +112,29 @@ export async function listSavingsAccounts(
     }),
   ]);
 
+  // The service fee already taken out of each balance, so the officer can see
+  // the balances are net of it. From the fee charges, not `totalFees`, which
+  // also counts fines and goods paid for from savings.
+  const [feesByMember, feesTotal] = await Promise.all([
+    prisma.platformFeeCharge.groupBy({
+      by: ["memberId"],
+      where: { status: "CHARGED", memberId: { in: rows.map((a) => a.member.id) } },
+      _sum: { amount: true },
+    }),
+    prisma.platformFeeCharge.aggregate({
+      where: { status: "CHARGED", member: { savingsAccounts: { some: where } } },
+      _sum: { amount: true },
+    }),
+  ]);
+  const feeFor = new Map(feesByMember.map((row) => [row.memberId, row._sum.amount ?? 0]));
+
   return {
     ...pageMeta(total, page, pageSize),
     totalBalance: toMoneyString(totals._sum.balance ?? 0),
     totalLocked: toMoneyString(totals._sum.lockedBalance ?? 0),
+    totalServiceFees: toMoneyString(feesTotal._sum.amount ?? 0),
     accounts: rows.map((a) => ({
+      serviceFeesDeducted: toMoneyString(feeFor.get(a.member.id) ?? 0),
       id: a.id,
       accountNumber: a.accountNumber,
       balance: a.balance.toFixed(2),
@@ -1361,6 +1379,7 @@ export async function getReportBundle(
             COALESCE(SUM(amount) FILTER (WHERE type = 'WITHDRAWAL'), 0)::text AS withdrawals
           FROM savings_transactions
           WHERE "associationId" = ${associationId}
+            AND status = 'COMPLETED'
             AND "createdAt" >= date_trunc('month', now()) - interval '11 months'
           GROUP BY date_trunc('month', "createdAt")
           ORDER BY date_trunc('month', "createdAt") ASC
@@ -1371,7 +1390,8 @@ export async function getReportBundle(
             COALESCE(SUM(amount) FILTER (WHERE type = 'DEPOSIT'), 0)::text    AS deposits,
             COALESCE(SUM(amount) FILTER (WHERE type = 'WITHDRAWAL'), 0)::text AS withdrawals
           FROM savings_transactions
-          WHERE "createdAt" >= date_trunc('month', now()) - interval '11 months'
+          WHERE status = 'COMPLETED'
+            AND "createdAt" >= date_trunc('month', now()) - interval '11 months'
           GROUP BY date_trunc('month', "createdAt")
           ORDER BY date_trunc('month', "createdAt") ASC
         `,

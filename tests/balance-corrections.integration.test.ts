@@ -1,13 +1,19 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db/prisma";
-import { postSavingsTransaction, verifyAccountIntegrity } from "@/lib/services/ledger";
+import {
+  postSavingsTransaction,
+  reverseSavingsTransaction,
+  verifyAccountIntegrity,
+} from "@/lib/services/ledger";
 import {
   CorrectionError,
   correctLoanBalance,
   recordMissedDeposit,
+  reverseDeposit,
   setSavingsBalance,
 } from "@/lib/services/balance-corrections";
 import { recordLoanRepayment } from "@/lib/services/loans";
+import { chargePlatformFees } from "@/lib/services/contributions";
 
 /**
  * Hand corrections to a member's figures, against a real database.
@@ -110,6 +116,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await prisma.auditLog.deleteMany({ where: { associationId } });
+  await prisma.platformFeeCharge.deleteMany({ where: { associationId } });
   await prisma.loanRepaymentAllocation.deleteMany({ where: { loanTransaction: { associationId } } });
   await prisma.savingsTransaction.deleteMany({ where: { associationId } });
   await prisma.interestDistribution.deleteMany({ where: { associationId } });
@@ -176,8 +183,15 @@ describe("savings corrections", () => {
 
     const after = await prisma.savingsAccount.findUniqueOrThrow({ where: { id: savingsAccountId } });
     expect(posted.type).toBe("DEPOSIT");
-    expect(after.balance.toFixed(2)).toBe(before.balance.plus(5000).toFixed(2));
     expect(after.totalDeposits.toFixed(2)).toBe(before.totalDeposits.plus(5000).toFixed(2));
+
+    // The service fee on every day now paid for came off with the deposit:
+    // 105,000 covers 100 days at 1,050, so 100 days at 50.
+    const fee = await prisma.platformFeeCharge.findFirstOrThrow({
+      where: { memberId, status: "CHARGED" },
+    });
+    expect(fee.amount.toFixed(2)).toBe("5000.00");
+    expect(after.balance.toFixed(2)).toBe(before.balance.plus(5000).minus(fee.amount).toFixed(2));
   });
 
   it("sets the balance to a stated figure with one ADJUSTMENT, in either direction", async () => {
@@ -208,6 +222,168 @@ describe("savings corrections", () => {
 
     // The ledger still replays to the cached balance.
     expect((await verifyAccountIntegrity(savingsAccountId)).ok).toBe(true);
+  });
+
+  it("takes money corrected to zero out of the contributions, voiding the fee taken from it", async () => {
+    // Four shares: 4,200 a day, 200 of it service fee. An officer records
+    // 16,800 the bank statement then also brings in, so it is counted twice.
+    const user = await prisma.user.create({
+      data: {
+        associationId,
+        email: `member2-${RUN.toLowerCase()}@corr.test`,
+        firstName: "Corr",
+        lastName: "Twice",
+        passwordHash: "x",
+        role: "MEMBER",
+        status: "ACTIVE",
+        member: {
+          create: {
+            associationId,
+            memberNumber: `${CODE}-M2`,
+            paymentReference: `${CODE}-2`,
+            status: "ACTIVE",
+            sharesSubscribed: 4,
+            joinedAt: new Date(Date.now() - 30 * DAY),
+            savingsAccounts: {
+              create: { associationId, accountNumber: `${CODE}-SA-2`, currency: "RWF", balance: "0" },
+            },
+          },
+        },
+      },
+      include: { member: { include: { savingsAccounts: true } } },
+    });
+    const twiceId = user.member!.id;
+    const accountId = user.member!.savingsAccounts[0].id;
+
+    await recordMissedDeposit({
+      memberId: twiceId,
+      amount: "16800",
+      channel: "CASH",
+      reason: "Recorded to the wrong account",
+      actorId: adminId,
+    });
+    await chargePlatformFees(associationId, { memberIds: [twiceId] });
+
+    await setSavingsBalance({
+      memberId: twiceId,
+      targetBalance: "0",
+      reason: "Added by hand, the statement will bring it in",
+      actorId: adminId,
+    });
+
+    let account = await prisma.savingsAccount.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.balance.toFixed(2)).toBe("0.00");
+    expect(account.totalDeposits.toFixed(2)).toBe("0.00");
+
+    const voided = await prisma.platformFeeCharge.findMany({ where: { memberId: twiceId } });
+    expect(voided).toHaveLength(1);
+    expect(voided[0].status).toBe("REVERSED");
+    expect(voided[0].coveredThroughDay).toBeLessThan(0);
+
+    // The real payment arrives: four days, charged once, and the voided charge
+    // does not stand in the way of charging those days again.
+    await postSavingsTransaction({
+      savingsAccountId: accountId,
+      type: "DEPOSIT",
+      direction: "CREDIT",
+      amount: "16800",
+      channel: "BANK_TRANSFER",
+    });
+    const run = await chargePlatformFees(associationId, { memberIds: [twiceId] });
+    expect(run.totalCharged).toBe("800.00");
+
+    account = await prisma.savingsAccount.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.balance.toFixed(2)).toBe("16000.00");
+    expect(account.totalDeposits.toFixed(2)).toBe("16800.00");
+
+    const charged = await prisma.platformFeeCharge.aggregate({
+      where: { memberId: twiceId, status: "CHARGED" },
+      _sum: { amount: true },
+    });
+    expect(charged._sum.amount?.toFixed(2)).toBe("800.00");
+    expect((await verifyAccountIntegrity(accountId)).ok).toBe(true);
+
+    // Reversing that fee refunds it, cancels the charge, and lets the fee run
+    // charge the same days again rather than colliding with the cancelled one.
+    const charge = await prisma.platformFeeCharge.findFirstOrThrow({
+      where: { memberId: twiceId, status: "CHARGED" },
+    });
+    await reverseSavingsTransaction(charge.savingsTransactionId!, "Charged in error", adminId);
+
+    const cancelled = await prisma.platformFeeCharge.findUniqueOrThrow({ where: { id: charge.id } });
+    expect(cancelled.status).toBe("REVERSED");
+    account = await prisma.savingsAccount.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.balance.toFixed(2)).toBe("16800.00");
+    expect(account.totalFees.toFixed(2)).toBe("800.00");
+
+    const again = await chargePlatformFees(associationId, { memberIds: [twiceId] });
+    expect(again.totalCharged).toBe("800.00");
+  });
+
+  it("reverses a wrong deposit, refunding the service fee taken on its days", async () => {
+    const user = await prisma.user.create({
+      data: {
+        associationId,
+        email: `member3-${RUN.toLowerCase()}@corr.test`,
+        firstName: "Corr",
+        lastName: "Reverse",
+        passwordHash: "x",
+        role: "MEMBER",
+        status: "ACTIVE",
+        member: {
+          create: {
+            associationId,
+            memberNumber: `${CODE}-M3`,
+            paymentReference: `${CODE}-3`,
+            status: "ACTIVE",
+            sharesSubscribed: 4,
+            joinedAt: new Date(Date.now() - 30 * DAY),
+            savingsAccounts: {
+              create: { associationId, accountNumber: `${CODE}-SA-3`, currency: "RWF", balance: "0" },
+            },
+          },
+        },
+      },
+      include: { member: { include: { savingsAccounts: true } } },
+    });
+    const reverseId = user.member!.id;
+    const accountId = user.member!.savingsAccounts[0].id;
+
+    const wrong = await recordMissedDeposit({
+      memberId: reverseId,
+      amount: "16800",
+      channel: "CASH",
+      reason: "Recorded to the wrong account",
+      actorId: adminId,
+    });
+    await chargePlatformFees(associationId, { memberIds: [reverseId] });
+
+    const reversed = await reverseDeposit({
+      memberId: reverseId,
+      transactionId: wrong.id,
+      reason: "Belongs to another member",
+      actorId: adminId,
+    });
+    expect(reversed.feesRefunded).toBe("800.00");
+
+    const account = await prisma.savingsAccount.findUniqueOrThrow({ where: { id: accountId } });
+    expect(account.balance.toFixed(2)).toBe("0.00");
+    expect(account.totalDeposits.toFixed(2)).toBe("0.00");
+    expect(account.totalFees.toFixed(2)).toBe("0.00");
+
+    const row = await prisma.savingsTransaction.findUniqueOrThrow({ where: { id: wrong.id } });
+    expect(row.status).toBe("REVERSED");
+    const charges = await prisma.platformFeeCharge.findMany({ where: { memberId: reverseId } });
+    expect(charges.map((c) => c.status)).toEqual(["REVERSED"]);
+    expect((await verifyAccountIntegrity(accountId)).ok).toBe(true);
+
+    await expect(
+      reverseDeposit({ memberId: reverseId, transactionId: wrong.id, reason: "Again", actorId: adminId })
+    ).rejects.toMatchObject({ code: "INVALID_STATE" });
+    // Another member's deposit is not this member's to reverse.
+    await expect(
+      reverseDeposit({ memberId, transactionId: wrong.id, reason: "Wrong file", actorId: adminId })
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
   it("refuses a correction that changes nothing, or has no reason", async () => {

@@ -28,6 +28,8 @@ export interface TemplateContext {
   firstName: string;
   associationName: string;
   amount?: string;
+  /// The platform service fee taken from a payment as it was credited.
+  fee?: string;
   balance?: string;
   reference?: string;
   dueDate?: Date;
@@ -77,6 +79,9 @@ const shortDate = (date?: Date): string =>
 /** Plain ASCII money for SMS, avoiding characters that force UCS-2. */
 const smsMoney = (amount?: string): string =>
   formatMoney(amount ?? "0").replace(/ /g, " ");
+
+/** True when a service fee was actually taken, so the message names it. */
+const hasFee = (fee?: string): fee is string => Number(fee ?? 0) > 0;
 
 const ENGLISH_DIVIDER =
   "\n\n------------------------------\nEnglish\n------------------------------\n\n";
@@ -172,10 +177,14 @@ export function renderEnglish(
     case NOTIFICATION_EVENTS.PAYMENT_RECEIVED:
       return {
         title: "Payment received",
-        body: `We have received ${formatMoney(context.amount)}. Your savings balance is now ${formatMoney(context.balance)}.`,
-        sms: `${associationName}: received ${smsMoney(context.amount)}. New balance ${smsMoney(context.balance)}. Ref ${context.reference}.`,
+        body: hasFee(context.fee)
+          ? `We have received ${formatMoney(context.amount)}. The service fee of ${formatMoney(context.fee)} has been deducted, and your savings balance is now ${formatMoney(context.balance)}.`
+          : `We have received ${formatMoney(context.amount)}. Your savings balance is now ${formatMoney(context.balance)}.`,
+        sms: hasFee(context.fee)
+          ? `${associationName}: received ${smsMoney(context.amount)}, service fee ${smsMoney(context.fee)} deducted. New balance ${smsMoney(context.balance)}. Ref ${context.reference}.`
+          : `${associationName}: received ${smsMoney(context.amount)}. New balance ${smsMoney(context.balance)}. Ref ${context.reference}.`,
         emailSubject: `Payment received - ${formatMoney(context.amount)}`,
-        emailText: `Dear ${firstName},\n\nWe have received your contribution of ${formatMoney(context.amount)}.\n\nTransaction reference: ${context.reference}\nYour savings balance is now ${formatMoney(context.balance)}.\n\nThank you.\n\n${associationName}`,
+        emailText: `Dear ${firstName},\n\nWe have received your contribution of ${formatMoney(context.amount)}.\n\nTransaction reference: ${context.reference}\n${hasFee(context.fee) ? `Service fee deducted: ${formatMoney(context.fee)}\n` : ""}Your savings balance is now ${formatMoney(context.balance)}.\n\nThank you.\n\n${associationName}`,
         severity: "SUCCESS",
         actionUrl: "/dashboard/savings/transactions",
       };
