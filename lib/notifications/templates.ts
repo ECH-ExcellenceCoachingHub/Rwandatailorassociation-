@@ -16,11 +16,11 @@ import { renderKinyarwanda, type LocalisedCopy } from "@/lib/notifications/templ
  * Amounts always appear with their currency, and references are always quoted
  * in full — a member reading an SMS has no other context to work from.
  *
- * BOTH LANGUAGES IN EMAIL AND IN-APP; KINYARWANDA BY SMS. Members read
- * Kinyarwanda, English or both, and a message cannot know which, so email and
- * in-app messages carry both: Kinyarwanda first, then English. SMS carries
- * Kinyarwanda alone, because both languages would bill every text twice. The
- * English copy is below; the Kinyarwanda copy is in templates-rw.ts;
+ * KINYARWANDA ONLY BY EMAIL AND SMS; BOTH LANGUAGES IN-APP. Members are
+ * written to in Kinyarwanda, in plain formal wording (see templates-rw.ts for
+ * the vocabulary). In-app notifications still carry the English under the
+ * Kinyarwanda, for members and officers who read the dashboard in English.
+ * The English copy is below; the Kinyarwanda copy is in templates-rw.ts;
  * `renderNotification` puts them together.
  */
 
@@ -83,14 +83,12 @@ const smsMoney = (amount?: string): string =>
 /** True when a service fee was actually taken, so the message names it. */
 const hasFee = (fee?: string): fee is string => Number(fee ?? 0) > 0;
 
-const ENGLISH_DIVIDER =
-  "\n\n------------------------------\nEnglish\n------------------------------\n\n";
-
 /**
- * The message a member receives, in Kinyarwanda and English together.
+ * The message a member receives: Kinyarwanda alone by email and SMS, and
+ * Kinyarwanda followed by English in-app.
  *
- * Wherever the two halves are identical — free text an officer typed, which
- * is not translated — it appears once rather than twice.
+ * Wherever the two in-app halves are identical — free text an officer typed,
+ * which is not translated — it appears once rather than twice.
  */
 export function renderNotification(
   event: NotificationEvent,
@@ -98,7 +96,7 @@ export function renderNotification(
 ): RenderedNotification {
   const en = renderEnglish(event, context);
   const rw = renderKinyarwanda(event, context);
-  return { ...en, ...combine(event, rw, en, context) };
+  return { ...en, ...combine(rw, en) };
 }
 
 function joinOnce(first: string, second: string, separator: string): string {
@@ -107,34 +105,18 @@ function joinOnce(first: string, second: string, separator: string): string {
   return `${first}${separator}${second}`;
 }
 
-function combine(
-  event: NotificationEvent,
-  rw: LocalisedCopy,
-  en: RenderedNotification,
-  context: TemplateContext
-): LocalisedCopy {
-  const { firstName, associationName } = context;
-
-  // An announcement's text is the officer's own words in whatever language
-  // they wrote. Say it once, under a greeting in both languages.
-  const emailText =
-    event === NOTIFICATION_EVENTS.ADMIN_ANNOUNCEMENT
-      ? `Muraho / Dear ${firstName},\n\n${context.reason ?? ""}\n\n${associationName}`
-      : `(English version below)\n\n${rw.emailText}${ENGLISH_DIVIDER}${en.emailText}`;
-
+function combine(rw: LocalisedCopy, en: RenderedNotification): LocalisedCopy {
   return {
     title: joinOnce(rw.title, en.title, " / "),
     body: joinOnce(rw.body, en.body, "\n\n"),
-    // SMS is Kinyarwanda only. Both languages ran to two billed segments a
-    // message; email and in-app, which cost nothing extra, carry both. An
-    // event with no English SMS (security alerts) still sends none.
+    // An event with no English SMS (security alerts) still sends none.
     sms: en.sms ? (rw.sms ?? en.sms) : undefined,
-    emailSubject: joinOnce(rw.emailSubject, en.emailSubject, " / "),
-    emailText,
+    emailSubject: rw.emailSubject,
+    emailText: rw.emailText,
   };
 }
 
-/** The English copy alone. See `renderNotification` for what members get. */
+/** The English copy alone, shown in-app. See `renderNotification`. */
 export function renderEnglish(
   event: NotificationEvent,
   context: TemplateContext

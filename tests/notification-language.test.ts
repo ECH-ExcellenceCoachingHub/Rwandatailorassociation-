@@ -15,29 +15,44 @@ const context = {
   fineAmount: "500",
   finePerShare: "500",
   fineShares: 1,
-  dueDate: new Date("2026-10-05T00:00:00Z"),
+  dueDate: new Date("2026-10-05T12:00:00Z"),
   counterpartyName: "Jean",
   ruleTitle: "Daily saving",
 };
 
-describe("bilingual notifications", () => {
-  it("sends every message in Kinyarwanda first, then English", () => {
+const ALL_EVENTS = Object.values(NOTIFICATION_EVENTS) as NotificationEvent[];
+
+describe("notification languages", () => {
+  it("shows Kinyarwanda first, then English, in-app", () => {
     const rendered = renderNotification(NOTIFICATION_EVENTS.CONTRIBUTION_FINE_CHARGED, context);
     const english = renderEnglish(NOTIFICATION_EVENTS.CONTRIBUTION_FINE_CHARGED, context);
 
-    expect(rendered.title).toBe(`Wahawe ihazabu / ${english.title}`);
+    expect(rendered.title).toBe(`Waciwe ihazabu / ${english.title}`);
     expect(rendered.body.endsWith(english.body)).toBe(true);
-    expect(rendered.body.startsWith("Wari ufite iminsi 7")).toBe(true);
-    expect(rendered.emailText.indexOf("Muraho Aline")).toBeLessThan(
-      rendered.emailText.indexOf("Dear Aline")
-    );
-    expect(rendered.emailText).toContain("English");
+    expect(rendered.body.startsWith("Kubera ko wari ufite ibirarane by'iminsi 7")).toBe(true);
+  });
+
+  it("sends email in Kinyarwanda only", () => {
+    for (const event of ALL_EVENTS) {
+      const rendered = renderNotification(event, { ...context, reason: "x" });
+      const english = renderEnglish(event, { ...context, reason: "x" });
+      expect(rendered.emailText.startsWith("Muraho Aline,"), event).toBe(true);
+      expect(rendered.emailText, event).not.toContain("Dear ");
+      expect(rendered.emailText, event).not.toContain("English");
+      expect(rendered.emailSubject, event).not.toBe(english.emailSubject);
+    }
+  });
+
+  it("writes amounts in Frw and dates with the Kinyarwanda month", () => {
+    const disbursed = renderNotification(NOTIFICATION_EVENTS.LOAN_DISBURSED, context);
+    expect(disbursed.emailText).toContain("500 Frw");
+    expect(disbursed.emailText).toContain("5 Ukwakira 2026");
+    expect(disbursed.emailText).not.toContain("RWF");
   });
 
   it("sends SMS in Kinyarwanda only, in one segment", () => {
     const { sms } = renderNotification(NOTIFICATION_EVENTS.PAYMENT_RECEIVED, context);
-    expect(sms).toMatch(/^RTA: twakiriye RWF 500/);
-    expect(sms).not.toContain("received");
+    expect(sms).toBe("RTA: Twakiriye 500 Frw. Ubwizigame bwawe ubu ni 12,000 Frw. Nimero: FIN-1.");
     expect(sms!.length).toBeLessThanOrEqual(160);
   });
 
@@ -55,22 +70,15 @@ describe("bilingual notifications", () => {
     expect(rendered.emailText.match(/Inama/g)).toHaveLength(1);
   });
 
-  it("has a Kinyarwanda half for every event", () => {
-    for (const event of Object.values(NOTIFICATION_EVENTS) as NotificationEvent[]) {
-      if (event === NOTIFICATION_EVENTS.ADMIN_ANNOUNCEMENT) continue;
-      const rendered = renderNotification(event, { ...context, reason: "x" });
-      const english = renderEnglish(event, { ...context, reason: "x" });
-      expect(rendered.emailSubject, event).not.toBe(english.emailSubject);
-      // Kinyarwanda text, the divider, then the English email unchanged.
-      const [kinyarwanda] = rendered.emailText.split("\nEnglish\n");
-      expect(rendered.emailText.endsWith(english.emailText), event).toBe(true);
-      expect(kinyarwanda, event).not.toContain(english.emailText);
-      expect(kinyarwanda.length, event).toBeGreaterThan(60);
+  it("uses no English words in SMS", () => {
+    for (const event of ALL_EVENTS) {
+      const { sms } = renderNotification(event, { ...context, reason: "x" });
+      if (sms) expect(sms, event).not.toMatch(/\b(Ref|RWF|received|balance)\b/);
     }
   });
 
   it("keeps SMS in plain characters so it is not billed at the UCS-2 rate", () => {
-    for (const event of Object.values(NOTIFICATION_EVENTS) as NotificationEvent[]) {
+    for (const event of ALL_EVENTS) {
       const { sms } = renderNotification(event, { ...context, reason: "x" });
       if (sms) expect(sms, event).toMatch(/^[\x20-\x7E\n]*$/);
     }
