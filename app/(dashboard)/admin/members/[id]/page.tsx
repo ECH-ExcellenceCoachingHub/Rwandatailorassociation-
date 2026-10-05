@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import {
   AlertTriangle,
   Bell,
+  Eye,
   HandCoins,
   Pencil,
   PiggyBank,
@@ -206,6 +207,12 @@ export default async function AdminMemberDetailPage({
                 </Link>
               </Button>
             )}
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/admin/members/${member.id}/status`}>
+                <Eye className="size-3.5" aria-hidden="true" />
+                {d.admin.members.viewStatus}
+              </Link>
+            </Button>
             <Button asChild variant="outline" size="sm">
               <Link href="/admin/members">{d.admin.members.backToRegister}</Link>
             </Button>

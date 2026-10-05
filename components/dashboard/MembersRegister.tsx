@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { FileText, Link2, MoreHorizontal, Pencil } from "lucide-react";
+import { Eye, FileText, Link2, MoreHorizontal, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -380,7 +380,13 @@ export function MembersRegister({
                   </TableCell>
 
                   <TableCell>
-                    <StatusBadge status={member.userStatus} size="sm" />
+                    <Link
+                      href={`/admin/members/${member.id}/status`}
+                      title={copy.viewStatus}
+                      className="inline-block rounded-full transition-opacity hover:opacity-80"
+                    >
+                      <StatusBadge status={member.userStatus} size="sm" />
+                    </Link>
                   </TableCell>
 
                   <TableCell className="whitespace-nowrap text-sm text-ink-muted">
@@ -413,6 +419,15 @@ export function MembersRegister({
                             <Link href={`/admin/members/${member.id}`} className={menuItemClass}>
                               <FileText className="size-4" aria-hidden="true" />
                               {bulk.openFile}
+                            </Link>
+                          </DropdownMenu.Item>
+                          <DropdownMenu.Item asChild>
+                            <Link
+                              href={`/admin/members/${member.id}/status`}
+                              className={menuItemClass}
+                            >
+                              <Eye className="size-4" aria-hidden="true" />
+                              {copy.viewStatus}
                             </Link>
                           </DropdownMenu.Item>
                           {canEdit && (

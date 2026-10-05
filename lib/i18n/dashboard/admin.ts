@@ -79,6 +79,9 @@ export interface AdminCopy {
     colLoanOwing: string;
     colKyc: string;
     colAccount: string;
+    viewStatus: string;
+    statusPreviewTitle: string;
+    statusPreviewBody: string;
     colJoined: string;
     overdue: string;
 
@@ -1328,6 +1331,10 @@ export const admin: Record<Locale, AdminCopy> = {
       colLoanOwing: "Loan owing",
       colKyc: "KYC",
       colAccount: "Account",
+      viewStatus: "Account status",
+      statusPreviewTitle: "{name}'s account status",
+      statusPreviewBody:
+        "Exactly what the member sees when they sign in. Read-only: guarantee requests can only be answered by the member.",
       colJoined: "Joined",
       overdue: "overdue",
 
@@ -2721,6 +2728,10 @@ export const admin: Record<Locale, AdminCopy> = {
       colLoanOwing: "Umwenda w'inguzanyo",
       colKyc: "Umwirondoro",
       colAccount: "Konti",
+      viewStatus: "Imimerere ya konti",
+      statusPreviewTitle: "Imimerere ya konti ya {name}",
+      statusPreviewBody:
+        "Ibi ni byo umunyamuryango abona iyo yinjiye. Ntushobora guhindura ikintu: ubusabe bwo kwishingira bwemezwa n'umunyamuryango ubwe.",
       colJoined: "Yinjiye",
       overdue: "byarengeje igihe",
 
