@@ -196,6 +196,8 @@ export interface AccountCopy {
     leftoverHint: string;
     paidThrough: string;
     paidThroughNone: string;
+    payNow: string;
+    payNowHint: string;
   };
   qr: {
     title: string;
@@ -486,6 +488,8 @@ export const account: Record<Locale, AccountCopy> = {
       leftoverHint: "Not yet a full day's contribution",
       paidThrough: "Paid up to",
       paidThroughNone: "No day paid yet",
+      payNow: "Pay with eKash",
+      payNowHint: "Opens your phone's dialer with the payment code ready — just press call.",
     },
     qr: {
       title: "My sign-in QR code",
@@ -795,6 +799,8 @@ export const account: Record<Locale, AccountCopy> = {
       leftoverHint: "Ntaragera ku musanzu w'umunsi wose",
       paidThrough: "Wishyuye kugeza",
       paidThroughNone: "Nta munsi urishyurwa",
+      payNow: "Ishyura na eKash",
+      payNowHint: "Bifungura aho uhamagarira kuri telefone kode yo kwishyura yanditse — kanda uhamagare gusa.",
     },
     qr: {
       title: "Kode yanjye ya QR yo kwinjira",

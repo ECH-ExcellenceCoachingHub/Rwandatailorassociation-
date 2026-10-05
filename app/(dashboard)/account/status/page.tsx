@@ -6,6 +6,7 @@ import {
   CalendarCheck,
   Gavel,
   Landmark,
+  Phone,
   TriangleAlert,
   UserRound,
 } from "lucide-react";
@@ -117,6 +118,7 @@ export default async function AccountStatusPage() {
 
             <DetailsList {...shared} delay={offset} />
             <DailyList {...shared} delay={offset + STAGGER} locale={locale} />
+            <PayButton copy={copy} delay={offset + STAGGER} />
             <LoanList {...shared} delay={offset + STAGGER * 2} />
             <PenaltiesList {...shared} delay={offset + STAGGER * 3} />
           </>
@@ -240,6 +242,37 @@ function DailyList(props: ListProps & { locale: Locale }) {
         tone={c.paidThrough ? (behind ? "danger" : "success") : "muted"}
       />
     </List>
+  );
+}
+
+/// eKash pay code for the association's account. `#` must be sent as `%23`
+/// in a tel: URI, or the dialer drops everything from it onward.
+const PAY_USSD = "*182*1*2*100278755511#";
+const PAY_HREF = `tel:${PAY_USSD.replace(/#/g, "%23")}`;
+
+/**
+ * Opens the phone's dialer with the eKash pay code filled in. Browsers never
+ * place a call on their own — the member still presses call — but there is
+ * nothing to type.
+ */
+function PayButton({ copy, delay }: { copy: StatusCopy; delay: number }) {
+  return (
+    <div
+      className="animate-status-rise space-y-2 [animation-delay:var(--status-delay)]"
+      style={{ "--status-delay": `${delay + 300}ms` } as CSSProperties}
+    >
+      <a
+        href={PAY_HREF}
+        className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-amber-400 px-5 py-4 font-heading text-lg font-bold text-[#0f2a52] shadow-xl shadow-black/25 transition hover:bg-amber-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:scale-[0.98]"
+      >
+        <Phone className="size-5" aria-hidden="true" />
+        {copy.payNow}
+      </a>
+      <p className="px-1 text-center text-[13px] leading-snug text-primary-100/80">
+        {copy.payNowHint}{" "}
+        <span className="whitespace-nowrap font-semibold tabular-nums text-white">{PAY_USSD}</span>
+      </p>
+    </div>
   );
 }
 

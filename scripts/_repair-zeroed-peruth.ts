@@ -49,6 +49,26 @@ async function main() {
     }
     const phantomFee = charges[1];
 
+    // The hand-recorded deposit and the adjustment that took it back. Linking
+    // them marks the deposit REVERSED, which takes it out of "collected this
+    // month" and the deposit charts. Neither row's amount or balance changes,
+    // so the ledger still replays to the same balance.
+    const deposit = await tx.savingsTransaction.findFirstOrThrow({
+      where: { savingsAccountId: ACCOUNT, sequence: 1 },
+    });
+    const adjustment = await tx.savingsTransaction.findUniqueOrThrow({
+      where: { reference: CORRECTION },
+    });
+    if (
+      deposit.type !== "DEPOSIT" ||
+      deposit.status !== "COMPLETED" ||
+      deposit.amount.toFixed(2) !== "16800.00" ||
+      adjustment.savingsAccountId !== ACCOUNT ||
+      adjustment.reversalOfId
+    ) {
+      throw new Error("The deposit or adjustment has changed since it was inspected; not repairing.");
+    }
+
     const lowest = await tx.platformFeeCharge.aggregate({
       where: { memberId: MEMBER },
       _min: { coveredThroughDay: true },
@@ -59,6 +79,7 @@ async function main() {
       balance: "16000.00",
       totalDeposits: "16800.00",
       voided: `${phantomFee.reference} (800.00), parked at day ${parkedDay}`,
+      depositReversed: `${deposit.reference} (16800.00), by ${CORRECTION}`,
     });
     if (!APPLY) {
       console.log("Dry run. Re-run with --apply to write.");
@@ -66,6 +87,15 @@ async function main() {
     }
 
     await tx.savingsAccount.update({ where: { id: ACCOUNT }, data: { totalDeposits: "16800" } });
+    const why = "Recorded by hand, then brought in by the bank statement; removed by " + CORRECTION;
+    await tx.savingsTransaction.update({
+      where: { id: adjustment.id },
+      data: { reversalOfId: deposit.id, reversalReason: why },
+    });
+    await tx.savingsTransaction.update({
+      where: { id: deposit.id },
+      data: { status: "REVERSED", reversedById: adjustment.postedById, reversalReason: why },
+    });
     await tx.platformFeeCharge.update({
       where: { id: phantomFee.id },
       data: {
