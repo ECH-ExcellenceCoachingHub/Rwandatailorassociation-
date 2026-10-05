@@ -12,7 +12,9 @@ import {
   runContributionDiscipline,
   pollBkTransactionsJob,
   runJob,
+  runSystemBackup,
   sendRepaymentReminders,
+  SYSTEM_BACKUP_JOB,
   syncBkTransactionsJob,
   verifyLedgerIntegrity,
   workerConfig,
@@ -56,21 +58,27 @@ const JOBS = {
     name: "warehouse-credit-sweep",
     fn: assessWarehouseCredits,
   },
+  backup: { name: SYSTEM_BACKUP_JOB, fn: runSystemBackup },
 } as const;
 
 type JobKey = keyof typeof JOBS;
 
 /**
- * The nightly jobs that fine members, and when they run. In this order on
- * purpose: the warehouse sweep must read balances as the contribution sweep
- * leaves them, and the catch-up below walks these in insertion order.
+ * The nightly jobs that must not be skipped, and when they run. In this order
+ * on purpose: the warehouse sweep must read balances as the contribution sweep
+ * leaves them, the backup must capture the books after both, and the catch-up
+ * below walks these in insertion order.
  *
- * Both are idempotent by unique index, which is what makes it safe to run one
- * late, or twice.
+ * The two sweeps are idempotent by unique index, which is what makes it safe
+ * to run one late, or twice. A second backup in a day is merely redundant.
  */
 const DAILY_SLOTS = {
   contributions: { hour: 1, minute: 30 },
   warehouseCredits: { hour: 1, minute: 45 },
+  // After the night's postings, the integrity sweep (02:30) and cleanup
+  // (03:00), so the backup is of the books as they will be found in the
+  // morning.
+  backup: { hour: 3, minute: 30 },
 } satisfies Partial<Record<JobKey, DailySlot>>;
 
 type DailyJobKey = keyof typeof DAILY_SLOTS;
@@ -319,6 +327,12 @@ async function main() {
     void runDailyJob("warehouseCredits");
   });
 
+  // The system backup: one run files the daily, and the weekly and monthly
+  // when their week or month has none yet. See lib/backup.
+  cron.schedule(dailyCron(DAILY_SLOTS.backup), () => {
+    void runDailyJob("backup");
+  });
+
   // Missed nights, made good. node-cron only fires if the worker is up at
   // that minute, so a deploy or a crash across 01:30 would otherwise skip the
   // night's fines until the next one. Checked at startup — the restart is
@@ -354,6 +368,7 @@ async function main() {
       reminders: config.reminderCron,
       contributions: dailyCron(DAILY_SLOTS.contributions),
       warehouseCredits: dailyCron(DAILY_SLOTS.warehouseCredits),
+      backup: dailyCron(DAILY_SLOTS.backup),
       dailyCatchUp: "*/15 * * * *",
       integrity: "30 2 * * *",
       notificationRetry: "*/10 * * * *",

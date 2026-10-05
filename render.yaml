@@ -164,6 +164,26 @@ services:
       - key: AFRICASTALKING_API_KEY
         sync: false
 
+      # Nightly system backup (daily / weekly / monthly). Off-site storage is
+      # mandatory here: this service's disk is wiped on every deploy, so
+      # BACKUP_DRIVER=local would keep nothing. See .env.example.
+      - key: BACKUP_DRIVER
+        value: s3
+      - key: BACKUP_ENCRYPTION_KEY
+        sync: false
+      - key: BACKUP_S3_BUCKET
+        sync: false
+      - key: BACKUP_S3_REGION
+        sync: false
+      - key: BACKUP_S3_ENDPOINT
+        sync: false
+      - key: BACKUP_S3_ACCESS_KEY_ID
+        sync: false
+      - key: BACKUP_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: BACKUP_S3_PREFIX
+        sync: false
+
       # This is the one process that runs the scheduler.
       - key: WORKER_ENABLED
         value: "true"

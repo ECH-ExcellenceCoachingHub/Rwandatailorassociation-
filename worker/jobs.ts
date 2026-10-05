@@ -700,3 +700,59 @@ export async function runContributionDiscipline(): Promise<JobResult> {
     succeeded: feesCharged + finesAssessed + warned,
   };
 }
+
+export const SYSTEM_BACKUP_JOB = "system-backup";
+
+/**
+ * THE NIGHTLY SYSTEM BACKUP: daily, weekly and monthly tiers from one run.
+ * See lib/backup for what is in a backup and how the tiers are decided.
+ *
+ * A failed backup alerts every super admin — but only the first failure in a
+ * day. The worker's catch-up retries a missed nightly job every quarter hour,
+ * and a misconfigured bucket would otherwise mail them ninety-six times.
+ */
+export async function runSystemBackup(): Promise<JobResult> {
+  if (!getEnv().BACKUP_ENABLED) {
+    workerLogger.warn("BACKUP_ENABLED is false — no backup taken");
+    return { skipped: true, processed: 0 };
+  }
+
+  const { runBackup } = await import("@/lib/backup");
+
+  try {
+    const result = await runBackup();
+    for (const warning of result.warnings) workerLogger.warn({ jobName: SYSTEM_BACKUP_JOB }, warning);
+    return { ...result, processed: result.tiers.length };
+  } catch (error) {
+    const recentFailures = await prisma.jobRun.count({
+      where: {
+        jobName: SYSTEM_BACKUP_JOB,
+        status: "FAILED",
+        startedAt: { gte: new Date(Date.now() - 24 * 60 * 60_000) },
+      },
+    });
+
+    if (recentFailures === 0) {
+      const superAdmins = await prisma.user.findMany({
+        where: { role: "SUPER_ADMIN", status: "ACTIVE" },
+        select: { id: true },
+      });
+      const reason = error instanceof Error ? error.message : String(error);
+
+      await Promise.all(
+        superAdmins.map((admin) =>
+          notify({
+            userId: admin.id,
+            event: NOTIFICATION_EVENTS.ADMIN_ANNOUNCEMENT,
+            context: {
+              reason: `BACKUP FAILED: tonight's system backup did not complete, so the newest restorable copy of the data is older than a day. The worker will keep retrying. Cause: ${reason.slice(0, 300)}`,
+            },
+            channels: ["IN_APP", "EMAIL"],
+          })
+        )
+      );
+    }
+
+    throw error;
+  }
+}

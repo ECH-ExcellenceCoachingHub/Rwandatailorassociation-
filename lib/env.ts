@@ -154,6 +154,26 @@ const schema = z
     /// cron sync's job.
     BK_POLL_MAX_PAGES: intFrom(2, 1, 20),
 
+    // Backups ---------------------------------------------------------------
+    // Nightly, encrypted, kept as daily / weekly / monthly tiers. See
+    // lib/backup. The key and the bucket credentials are checked when a backup
+    // runs rather than here: refusing to boot would take payment crediting
+    // down with it. An unconfigured backup fails its own job and alerts super
+    // admins instead.
+    BACKUP_ENABLED: booleanish.default(true),
+    BACKUP_DRIVER: z.enum(["local", "s3"]).default("local"),
+    BACKUP_LOCAL_PATH: z.string().default("./backups"),
+    BACKUP_S3_BUCKET: z.string().optional(),
+    BACKUP_S3_REGION: z.string().default("auto"),
+    BACKUP_S3_ENDPOINT: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+    BACKUP_S3_ACCESS_KEY_ID: z.string().optional(),
+    BACKUP_S3_SECRET_ACCESS_KEY: z.string().optional(),
+    BACKUP_S3_PREFIX: z.string().default(""),
+    BACKUP_ENCRYPTION_KEY: z.string().optional(),
+    BACKUP_KEEP_DAILY: intFrom(7, 1, 366),
+    BACKUP_KEEP_WEEKLY: intFrom(4, 1, 520),
+    BACKUP_KEEP_MONTHLY: intFrom(12, 1, 1200),
+
     LOG_LEVEL: z
       .enum(["fatal", "error", "warn", "info", "debug", "trace"])
       .default("info"),

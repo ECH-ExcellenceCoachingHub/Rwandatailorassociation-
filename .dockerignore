@@ -36,3 +36,4 @@ venv
 
 # Tests are not needed to run the service.
 tests
+backups
