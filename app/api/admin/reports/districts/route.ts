@@ -39,6 +39,7 @@ function toCsv(report: DistrictReport, headings: string[]): string {
           member.status,
           member.joinedAt?.toISOString().slice(0, 10) ?? "",
           member.balance,
+          member.feesDeducted,
         ]
           .map(csvCell)
           .join(",")
@@ -82,6 +83,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
       members: row.members,
       active: row.active,
       savings: row.savings,
+      feesDeducted: row.feesDeducted,
       averageSavings: row.averageSavings,
       districts: row.district === null ? 0 : 1,
     };
@@ -124,6 +126,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
       copy.districtColStatus,
       copy.districtColJoined,
       copy.districtColSavings,
+      copy.districtColFees,
     ]);
     return new Response(csv, {
       headers: {
@@ -144,6 +147,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
     colMembers: copy.districtColMembers,
     colActive: copy.districtColActive,
     colSavings: copy.districtColSavings,
+    colFees: copy.districtColFees,
     colAverage: copy.districtColAverage,
     colNumber: copy.districtColNumber,
     colName: copy.districtColName,

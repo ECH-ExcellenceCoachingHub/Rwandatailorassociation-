@@ -23,7 +23,9 @@ import type { MemberStatus } from "@/lib/generated/prisma/enums";
  * reading this is the one who can tell what was meant.
  *
  * The savings figure is the ledger balance of each member's savings
- * accounts — the same "balance" the member account statement shows.
+ * accounts — the same "balance" the member account statement shows. Service
+ * fees deducted are every charged platform fee, already taken out of that
+ * balance; they are shown so the officer can see where the difference went.
  */
 
 /// Everyone admitted to the register, as on the member account statement.
@@ -38,6 +40,8 @@ export interface DistrictMemberRow {
   status: MemberStatus;
   joinedAt: Date | null;
   balance: string;
+  /// Service fees taken from this member's savings so far.
+  feesDeducted: string;
 }
 
 export interface DistrictRow {
@@ -49,6 +53,7 @@ export interface DistrictRow {
   members: number;
   active: number;
   savings: string;
+  feesDeducted: string;
   averageSavings: string;
   /// Highest balance first.
   memberRows: DistrictMemberRow[];
@@ -63,6 +68,7 @@ export interface DistrictReport {
     members: number;
     active: number;
     savings: string;
+    feesDeducted: string;
     averageSavings: string;
     districts: number;
   };
@@ -81,7 +87,7 @@ function orderOf(row: DistrictRow): [number, string] {
 export async function buildDistrictReport(
   associationId: string | null
 ): Promise<DistrictReport | null> {
-  const [association, members] = await Promise.all([
+  const [association, members, fees] = await Promise.all([
     associationId
       ? prisma.association.findUnique({
           where: { id: associationId },
@@ -94,6 +100,7 @@ export async function buildDistrictReport(
         status: { in: REGISTERED_STATUSES },
       },
       select: {
+        id: true,
         memberNumber: true,
         status: true,
         joinedAt: true,
@@ -103,13 +110,20 @@ export async function buildDistrictReport(
         savingsAccounts: { select: { balance: true } },
       },
     }),
+    prisma.platformFeeCharge.groupBy({
+      by: ["memberId"],
+      where: { ...(associationId ? { associationId } : {}), status: "CHARGED" },
+      _sum: { amount: true },
+    }),
   ]);
+
+  const feesByMember = new Map(fees.map((f) => [f.memberId, f._sum.amount ?? ZERO]));
 
   if (associationId && !association) return null;
 
   const groups = new Map<
     string,
-    { row: DistrictRow; total: Money; provinces: Map<string, number> }
+    { row: DistrictRow; total: Money; fees: Money; provinces: Map<string, number> }
   >();
 
   for (const member of members) {
@@ -128,10 +142,12 @@ export async function buildDistrictReport(
           members: 0,
           active: 0,
           savings: "0.00",
+          feesDeducted: "0.00",
           averageSavings: "0.00",
           memberRows: [],
         },
         total: ZERO,
+        fees: ZERO,
         provinces: new Map(),
       };
       groups.set(key, group);
@@ -139,6 +155,8 @@ export async function buildDistrictReport(
 
     const balance = add(ZERO, ...member.savingsAccounts.map((a) => a.balance));
     group.total = add(group.total, balance);
+    const feesDeducted = add(ZERO, feesByMember.get(member.id) ?? ZERO);
+    group.fees = add(group.fees, feesDeducted);
     group.row.members += 1;
     if (member.status === "ACTIVE") group.row.active += 1;
 
@@ -156,14 +174,16 @@ export async function buildDistrictReport(
       status: member.status,
       joinedAt: member.joinedAt,
       balance: toMoneyString(balance),
+      feesDeducted: toMoneyString(feesDeducted),
     });
   }
 
-  const districts = [...groups.values()].map(({ row, total, provinces }) => {
+  const districts = [...groups.values()].map(({ row, total, fees, provinces }) => {
     if (!row.province && provinces.size > 0) {
       row.province = [...provinces.entries()].sort((a, b) => b[1] - a[1])[0][0];
     }
     row.savings = toMoneyString(total);
+    row.feesDeducted = toMoneyString(fees);
     row.averageSavings = toMoneyString(divide(total, row.members));
     row.memberRows.sort(
       (a, b) => Number(b.balance) - Number(a.balance) || a.fullName.localeCompare(b.fullName)
@@ -187,6 +207,7 @@ export async function buildDistrictReport(
       members: members.length,
       active: districts.reduce((sum, d) => sum + d.active, 0),
       savings: toMoneyString(savings),
+      feesDeducted: toMoneyString(add(ZERO, ...districts.map((d) => d.feesDeducted))),
       averageSavings: toMoneyString(members.length > 0 ? divide(savings, members.length) : ZERO),
       districts: districts.filter((d) => d.district !== null).length,
     },

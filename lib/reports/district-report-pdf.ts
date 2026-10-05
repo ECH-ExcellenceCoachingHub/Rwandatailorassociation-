@@ -25,6 +25,7 @@ export interface DistrictReportLabels {
   colMembers: string;
   colActive: string;
   colSavings: string;
+  colFees: string;
   colAverage: string;
   colNumber: string;
   colName: string;
@@ -236,12 +237,13 @@ export async function renderDistrictReportPdf(
     out.text(labels.summaryHeading, { size: 11, bold: true, gap: 6 });
     out.table(
       [
-        { label: labels.colDistrict, width: 0.24 },
-        { label: labels.colProvince, width: 0.2 },
-        { label: labels.colMembers, width: 0.1, align: "right" },
-        { label: labels.colActive, width: 0.1, align: "right" },
-        { label: labels.colSavings, width: 0.19, align: "right" },
-        { label: labels.colAverage, width: 0.17, align: "right" },
+        { label: labels.colDistrict, width: 0.19 },
+        { label: labels.colProvince, width: 0.16 },
+        { label: labels.colMembers, width: 0.09, align: "right" },
+        { label: labels.colActive, width: 0.08, align: "right" },
+        { label: labels.colSavings, width: 0.17, align: "right" },
+        { label: labels.colFees, width: 0.16, align: "right" },
+        { label: labels.colAverage, width: 0.15, align: "right" },
       ],
       report.districts.map((row) => [
         districtName(row, labels),
@@ -249,6 +251,7 @@ export async function renderDistrictReportPdf(
         String(row.members),
         String(row.active),
         money(row.savings),
+        money(row.feesDeducted),
         money(row.averageSavings),
       ]),
       [
@@ -257,6 +260,7 @@ export async function renderDistrictReportPdf(
         String(report.totals.members),
         String(report.totals.active),
         money(report.totals.savings),
+        money(report.totals.feesDeducted),
         money(report.totals.averageSavings),
       ]
     );
@@ -276,12 +280,13 @@ export async function renderDistrictReportPdf(
     });
     out.table(
       [
-        { label: labels.colNumber, width: 0.13 },
-        { label: labels.colName, width: 0.27 },
-        { label: labels.colPhone, width: 0.15 },
-        { label: labels.colStatus, width: 0.12 },
-        { label: labels.colJoined, width: 0.14 },
-        { label: labels.colSavings, width: 0.19, align: "right" },
+        { label: labels.colNumber, width: 0.11 },
+        { label: labels.colName, width: 0.21 },
+        { label: labels.colPhone, width: 0.14 },
+        { label: labels.colStatus, width: 0.1 },
+        { label: labels.colJoined, width: 0.12 },
+        { label: labels.colSavings, width: 0.16, align: "right" },
+        { label: labels.colFees, width: 0.16, align: "right" },
       ],
       row.memberRows.map((member) => [
         member.memberNumber,
@@ -290,8 +295,9 @@ export async function renderDistrictReportPdf(
         labels.statusLabel(member.status),
         labels.formatDate(member.joinedAt),
         money(member.balance),
+        money(member.feesDeducted),
       ]),
-      [labels.total, "", "", "", "", money(row.savings)]
+      [labels.total, "", "", "", "", money(row.savings), money(row.feesDeducted)]
     );
     out.y -= 8;
   }

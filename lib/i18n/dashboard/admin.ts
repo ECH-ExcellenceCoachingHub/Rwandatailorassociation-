@@ -715,6 +715,7 @@ export interface AdminCopy {
     districtColMembers: string;
     districtColActive: string;
     districtColSavings: string;
+    districtColFees: string;
     districtColAverage: string;
     districtColNumber: string;
     districtColName: string;
@@ -2062,6 +2063,7 @@ export const admin: Record<Locale, AdminCopy> = {
       districtColMembers: "Members",
       districtColActive: "Active",
       districtColSavings: "Savings",
+      districtColFees: "Fees deducted",
       districtColAverage: "Average",
       districtColNumber: "Member no.",
       districtColName: "Name",
@@ -3492,6 +3494,7 @@ export const admin: Record<Locale, AdminCopy> = {
       districtColMembers: "Abanyamuryango",
       districtColActive: "Abakora",
       districtColSavings: "Ubuzigame",
+      districtColFees: "Serivisi yakuweho",
       districtColAverage: "Impuzandengo",
       districtColNumber: "Nimero",
       districtColName: "Amazina",
