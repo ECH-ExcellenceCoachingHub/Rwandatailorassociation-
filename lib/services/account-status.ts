@@ -211,6 +211,10 @@ export interface AccountStatusSummary {
     totalWithdrawals: string;
     totalInterest: string;
     totalFees: string;
+    /// The daily service fee taken out of the balance so far. From the fee
+    /// charges, not `totalFees`, which also counts fines and goods paid for
+    /// from savings.
+    serviceFeesDeducted: string;
     currency: string;
     lastTransactionAt: Date | null;
   } | null;
@@ -325,6 +329,7 @@ export async function getAccountStatusSummary(
     policy,
     openLoanCount,
     guarantees,
+    serviceFees,
   ] = await Promise.all([
       prisma.loan.findFirst({
         where: { memberId, status: { in: LIVE_LOAN_STATUSES } },
@@ -394,6 +399,11 @@ export async function getAccountStatusSummary(
       }),
 
       getMemberGuarantees(memberId),
+
+      prisma.platformFeeCharge.aggregate({
+        where: { memberId, status: "CHARGED" },
+        _sum: { amount: true },
+      }),
     ]);
 
   const account = member.savingsAccounts[0] ?? null;
@@ -427,6 +437,7 @@ export async function getAccountStatusSummary(
           totalWithdrawals: toMoneyString(account.totalWithdrawals),
           totalInterest: toMoneyString(account.totalInterest),
           totalFees: toMoneyString(account.totalFees),
+          serviceFeesDeducted: toMoneyString(serviceFees._sum.amount ?? 0),
           currency: account.currency,
           lastTransactionAt: account.lastTransactionAt,
         }

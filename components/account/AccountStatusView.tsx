@@ -133,9 +133,14 @@ function amount(value: string | null | undefined, { currency, delay }: ListProps
   return <CountUp value={value ?? "0"} currency={currency} delay={delay + 450} />;
 }
 
-/** Amazina, MemberID, telephone, imigabane afite, amafaranga yose yatanze. */
+/**
+ * Amazina, MemberID, telephone, imigabane afite, amafaranga yose yatanze — then
+ * the service fee taken out of that and the balance left after it.
+ */
 function DetailsList(props: ListProps) {
-  const { summary, copy } = props;
+  const { summary, copy, money } = props;
+  const dailyFee = Number(summary.shareholding?.dailyFee ?? 0);
+  const feePerShare = dailyFee > 0 ? String(dailyFee / summary.shares) : null;
   return (
     <List icon={UserRound} title={copy.yourDetails} delay={props.delay}>
       <Item label={copy.fullName} value={summary.fullName} wrap />
@@ -152,6 +157,25 @@ function DetailsList(props: ListProps) {
         tone={Number(summary.savings?.totalDeposits ?? 0) > 0 ? "success" : "default"}
         strong
       />
+      {summary.savings && (
+        <>
+          <Item
+            label={copy.serviceFeesDeducted}
+            hint={
+              feePerShare
+                ? fill(copy.serviceFeesDeductedHint, { fee: money(feePerShare) })
+                : undefined
+            }
+            value={money(summary.savings.serviceFeesDeducted)}
+          />
+          <Item
+            label={copy.balance}
+            hint={copy.balanceAfterFeesHint}
+            value={amount(summary.savings.balance, props)}
+            strong
+          />
+        </>
+      )}
     </List>
   );
 }
