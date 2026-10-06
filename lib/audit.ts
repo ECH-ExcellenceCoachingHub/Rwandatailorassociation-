@@ -70,6 +70,9 @@ export const AUDIT_ACTIONS = {
   /// A member record that never held money was erased. The whole file is
   /// captured on the audit entry, because afterwards it exists nowhere else.
   MEMBER_DELETED: "MEMBER_DELETED",
+  /// The office recorded a member's printed card as paid for, or took that back.
+  MEMBER_CARD_PAYMENT_RECORDED: "MEMBER_CARD_PAYMENT_RECORDED",
+  MEMBER_CARD_PAYMENT_CLEARED: "MEMBER_CARD_PAYMENT_CLEARED",
 
   // Savings ledger
   SAVINGS_DEPOSIT_POSTED: "SAVINGS_DEPOSIT_POSTED",

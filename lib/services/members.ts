@@ -18,6 +18,11 @@ import type { BulkMemberResult } from "@/lib/member-actions";
 import { returnStockOfDeletedMember } from "@/lib/services/warehouse";
 import { resetSavingsClock } from "@/lib/services/contributions";
 import { logger, serialiseError } from "@/lib/logger";
+import {
+  districtWhere,
+  memberSearchWhere,
+  type DistrictFilter,
+} from "@/lib/services/member-filters";
 import type {
   CreateMemberInput,
   MemberAction,
@@ -41,6 +46,8 @@ export interface MemberListFilters {
   /// be ACTIVE in the association while their sign-in is LOCKED.
   userStatus?: UserStatus;
   search?: string;
+  /// A canonical district, or "none" for members with no district on file.
+  district?: DistrictFilter;
   page?: number;
   pageSize?: number;
 }
@@ -53,25 +60,8 @@ export async function listMembers(filters: MemberListFilters) {
     ...(filters.associationId ? { associationId: filters.associationId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
     ...(filters.userStatus ? { user: { status: filters.userStatus } } : {}),
-    ...(filters.search
-      ? {
-          OR: [
-            { memberNumber: { contains: filters.search, mode: "insensitive" } },
-            { paymentReference: { contains: filters.search, mode: "insensitive" } },
-            { nationalId: { contains: filters.search } },
-            {
-              user: {
-                OR: [
-                  { firstName: { contains: filters.search, mode: "insensitive" } },
-                  { lastName: { contains: filters.search, mode: "insensitive" } },
-                  { email: { contains: filters.search, mode: "insensitive" } },
-                  { phone: { contains: filters.search } },
-                ],
-              },
-            },
-          ],
-        }
-      : {}),
+    // Each of these may carry its own OR, so they are ANDed rather than spread.
+    AND: [districtWhere(filters.district), memberSearchWhere(filters.search, { email: true })],
   };
 
   const [total, members] = await Promise.all([

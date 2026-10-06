@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { requirePermission, resolveAssociationScope } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { listMembers } from "@/lib/services/members";
+import { parseDistrictFilter } from "@/lib/services/member-filters";
 import { allowedMemberActions } from "@/lib/member-actions";
 import { signInLinkToken } from "@/lib/auth/sign-in-link";
 import { getDashboardCopy } from "@/lib/i18n/server";
@@ -49,7 +50,13 @@ const VALID_ACCOUNT_STATUS = new Set([
 export default async function AdminMembersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string; status?: string; account?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    q?: string;
+    status?: string;
+    account?: string;
+    district?: string;
+  }>;
 }) {
   const context = await requirePermission(PERMISSIONS.MEMBERS_VIEW, "/admin/members");
   const associationId = resolveAssociationScope(context);
@@ -69,6 +76,7 @@ export default async function AdminMembersPage({
       params.account && VALID_ACCOUNT_STATUS.has(params.account)
         ? (params.account as UserStatus)
         : undefined,
+    district: parseDistrictFilter(params.district),
   });
 
   // The statement covers one association's ledger, so a super administrator
@@ -130,7 +138,7 @@ export default async function AdminMembersPage({
         }
       />
 
-      <MemberSearch basePath="/admin/members" showAccountFilter />
+      <MemberSearch basePath="/admin/members" showAccountFilter showDistrictFilter />
 
       {data.members.length === 0 ? (
         <EmptyState

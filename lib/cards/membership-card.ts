@@ -360,7 +360,19 @@ export interface CardTextSizes {
  * `getCardTextSizes` for a page of previews: the fonts are loaded once and the
  * returned function measures as many cards as it is given.
  */
-export async function createCardTextMeasurer(): Promise<(data: CardText) => CardTextSizes> {
+export function createCardTextMeasurer(): Promise<(data: CardText) => CardTextSizes> {
+  // The fonts never change, so they are loaded once per process and every
+  // later page reuses them. A failure is not cached: the next call retries.
+  measurerPromise ??= buildCardTextMeasurer().catch((error) => {
+    measurerPromise = null;
+    throw error;
+  });
+  return measurerPromise;
+}
+
+let measurerPromise: Promise<(data: CardText) => CardTextSizes> | null = null;
+
+async function buildCardTextMeasurer(): Promise<(data: CardText) => CardTextSizes> {
   const doc = await PDFDocument.create();
   const regular = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);

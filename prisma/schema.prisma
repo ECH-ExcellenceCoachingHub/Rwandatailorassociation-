@@ -601,6 +601,12 @@ model User {
   @@index([associationId, role])
   @@index([associationId, status])
   @@index([role, status])
+  @@index([lastName, firstName])
+  // Trigram indexes for the member register's substring search.
+  @@index([firstName(ops: raw("gin_trgm_ops"))], type: Gin, map: "users_first_name_trgm_idx")
+  @@index([lastName(ops: raw("gin_trgm_ops"))], type: Gin, map: "users_last_name_trgm_idx")
+  @@index([phone(ops: raw("gin_trgm_ops"))], type: Gin, map: "users_phone_trgm_idx")
+  @@index([email(ops: raw("gin_trgm_ops"))], type: Gin, map: "users_email_trgm_idx")
   @@map("users")
 }
 
@@ -875,6 +881,13 @@ model Member {
   joinedAt         DateTime?
   approvedAt       DateTime?
   approvedById     String?
+
+  /// When the office recorded the member as having paid for their printed
+  /// membership card. Null means not paid. Who recorded it is in the audit
+  /// log (MEMBER_CARD_PAYMENT_RECORDED); the id here is for display only.
+  cardPaidAt   DateTime?
+  cardPaidById String?
+
   suspendedAt      DateTime?
   suspensionReason String?
   exitedAt         DateTime?
@@ -911,9 +924,16 @@ model Member {
   @@unique([associationId, memberNumber])
   @@index([associationId, status])
   @@index([associationId, kycStatus])
+  @@index([associationId, createdAt(sort: Desc)])
+  @@index([associationId, cardPaidAt])
   @@index([mobileMoneyNumber])
   @@index([bankAccountNumber])
   @@index([nationalId])
+  // Trigram indexes so the register's substring search ("contains", which is
+  // ILIKE '%…%') uses an index instead of reading every row.
+  @@index([memberNumber(ops: raw("gin_trgm_ops"))], type: Gin, map: "members_member_number_trgm_idx")
+  @@index([paymentReference(ops: raw("gin_trgm_ops"))], type: Gin, map: "members_payment_reference_trgm_idx")
+  @@index([nationalId(ops: raw("gin_trgm_ops"))], type: Gin, map: "members_national_id_trgm_idx")
   @@map("members")
 }
 
@@ -2103,6 +2123,8 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([action, createdAt])
   @@index([severity, createdAt])
+  /// "When was this member's card last printed" on the card register.
+  @@index([action, entityType, entityId, createdAt])
   @@map("audit_logs")
 }
 

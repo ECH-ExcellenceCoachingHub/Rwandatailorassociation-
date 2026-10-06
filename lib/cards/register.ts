@@ -2,7 +2,20 @@ import "server-only";
 import { prisma, type Prisma } from "@/lib/db/prisma";
 import { AUDIT_ACTIONS } from "@/lib/audit";
 import { MemberStatus, type UserRole } from "@/lib/generated/prisma/enums";
-import type { CardMemberFields } from "@/lib/cards/membership-card";
+import {
+  getOrIssueQrCodes,
+  type CardIssuer,
+  type CardMemberFields,
+} from "@/lib/cards/membership-card";
+import {
+  cardPaidWhere,
+  districtWhere,
+  memberSearchWhere,
+  parseCardPaidFilter,
+  parseDistrictFilter,
+  type CardPaidFilter,
+  type DistrictFilter,
+} from "@/lib/services/member-filters";
 
 /**
  * The card register: every member's card, for the office that prints them.
@@ -27,6 +40,8 @@ export interface CardFilters {
   /// Undefined means every status.
   status?: MemberStatus;
   photo?: PhotoFilter;
+  district?: DistrictFilter;
+  paid?: CardPaidFilter;
 }
 
 const STATUSES = new Set<string>(Object.values(MemberStatus));
@@ -52,6 +67,8 @@ export function parseCardFilters(params: Record<string, string | undefined>): Ca
           ? (status as MemberStatus)
           : DEFAULT_CARD_STATUS,
     photo: photo === "missing" || photo === "present" ? photo : undefined,
+    district: parseDistrictFilter(params.district),
+    paid: parseCardPaidFilter(params.paid),
   };
 }
 
@@ -59,8 +76,6 @@ function cardWhere(
   associationId: string | null,
   filters: CardFilters
 ): Prisma.MemberWhereInput {
-  const search = filters.search;
-
   return {
     ...(associationId ? { associationId } : {}),
     ...(filters.status ? { status: filters.status } : {}),
@@ -69,24 +84,9 @@ function cardWhere(
       : filters.photo === "present"
         ? { user: { avatar: { isNot: null } } }
         : {}),
-    ...(search
-      ? {
-          OR: [
-            { memberNumber: { contains: search, mode: "insensitive" } },
-            { paymentReference: { contains: search, mode: "insensitive" } },
-            { nationalId: { contains: search } },
-            {
-              user: {
-                OR: [
-                  { firstName: { contains: search, mode: "insensitive" } },
-                  { lastName: { contains: search, mode: "insensitive" } },
-                  { phone: { contains: search } },
-                ],
-              },
-            },
-          ],
-        }
-      : {}),
+    ...cardPaidWhere(filters.paid),
+    // Each of these may carry its own OR, so they are ANDed rather than spread.
+    AND: [districtWhere(filters.district), memberSearchWhere(filters.search)],
   };
 }
 
@@ -118,15 +118,45 @@ export interface CardRegisterEntry {
     member: CardMemberFields;
   };
   hasPhoto: boolean;
+  /// When the office recorded the card as paid for, or null if it has not.
+  cardPaidAt: Date | null;
   /// When the office last downloaded this member's front, or null if it never
   /// has. A member printing their own card is not counted: that is not logged.
   lastPrintedAt: Date | null;
 }
 
+const CARD_SELECT = {
+  id: true,
+  memberNumber: true,
+  status: true,
+  associationId: true,
+  district: true,
+  city: true,
+  province: true,
+  cardPaidAt: true,
+  user: {
+    select: {
+      id: true,
+      role: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      title: true,
+      phone: true,
+      // Whether a photograph exists, not the photograph: the bytes go to
+      // the browser through the photo route, one <image> at a time.
+      avatar: { select: { userId: true } },
+    },
+  },
+} satisfies Prisma.MemberSelect;
+
 export async function listCardRegister(params: {
   associationId: string | null;
   filters: CardFilters;
   page: number;
+  /// The officer viewing the page, recorded as the issuer of any sign-in code
+  /// an active member on it is given for the first time.
+  viewer: CardIssuer;
 }) {
   const where = cardWhere(params.associationId, params.filters);
   const withoutPhotoFilter = cardWhere(params.associationId, {
@@ -134,47 +164,50 @@ export async function listCardRegister(params: {
     photo: undefined,
   });
 
-  const [total, missingPhotos] = await Promise.all([
+  // The page of cards is fetched alongside the counts rather than after them:
+  // each is a round trip to a hosted database, and waiting on the count first
+  // doubled the time to first paint. Only a page past the end (a stale link)
+  // costs a second fetch.
+  const requested = Math.max(1, params.page);
+  const fetchPage = (page: number) =>
+    prisma.member.findMany({
+      where,
+      orderBy: CARD_ORDER,
+      skip: (page - 1) * CARD_BATCH_SIZE,
+      take: CARD_BATCH_SIZE,
+      select: CARD_SELECT,
+    });
+
+  const [total, missingPhotos, unpaid, firstTry] = await Promise.all([
     prisma.member.count({ where }),
     prisma.member.count({
       where: { AND: [withoutPhotoFilter, { user: { avatar: { is: null } } }] },
     }),
+    prisma.member.count({ where: { AND: [where, { cardPaidAt: null }] } }),
+    fetchPage(requested),
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / CARD_BATCH_SIZE));
-  const page = Math.min(Math.max(1, params.page), totalPages);
+  const page = Math.min(requested, totalPages);
+  const members = page === requested ? firstTry : await fetchPage(page);
 
-  const members = await prisma.member.findMany({
-    where,
-    orderBy: CARD_ORDER,
-    skip: (page - 1) * CARD_BATCH_SIZE,
-    take: CARD_BATCH_SIZE,
-    select: {
-      id: true,
-      memberNumber: true,
-      status: true,
-      associationId: true,
-      district: true,
-      city: true,
-      province: true,
-      user: {
-        select: {
-          id: true,
-          role: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          title: true,
-          phone: true,
-          // Whether a photograph exists, not the photograph: the bytes go to
-          // the browser through the photo route, one <image> at a time.
-          avatar: { select: { userId: true } },
-        },
-      },
-    },
-  });
-
-  const printed = await lastPrintedByOffice(members.map((m) => m.id));
+  // Both depend only on who is on the page, so neither waits for the other.
+  // Members who are not active get no code: they cannot sign in, so one would
+  // only be a live credential for an account nobody should be using.
+  const [printed, codes] = await Promise.all([
+    lastPrintedByOffice(members.map((m) => m.id)),
+    getOrIssueQrCodes(
+      members
+        .filter((m) => m.status === "ACTIVE")
+        .map((m) => ({
+          id: m.user.id,
+          role: m.user.role,
+          email: m.user.email,
+          associationId: m.associationId,
+        })),
+      params.viewer
+    ),
+  ]);
 
   const cards: CardRegisterEntry[] = members.map((m) => ({
     memberId: m.id,
@@ -199,16 +232,21 @@ export async function listCardRegister(params: {
       },
     },
     hasPhoto: Boolean(m.user.avatar),
+    cardPaidAt: m.cardPaidAt,
     lastPrintedAt: printed.get(m.id) ?? null,
   }));
 
   return {
     total,
     missingPhotos,
+    /// Cards matching the filters that have not been paid for.
+    unpaid,
     page,
     pageSize: CARD_BATCH_SIZE,
     totalPages,
     cards,
+    /// Live sign-in codes by user id, for the active members on this page.
+    codes,
   };
 }
 

@@ -7,11 +7,7 @@ import { getDashboardCopy } from "@/lib/i18n/server";
 import { fill, pluralize } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
 import { renderQrSvg } from "@/lib/qr";
-import {
-  cardTextFor,
-  createCardTextMeasurer,
-  getOrIssueQrCodes,
-} from "@/lib/cards/membership-card";
+import { cardTextFor, createCardTextMeasurer } from "@/lib/cards/membership-card";
 import {
   CARD_BATCH_SIZE,
   DEFAULT_CARD_STATUS,
@@ -23,6 +19,7 @@ import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { MemberSearch } from "@/components/dashboard/MemberSearch";
 import { PaginationLinks } from "@/components/dashboard/PaginationLinks";
 import { CardPdfButton } from "@/components/dashboard/CardPdfButton";
+import { CardPaymentToggle } from "@/components/dashboard/CardPaymentToggle";
 import { CardFrontPreview } from "@/components/account/CardPreview";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -59,7 +56,14 @@ export const dynamic = "force-dynamic";
 
 const BASE_PATH = "/admin/members/cards";
 
-type SearchParams = { page?: string; q?: string; status?: string; photo?: string };
+type SearchParams = {
+  page?: string;
+  q?: string;
+  status?: string;
+  photo?: string;
+  district?: string;
+  paid?: string;
+};
 
 export default async function AdminMemberCardsPage({
   searchParams,
@@ -73,18 +77,17 @@ export default async function AdminMemberCardsPage({
   const copy = d.admin.memberCards;
 
   const filters = parseCardFilters(params);
-  const register = await listCardRegister({
-    associationId,
-    filters,
-    page: Number(params.page) || 1,
-  });
-
-  const measure = await createCardTextMeasurer();
-
-  const codes = await getOrIssueQrCodes(
-    register.cards.filter((card) => card.status === "ACTIVE").map((card) => card.holder),
-    context.user
-  );
+  const [register, measure] = await Promise.all([
+    listCardRegister({
+      associationId,
+      filters,
+      page: Number(params.page) || 1,
+      viewer: context.user,
+    }),
+    createCardTextMeasurer(),
+  ]);
+  const codes = register.codes;
+  const canMarkPaid = context.permissions.has(PERMISSIONS.MEMBERS_UPDATE);
 
   // Drawn on the server and handed to the preview as a data URI, as on the
   // member's own card page: the token reaches this page's markup and no JSON.
@@ -99,7 +102,13 @@ export default async function AdminMemberCardsPage({
 
   // The filters exactly as the URL carries them, so the bulk route re-reads
   // them through the same parser and prints the same cards in the same order.
-  const filterQuery = { q: params.q, status: params.status, photo: params.photo };
+  const filterQuery = {
+    q: params.q,
+    status: params.status,
+    photo: params.photo,
+    district: params.district,
+    paid: params.paid,
+  };
 
   const pageHref = (next: Partial<SearchParams>) => {
     const search = new URLSearchParams();
@@ -134,11 +143,20 @@ export default async function AdminMemberCardsPage({
     <div className="space-y-5">
       <PageHeader
         title={copy.title}
-        description={`${copy.description} ${pluralize(copy.matching, register.total)}`}
+        description={`${copy.description} ${pluralize(copy.matching, register.total)}${
+          register.unpaid > 0 && filters.paid !== "unpaid"
+            ? ` ${pluralize(copy.unpaidCount, register.unpaid)}`
+            : ""
+        }`}
         className="mb-0"
       />
 
-      <MemberSearch basePath={BASE_PATH} defaultStatus={DEFAULT_CARD_STATUS} />
+      <MemberSearch
+        basePath={BASE_PATH}
+        defaultStatus={DEFAULT_CARD_STATUS}
+        showDistrictFilter
+        showCardPaidFilter
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold text-ink">{copy.photoLabel}:</span>
@@ -276,7 +294,15 @@ export default async function AdminMemberCardsPage({
                     </span>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="mt-3">
+                    <CardPaymentToggle
+                      memberId={card.memberId}
+                      paidAt={card.cardPaidAt}
+                      canEdit={canMarkPaid}
+                    />
+                  </div>
+
+                  <div className="mt-2 grid grid-cols-2 gap-2">
                     <CardPdfButton
                       href={`${memberUrl}/card?side=front`}
                       label={copy.front}

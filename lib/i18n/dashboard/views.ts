@@ -58,6 +58,14 @@ export interface ViewsCopy {
     exited: string;
     account: string;
     allAccounts: string;
+    district: string;
+    allDistricts: string;
+    noDistrict: string;
+    cardPayment: string;
+    anyCardPayment: string;
+    cardPaid: string;
+    cardUnpaid: string;
+    searching: string;
   };
   transactions: {
     matching: string;
@@ -247,6 +255,14 @@ export const views: Record<Locale, ViewsCopy> = {
       exited: "Exited",
       account: "Account",
       allAccounts: "All accounts",
+      district: "District",
+      allDistricts: "All districts",
+      noDistrict: "No district on file",
+      cardPayment: "Card payment",
+      anyCardPayment: "Paid or not",
+      cardPaid: "Card paid",
+      cardUnpaid: "Card not paid",
+      searching: "Searching…",
     },
     transactions: {
       matching: "Matching transactions",
@@ -447,6 +463,14 @@ export const views: Record<Locale, ViewsCopy> = {
       exited: "Yavuye mu ihuriro",
       account: "Konti",
       allAccounts: "Konti zose",
+      district: "Akarere",
+      allDistricts: "Uturere twose",
+      noDistrict: "Nta karere kanditse",
+      cardPayment: "Kwishyura ikarita",
+      anyCardPayment: "Yishyuwe cyangwa itishyuwe",
+      cardPaid: "Ikarita yishyuwe",
+      cardUnpaid: "Ikarita itarishyurwa",
+      searching: "Birashakishwa…",
     },
     transactions: {
       matching: "Ibikorwa bihuye",

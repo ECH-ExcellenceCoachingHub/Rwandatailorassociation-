@@ -133,6 +133,12 @@ export interface AdminCopy {
     noneBody: string;
     printTitle: string;
     printBody: string;
+    paidOn: string;
+    notPaid: string;
+    markPaid: string;
+    markUnpaid: string;
+    paymentFailed: string;
+    unpaidCount: string;
   };
   /// A single member's file.
   file: {
@@ -1395,6 +1401,12 @@ export const admin: Record<Locale, AdminCopy> = {
       printTitle: "Printing",
       printBody:
         "Every page is exactly 85.6 × 54 mm — standard card size. Print at 100% and do not let the printer scale the pages to fit.",
+      paidOn: "Card paid {date}",
+      notPaid: "Card not paid",
+      markPaid: "Mark paid",
+      markUnpaid: "Mark unpaid",
+      paymentFailed: "The payment could not be saved. Try again.",
+      unpaidCount: "{count} of these cards is not paid yet.|{count} of these cards are not paid yet.",
     },
     file: {
       description: "Member {number} · payment reference {reference}",
@@ -2794,6 +2806,12 @@ export const admin: Record<Locale, AdminCopy> = {
       printTitle: "Gucapa",
       printBody:
         "Buri paji ni 85.6 × 54 mm neza — ingano isanzwe y'ikarita. Capa kuri 100%, kandi ntukemere ko mucapyi ihindura ingano ngo ikwire urupapuro.",
+      paidOn: "Ikarita yishyuwe {date}",
+      notPaid: "Ikarita ntiyishyuwe",
+      markPaid: "Yishyuwe",
+      markUnpaid: "Ntiyishyuwe",
+      paymentFailed: "Ubwishyu ntibwashoboye kubikwa. Ongera ugerageze.",
+      unpaidCount: "Ikarita {count} muri izi ntiyishyuwe.|Amakarita {count} muri aya ntiyishyuwe.",
     },
     file: {
       description: "Umunyamuryango {number} · nimero y'ubwishyu {reference}",
