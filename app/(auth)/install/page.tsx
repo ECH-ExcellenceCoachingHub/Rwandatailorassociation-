@@ -23,10 +23,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 interface InstallPageProps {
-  searchParams?: { returnTo?: string };
+  searchParams?: Promise<{ returnTo?: string }>;
 }
 
-export default async function InstallPage({ searchParams }: InstallPageProps) {
+export default async function InstallPage({
+  searchParams,
+}: InstallPageProps) {
   const { d } = await getDashboardCopy();
-  return <InstallApp copy={d.auth.install} returnTo={searchParams?.returnTo} />;
+  const params = searchParams ? await searchParams : {};
+  return <InstallApp copy={d.auth.install} returnTo={params.returnTo} />;
 }

@@ -130,7 +130,7 @@ export default function InstallApp({
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
-  }, []);
+  }, [target]);
 
   /** The browser's prompt, waiting briefly if the button was tapped before it
    *  arrived. Chrome keeps a tap "fresh" for about five seconds, so a prompt
