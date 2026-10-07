@@ -38,10 +38,8 @@ export function InstallBanner() {
   const [view, setView] = useState<BannerView>("idle");
 
   useEffect(() => {
-<<<<<<< ours
+
     if (isStandalone()) return;
-=======
-    if (isStandalone() || dismissedRecently()) return;
     // Desktop browsers without an install prompt (Safari, Firefox) have
     // nothing useful to offer, so the bar is not worth the space there.
     if (detectPlatform(navigator.userAgent) === "other" && !canPromptInstall()) return;
