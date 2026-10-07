@@ -20,10 +20,22 @@ type InstallWindow = Window & { __installPrompt?: BeforeInstallPromptEvent | nul
 /** In-app browsers (WhatsApp, Facebook, Instagram…) that cannot install. */
 export const IN_APP_UA = /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|Snapchat|TikTok|musical_ly|; wv\)/i;
 
-/** Runs as the HTML parses, before any React code. See app/layout.tsx. */
+/**
+ * Remembers that the app is on this phone. Chrome stops offering to install
+ * an app that is already installed, so without this the install button would
+ * wait for a prompt that never comes. On Android the installed app and Chrome
+ * share storage, so opening the app once marks it for the browser too.
+ */
+const INSTALLED_KEY = "rta-app-installed";
+
+/** Runs as the HTML parses, before any React code. See app/layout.tsx.
+ *  A prompt arriving means Chrome thinks the app is *not* installed (perhaps
+ *  it was removed), so it clears the mark. */
 export const EARLY_INSTALL_SCRIPT =
-  "window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__installPrompt=e;});" +
-  "window.addEventListener('appinstalled',function(){window.__installPrompt=null;});" +
+  "(function(){var k='" + INSTALLED_KEY + "';function s(f){try{f()}catch(e){}}" +
+  "window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__installPrompt=e;s(function(){localStorage.removeItem(k)});});" +
+  "window.addEventListener('appinstalled',function(){window.__installPrompt=null;s(function(){localStorage.setItem(k,'1')});});" +
+  "if(matchMedia('(display-mode: standalone)').matches||navigator.standalone)s(function(){localStorage.setItem(k,'1')});})();" +
   "if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(function(){});";
 
 export function detectPlatform(ua: string): Platform {
@@ -55,4 +67,22 @@ export function takeEarlyPrompt(): BeforeInstallPromptEvent | null {
 
 export function clearEarlyPrompt() {
   (window as InstallWindow).__installPrompt = null;
+}
+
+/** Best guess at whether the app is already installed on this device. */
+export async function isAppInstalled(): Promise<boolean> {
+  try {
+    if (localStorage.getItem(INSTALLED_KEY) === "1") return true;
+  } catch {
+    // Storage blocked; fall through to asking the browser.
+  }
+  const nav = navigator as Navigator & {
+    getInstalledRelatedApps?: () => Promise<unknown[]>;
+  };
+  if (!nav.getInstalledRelatedApps) return false;
+  try {
+    return (await nav.getInstalledRelatedApps()).length > 0;
+  } catch {
+    return false;
+  }
 }

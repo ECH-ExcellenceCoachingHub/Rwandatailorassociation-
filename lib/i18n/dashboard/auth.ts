@@ -134,6 +134,8 @@ export interface AuthCopy {
     continueInBrowser: string;
     supported: string;
     notSupported: string;
+    alreadyInstalledTitle: string;
+    alreadyInstalledBody: string;
     /// The bar along the bottom of every other page.
     bannerTitle: string;
     bannerBody: string;
@@ -269,6 +271,8 @@ export const auth: Record<Locale, AuthCopy> = {
       continueInBrowser: "Continue in the browser instead",
       supported: "Your phone can install this app",
       notSupported: "This browser cannot install apps. Use Chrome (Android) or Safari (iPhone).",
+      alreadyInstalledTitle: "The app is already on your phone",
+      alreadyInstalledBody: "Look for the STGT icon on your home screen and open it from there.",
       bannerTitle: "Get the STGT app",
       bannerBody: "Quick access to your savings from your home screen",
       bannerInstall: "Install",
@@ -406,6 +410,8 @@ export const auth: Record<Locale, AuthCopy> = {
       continueInBrowser: "Komeza muri mushakisha",
       supported: "Telefone yawe ishobora gushyiramo iyi porogaramu",
       notSupported: "Iyi mushakisha ntishobora gushyiramo porogaramu. Koresha Chrome (Android) cyangwa Safari (iPhone).",
+      alreadyInstalledTitle: "Porogaramu isanzwe iri kuri telefone yawe",
+      alreadyInstalledBody: "Shaka ikirango cya STGT kuri telefone yawe maze uyifungurire aho.",
       bannerTitle: "Porogaramu ya STGT",
       bannerBody: "Gera ku buzigame bwawe vuba uhereye kuri telefone",
       bannerInstall: "Shyiramo",

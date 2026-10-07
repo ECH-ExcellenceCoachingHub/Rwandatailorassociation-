@@ -12,6 +12,7 @@ import {
   canPromptInstall,
   clearEarlyPrompt,
   detectPlatform,
+  isAppInstalled,
   isStandalone,
   takeEarlyPrompt,
 } from "@/lib/pwa/install";
@@ -35,7 +36,7 @@ import {
  * straight to sign-in.
  */
 
-type View = "ready" | "installing" | "installed" | "ios" | "inApp" | "manual";
+type View = "ready" | "installing" | "installed" | "alreadyInstalled" | "ios" | "inApp" | "manual";
 
 export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
   // The server cannot see the phone, so it renders the install button: that is
@@ -71,11 +72,22 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
     if (initial !== "ready") return;
 
     deferred.current = takeEarlyPrompt();
+    let live = true;
+    // No prompt yet may just mean it is still coming; but if the app is
+    // already installed it never will, so say so instead of offering a
+    // button that cannot work.
+    if (!deferred.current) {
+      void isAppInstalled().then((installed) => {
+        if (live && installed && !deferred.current) setView("alreadyInstalled");
+      });
+    }
 
     const onPrompt = (e: Event) => {
       e.preventDefault();
       deferred.current = e as BeforeInstallPromptEvent;
       waiter.current?.(deferred.current);
+      // Chrome offering to install means it is not installed after all.
+      setView((v) => (v === "alreadyInstalled" ? "ready" : v));
     };
     const onInstalled = () => {
       deferred.current = null;
@@ -84,6 +96,7 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
     return () => {
+      live = false;
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
@@ -110,7 +123,7 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
     if (!event) {
       // No prompt: the app is already installed, or the browser declined to
       // offer it. Its own menu still works.
-      setView("manual");
+      setView((await isAppInstalled()) ? "alreadyInstalled" : "manual");
       return;
     }
     try {
@@ -154,7 +167,22 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
           </Button>
         )}
 
-        {supported !== null && view !== "installed" && (
+        {view === "alreadyInstalled" && (
+          <div className="space-y-5">
+            <div className="rounded-2xl bg-success/10 px-4 py-4">
+              <p className="flex items-center justify-center gap-2 font-heading text-base font-semibold text-ink">
+                <Check className="size-5 shrink-0 text-success" />
+                {copy.alreadyInstalledTitle}
+              </p>
+              <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{copy.alreadyInstalledBody}</p>
+            </div>
+            <Button asChild size="lg" className="w-full">
+              <Link href="/login">{copy.openApp}</Link>
+            </Button>
+          </div>
+        )}
+
+        {supported !== null && view !== "installed" && view !== "alreadyInstalled" && (
           <p
             className={`mt-4 flex items-center justify-center gap-1.5 text-xs font-medium ${
               supported ? "text-success" : "text-ink-muted"
@@ -216,7 +244,7 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
         )}
       </div>
 
-      {view !== "installed" && (
+      {view !== "installed" && view !== "alreadyInstalled" && (
         <p className="mt-8 text-sm">
           <Link href="/login" className="font-semibold text-primary underline-offset-4 hover:underline">
             {copy.continueInBrowser}

@@ -11,6 +11,7 @@ import {
   canPromptInstall,
   clearEarlyPrompt,
   detectPlatform,
+  isAppInstalled,
   isStandalone,
   takeEarlyPrompt,
 } from "@/lib/pwa/install";
@@ -22,8 +23,9 @@ import {
  * friends), the button opens it directly. Everywhere else, iPhone and in-app
  * browsers included, it goes to /install, which explains that phone's steps.
  *
- * Hidden inside the installed app, on /install itself (which is all about
- * installing), and for a week after someone closes it.
+ * Hidden inside the installed app, when the app is already on the phone, on
+ * /install itself (which is all about installing), and for a week after
+ * someone closes it.
  */
 
 const DISMISS_KEY = "rta-install-banner-dismissed";
@@ -51,18 +53,29 @@ export function InstallBanner() {
     // nothing useful to offer, so the bar is not worth the space there.
     if (detectPlatform(navigator.userAgent) === "other" && !canPromptInstall()) return;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reading the browser, which the server render cannot see
-    setShow(true);
-    setPrompt(takeEarlyPrompt());
+    const early = takeEarlyPrompt();
+    let live = true;
+    if (early) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reading the browser, which the server render cannot see
+      setShow(true);
+      setPrompt(early);
+    } else {
+      // Nothing to offer someone who already has the app.
+      void isAppInstalled().then((installed) => {
+        if (live && !installed) setShow(true);
+      });
+    }
 
     const onPrompt = (e: Event) => {
       e.preventDefault();
       setPrompt(e as BeforeInstallPromptEvent);
+      setShow(!dismissedRecently());
     };
     const onInstalled = () => setShow(false);
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
     return () => {
+      live = false;
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };

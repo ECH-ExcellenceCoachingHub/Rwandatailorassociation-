@@ -20,6 +20,9 @@ export default function manifest(): MetadataRoute.Manifest {
     orientation: "portrait",
     background_color: "#0b1b33",
     theme_color: "#0b1b33",
+    // Lets Chrome answer navigator.getInstalledRelatedApps() for this very
+    // app, so /install can tell someone it is already on their phone.
+    related_applications: [{ platform: "webapp", url: "/manifest.webmanifest" }],
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
