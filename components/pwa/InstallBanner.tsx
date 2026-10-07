@@ -66,8 +66,8 @@ export function InstallBanner() {
       });
     }
 
+    // Chrome's own install bar is held back by EARLY_INSTALL_SCRIPT.
     const onPrompt = (e: Event) => {
-      e.preventDefault();
       setPrompt(e as BeforeInstallPromptEvent);
       setShow(!dismissedRecently());
     };

@@ -30,10 +30,17 @@ const INSTALLED_KEY = "rta-app-installed";
 
 /** Runs as the HTML parses, before any React code. See app/layout.tsx.
  *  A prompt arriving means Chrome thinks the app is *not* installed (perhaps
- *  it was removed), so it clears the mark. */
+ *  it was removed), so it clears the mark.
+ *
+ *  This is the only place that decides whether Chrome may show its own
+ *  install bar, since one preventDefault from any listener hides it. On
+ *  /install we let it through: no page may open the install dialog without a
+ *  tap, but Chrome's own bar appears by itself as the page loads, which is as
+ *  close to automatic as browsers allow. Everywhere else it is held back for
+ *  our banner. The saved event still works for our buttons either way. */
 export const EARLY_INSTALL_SCRIPT =
   "(function(){var k='" + INSTALLED_KEY + "';function s(f){try{f()}catch(e){}}" +
-  "window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__installPrompt=e;s(function(){localStorage.removeItem(k)});});" +
+  "window.addEventListener('beforeinstallprompt',function(e){if(location.pathname.indexOf('/install')!==0)e.preventDefault();window.__installPrompt=e;s(function(){localStorage.removeItem(k)});});" +
   "window.addEventListener('appinstalled',function(){window.__installPrompt=null;s(function(){localStorage.setItem(k,'1')});});" +
   "if(matchMedia('(display-mode: standalone)').matches||navigator.standalone)s(function(){localStorage.setItem(k,'1')});})();" +
   "if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(function(){});";

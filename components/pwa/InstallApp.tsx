@@ -82,8 +82,9 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
       });
     }
 
+    // Not preventDefault: on this page Chrome's own install bar is wanted.
+    // See EARLY_INSTALL_SCRIPT.
     const onPrompt = (e: Event) => {
-      e.preventDefault();
       deferred.current = e as BeforeInstallPromptEvent;
       waiter.current?.(deferred.current);
       // Chrome offering to install means it is not installed after all.
