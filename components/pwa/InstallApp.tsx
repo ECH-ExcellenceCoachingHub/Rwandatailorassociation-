@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { Check, Copy, Download, ExternalLink, Info, Loader2, Share, SquarePlus } from "lucide-react";
+import { Check, Copy, ExternalLink, Info, Loader2, Share, SquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AuthCopy } from "@/lib/i18n/dashboard/auth";
 import {
@@ -11,7 +10,6 @@ import {
   type Platform,
   IN_APP_UA,
   canPromptInstall,
-  clearEarlyPrompt,
   detectPlatform,
   isAppInstalled,
   isStandalone,
@@ -69,8 +67,6 @@ export default function InstallApp({
   const deferred = useRef<BeforeInstallPromptEvent | null>(null);
   const waiter = useRef<((e: BeforeInstallPromptEvent | null) => void) | null>(null);
   const [copied, setCopied] = useState(false);
-  /** The prompt arrived while they were waiting: make the button stand out. */
-  const [readyNow, setReadyNow] = useState(false);
 
   const target = returnTo || "/login";
 
@@ -115,7 +111,6 @@ export default function InstallApp({
       // Chrome offering to install means it is not installed after all, and
       // anyone left waiting or reading the menu steps gets the button back.
       setView((v) => {
-        if (v === "preparing" || v === "manual") setReadyNow(true);
         return v === "alreadyInstalled" || v === "preparing" || v === "manual" ? "ready" : v;
       });
     };
@@ -132,48 +127,6 @@ export default function InstallApp({
     };
   }, [target]);
 
-  /** The browser's prompt, waiting briefly if the button was tapped before it
-   *  arrived. Chrome keeps a tap "fresh" for about five seconds, so a prompt
-   *  that turns up within that can still be shown. */
-  function promptEvent(): Promise<BeforeInstallPromptEvent | null> {
-    if (deferred.current) return Promise.resolve(deferred.current);
-    return new Promise((resolve) => {
-      const timer = window.setTimeout(() => resolve(null), 4000);
-      waiter.current = (e) => {
-        window.clearTimeout(timer);
-        resolve(e);
-      };
-    });
-  }
-
-  async function install() {
-    setReadyNow(false);
-    // With the prompt in hand this is instant; without it, say we are getting
-    // ready rather than leaving a frozen button.
-    setView(deferred.current ? "installing" : "preparing");
-    const event = await promptEvent();
-    waiter.current = null;
-    if (!event) {
-      // Still no prompt. Either the app is already installed, or Chrome has
-      // not seen enough of the visitor yet — in which case it is coming, and
-      // onPrompt will swap the button back in.
-      if (await isAppInstalled()) setView("alreadyInstalled");
-      else if (!canPromptInstall()) setView("manual");
-      return;
-    }
-    setView("installing");
-    try {
-      await event.prompt();
-      const { outcome } = await event.userChoice;
-      setView(outcome === "accepted" ? "installed" : "ready");
-    } catch {
-      setView("manual");
-    } finally {
-      // A prompt event can only be used once.
-      deferred.current = null;
-      clearEarlyPrompt();
-    }
-  }
 
   async function copyLink() {
     try {
@@ -196,39 +149,6 @@ export default function InstallApp({
       <p className="mt-2 text-sm leading-relaxed text-ink-muted">{copy.subtitle}</p>
 
       <div className="mt-8">
-        {/* A large version of the bottom-of-page install banner, which people
-            already recognise: app icon, name, one button. */}
-        {(view === "ready" || view === "installing") && (
-          <div
-            className={`rounded-3xl border border-border bg-surface p-6 shadow-[0_12px_40px_rgba(0,0,0,0.12)] ${
-              readyNow ? "ring-4 ring-primary/25" : ""
-            }`}
-          >
-            <div className="flex items-center gap-4 text-left">
-              <Image
-                src="/icons/icon-192.png"
-                alt=""
-                width={72}
-                height={72}
-                className="size-[72px] shrink-0 rounded-2xl shadow-md"
-              />
-              <div className="min-w-0">
-                <p className="font-heading text-lg font-bold leading-snug text-ink">{copy.bannerTitle}</p>
-                <p className="mt-1 text-sm leading-snug text-ink-muted">{copy.bannerBody}</p>
-              </div>
-            </div>
-            <Button
-              size="lg"
-              className="mt-6 h-16 w-full text-lg"
-              onClick={install}
-              disabled={view === "installing"}
-            >
-              <Download className="size-6" />
-              {view === "installing" ? copy.installing : readyNow ? copy.readyNow : copy.installButton}
-            </Button>
-          </div>
-        )}
-
         {view === "alreadyInstalled" && (
           <div className="space-y-5">
             <div className="rounded-2xl bg-success/10 px-4 py-4">

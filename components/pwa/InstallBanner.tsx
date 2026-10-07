@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { X } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import {
   type BeforeInstallPromptEvent,
@@ -14,18 +14,6 @@ import {
   isStandalone,
   takeEarlyPrompt,
 } from "@/lib/pwa/install";
-
-/**
- * "Install the app" bar along the bottom of every page.
- *
- * Where the browser has given us its install prompt (Android Chrome and
- * friends), the button opens it directly. Everywhere else, iPhone and in-app
- * browsers included, it goes to /install, which explains that phone's steps.
- *
- * Hidden inside the installed app, when the app is already on the phone, on
- * /install itself (which is all about installing), and for a week after
- * someone closes it.
- */
 
 const DISMISS_KEY = "rta-install-banner-dismissed";
 const DISMISS_FOR_MS = 7 * 24 * 60 * 60 * 1000;
@@ -39,17 +27,18 @@ function dismissedRecently() {
   }
 }
 
+type BannerView = "idle" | "installing" | "installed";
+
 export function InstallBanner() {
   const pathname = usePathname();
   const { d } = useLanguage();
   const copy = d.auth.install;
   const [show, setShow] = useState(false);
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [view, setView] = useState<BannerView>("idle");
 
   useEffect(() => {
-    if (isStandalone() || dismissedRecently()) return;
-    // Desktop browsers without an install prompt (Safari, Firefox) have
-    // nothing useful to offer, so the bar is not worth the space there.
+    if (isStandalone()) return;
     if (detectPlatform(navigator.userAgent) === "other" && !canPromptInstall()) return;
 
     const early = takeEarlyPrompt();
@@ -59,18 +48,22 @@ export function InstallBanner() {
       setShow(true);
       setPrompt(early);
     } else {
-      // Nothing to offer someone who already has the app.
       void isAppInstalled().then((installed) => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- reading the browser, which the server render cannot see
         if (live && !installed) setShow(true);
       });
     }
 
-    // Chrome's own install bar is held back by EARLY_INSTALL_SCRIPT.
     const onPrompt = (e: Event) => {
       setPrompt(e as BeforeInstallPromptEvent);
       setShow(!dismissedRecently());
     };
-    const onInstalled = () => setShow(false);
+    const onInstalled = () => {
+      setView("installed");
+      setPrompt(null);
+      clearEarlyPrompt();
+      setTimeout(() => setShow(false), 3000);
+    };
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
     return () => {
@@ -80,16 +73,16 @@ export function InstallBanner() {
     };
   }, []);
 
-  if (!show || pathname.startsWith("/install")) return null;
+  if (!show) return null;
 
   async function install() {
-    if (!prompt) return;
+    if (!prompt || view !== "idle") return;
+    setView("installing");
     try {
       await prompt.prompt();
       const { outcome } = await prompt.userChoice;
-      if (outcome === "accepted") setShow(false);
+      if (outcome !== "accepted") setView("idle");
     } finally {
-      // A prompt event can only be used once.
       setPrompt(null);
       clearEarlyPrompt();
     }
@@ -97,6 +90,7 @@ export function InstallBanner() {
 
   function dismiss() {
     setShow(false);
+    setView("idle");
     try {
       localStorage.setItem(DISMISS_KEY, String(Date.now()));
     } catch {
@@ -123,9 +117,23 @@ export function InstallBanner() {
         />
         <div className="min-w-0 flex-1 text-left">
           <p className="font-heading text-lg font-semibold leading-snug text-ink">{copy.bannerTitle}</p>
-          <p className="line-clamp-2 text-sm leading-snug text-ink-muted">{copy.bannerBody}</p>
+          {view === "installed" ? (
+            <p className="line-clamp-2 text-sm leading-snug text-success">{copy.installed}</p>
+          ) : view === "installing" ? (
+            <p className="line-clamp-2 text-sm leading-snug text-ink-muted">{copy.installing}</p>
+          ) : (
+            <p className="line-clamp-2 text-sm leading-snug text-ink-muted">{copy.bannerBody}</p>
+          )}
         </div>
-        {prompt ? (
+        {view === "installed" ? (
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
+            <Check className="size-5" />
+          </span>
+        ) : view === "installing" ? (
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <Loader2 className="size-5 animate-spin" />
+          </span>
+        ) : prompt ? (
           <button type="button" onClick={install} className={button}>
             {copy.bannerInstall}
           </button>
@@ -134,14 +142,16 @@ export function InstallBanner() {
             {copy.bannerInstall}
           </a>
         )}
-        <button
-          type="button"
-          onClick={dismiss}
-          aria-label={copy.bannerDismiss}
-          className="flex size-9 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-ink/5"
-        >
-          <X className="size-5" />
-        </button>
+        {view === "idle" && (
+          <button
+            type="button"
+            onClick={dismiss}
+            aria-label={copy.bannerDismiss}
+            className="flex size-9 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-ink/5"
+          >
+            <X className="size-5" />
+          </button>
+        )}
       </div>
     </div>
   );
