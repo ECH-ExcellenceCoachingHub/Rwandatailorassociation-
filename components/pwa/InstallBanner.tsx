@@ -132,7 +132,7 @@ export function InstallBanner() {
         ) : (
           // A full page load, not client-side navigation: Chrome sends a fresh
           // install prompt only when a page loads, and /install needs one.
-          <a href="/install" className={button}>
+          <a href={`/install?returnTo=${encodeURIComponent(pathname)}`} className={button}>
             {copy.bannerInstall}
           </a>
         )}

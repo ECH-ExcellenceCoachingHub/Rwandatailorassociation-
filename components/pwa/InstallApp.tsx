@@ -53,7 +53,13 @@ type View =
   | "inApp"
   | "manual";
 
-export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
+export default function InstallApp({
+  copy,
+  returnTo,
+}: {
+  copy: AuthCopy["install"];
+  returnTo?: string;
+}) {
   // The server cannot see the phone, so it renders the install button: that is
   // what most visitors (Android Chrome) need, and it is on screen from the very
   // first paint. The effect below swaps it for iPhone steps etc. if needed.
@@ -66,9 +72,11 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
   /** The prompt arrived while they were waiting: make the button stand out. */
   const [readyNow, setReadyNow] = useState(false);
 
+  const target = returnTo || "/login";
+
   useEffect(() => {
     if (isStandalone()) {
-      window.location.replace("/login");
+      window.location.replace(target);
       return;
     }
 
@@ -231,7 +239,7 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
               <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{copy.alreadyInstalledBody}</p>
             </div>
             <Button asChild size="lg" className="w-full">
-              <Link href="/login">{copy.openApp}</Link>
+              <Link href={target}>{copy.openApp}</Link>
             </Button>
           </div>
         )}
@@ -254,7 +262,7 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
               {copy.installed}
             </p>
             <Button asChild size="lg" className="w-full">
-              <Link href="/login">{copy.openApp}</Link>
+              <Link href={target}>{copy.openApp}</Link>
             </Button>
           </div>
         )}
