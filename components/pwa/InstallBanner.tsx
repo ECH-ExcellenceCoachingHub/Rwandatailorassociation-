@@ -79,7 +79,7 @@ export function InstallBanner({ variant = "default" }: { variant?: BannerVariant
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
-  }, []);
+  }, [variant, pathname]);
 
   if (!show) return null;
 

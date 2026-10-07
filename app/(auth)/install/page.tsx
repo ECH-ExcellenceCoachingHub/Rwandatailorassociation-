@@ -26,8 +26,6 @@ interface InstallPageProps {
   searchParams?: Promise<{ returnTo?: string }>;
 }
 
-export default async function InstallPage({
-  searchParams,
-}: InstallPageProps) {
+export default async function InstallPage() {
   return <InstallBanner variant="page" />;
 }
