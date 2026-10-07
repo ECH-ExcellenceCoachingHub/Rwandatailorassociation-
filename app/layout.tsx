@@ -37,6 +37,7 @@ export const metadata: Metadata = {
   title: "Rwanda Tailors Association | Empowering Tailors, Building Rwanda",
   description:
     "The official association representing tailors across Rwanda. Together we promote quality, innovation, business growth and a stronger tailoring industry.",
+  metadataBase: new URL(process.env.APP_URL || "http://localhost:10000"),
   keywords: [
     "Rwanda Tailors Association",
     "RTA",
