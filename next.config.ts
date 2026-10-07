@@ -12,6 +12,16 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   serverExternalPackages: ["@node-rs/argon2", "pino", "exceljs"],
+  // The service worker must never be served stale, or a fix to it would take
+  // days to reach phones that already installed the app.
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

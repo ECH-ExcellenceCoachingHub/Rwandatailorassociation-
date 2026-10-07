@@ -111,6 +111,28 @@ export interface AuthCopy {
     keepReference: string;
     backToWebsite: string;
   };
+  /// The shareable /install page that puts the app on a member's phone.
+  install: {
+    title: string;
+    subtitle: string;
+    installButton: string;
+    installing: string;
+    installed: string;
+    openApp: string;
+    iosTitle: string;
+    iosStep1: string;
+    iosStep2: string;
+    iosStep3: string;
+    iosSafariOnly: string;
+    inAppTitle: string;
+    inAppBody: string;
+    openInBrowser: string;
+    copyLink: string;
+    copied: string;
+    manualTitle: string;
+    manualBody: string;
+    continueInBrowser: string;
+  };
   /// The password requirements checklist, keyed by the codes the assessment
   /// emits, and the line that sums up what is still missing.
   password: {
@@ -217,6 +239,27 @@ export const auth: Record<Locale, AuthCopy> = {
       keepReference:
         "Keep your payment reference safe. Once your membership is active, quote it on every contribution so it reaches your savings account.",
       backToWebsite: "Back to the website",
+    },
+    install: {
+      title: "Install the STGT app",
+      subtitle: "Add the app to your phone's home screen. It opens straight to sign-in, with no app store needed.",
+      installButton: "Install app",
+      installing: "Installing…",
+      installed: "Installed. Look for the STGT icon on your home screen.",
+      openApp: "Go to sign-in",
+      iosTitle: "On iPhone or iPad",
+      iosStep1: "Tap the Share button at the bottom of Safari (a square with an arrow).",
+      iosStep2: "Scroll down and tap “Add to Home Screen”.",
+      iosStep3: "Tap “Add”. The STGT icon appears on your home screen.",
+      iosSafariOnly: "If you do not see “Add to Home Screen”, open this link in Safari.",
+      inAppTitle: "Open this link in your browser",
+      inAppBody: "Apps like WhatsApp, Facebook and Instagram cannot install apps. Open this page in Chrome (Android) or Safari (iPhone) to install.",
+      openInBrowser: "Open in Chrome",
+      copyLink: "Copy link",
+      copied: "Link copied",
+      manualTitle: "Install from the browser menu",
+      manualBody: "Tap the browser menu (⋮) and choose “Install app” or “Add to Home screen”.",
+      continueInBrowser: "Continue in the browser instead",
     },
     password: {
       requirementsTitle: "Your password needs:",
@@ -327,6 +370,27 @@ export const auth: Record<Locale, AuthCopy> = {
       keepReference:
         "Bika neza nimero yawe y'ubwishyu. Ubunyamuryango bwawe bumaze gukora, uyandike kuri buri musanzu kugira ngo ugere kuri konti yawe y'ubuzigame.",
       backToWebsite: "Subira ku rubuga",
+    },
+    install: {
+      title: "Shyira porogaramu ya STGT kuri telefone",
+      subtitle: "Shyira porogaramu kuri telefone yawe. Ifungukira ahinjirirwa ako kanya, nta Play Store cyangwa App Store ikenewe.",
+      installButton: "Shyiramo porogaramu",
+      installing: "Birimo gushyirwamo…",
+      installed: "Byarangiye. Shaka ikirango cya STGT kuri telefone yawe.",
+      openApp: "Jya ahinjirirwa",
+      iosTitle: "Kuri iPhone cyangwa iPad",
+      iosStep1: "Kanda akabuto ko Gusangiza (Share) hasi muri Safari (kare irimo akambi).",
+      iosStep2: "Manuka maze ukande “Add to Home Screen”.",
+      iosStep3: "Kanda “Add”. Ikirango cya STGT kiragaragara kuri telefone yawe.",
+      iosSafariOnly: "Niba utabona “Add to Home Screen”, fungura iyi link muri Safari.",
+      inAppTitle: "Fungura iyi link muri mushakisha",
+      inAppBody: "Porogaramu nka WhatsApp, Facebook na Instagram ntizishobora gushyiramo porogaramu. Fungura iyi paji muri Chrome (Android) cyangwa Safari (iPhone).",
+      openInBrowser: "Fungura muri Chrome",
+      copyLink: "Koporora link",
+      copied: "Link yakoporowe",
+      manualTitle: "Shyiramo ukoresheje menu ya mushakisha",
+      manualBody: "Kanda menu ya mushakisha (⋮) maze uhitemo “Install app” cyangwa “Add to Home screen”.",
+      continueInBrowser: "Komeza muri mushakisha",
     },
     password: {
       requirementsTitle: "Ijambobanga rigomba kugira:",

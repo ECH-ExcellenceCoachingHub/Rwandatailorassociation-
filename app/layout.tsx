@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Poppins, Manrope } from "next/font/google";
 import { LanguageProvider } from "@/components/LanguageProvider";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
+import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import "./globals.css";
 
 /**
@@ -50,6 +51,19 @@ export const metadata: Metadata = {
     alternateLocale: "en_RW",
     type: "website",
   },
+  // Installed-app behaviour on iPhone, which ignores most of the manifest.
+  appleWebApp: {
+    capable: true,
+    title: "STGT",
+    statusBarStyle: "black-translucent",
+  },
+  icons: {
+    apple: "/icons/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0b1b33",
 };
 
 export default function RootLayout({
@@ -69,6 +83,7 @@ export default function RootLayout({
     >
       <body className="min-h-full bg-background text-ink">
         <LanguageProvider>{children}</LanguageProvider>
+        <ServiceWorkerRegister />
       </body>
     </html>
   );

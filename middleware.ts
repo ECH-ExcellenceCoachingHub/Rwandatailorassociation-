@@ -107,6 +107,6 @@ export const config = {
      * Everything except static assets and image files. The public pages still
      * pass through — they get the security headers but no auth checks.
      */
-    "/((?!_next/static|_next/image|favicon.ico|icon.jpg|images|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.jpg|images|icons|sw\\.js|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
