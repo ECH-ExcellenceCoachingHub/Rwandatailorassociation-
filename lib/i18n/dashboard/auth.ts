@@ -132,6 +132,8 @@ export interface AuthCopy {
     manualTitle: string;
     manualBody: string;
     continueInBrowser: string;
+    supported: string;
+    notSupported: string;
   };
   /// The password requirements checklist, keyed by the codes the assessment
   /// emits, and the line that sums up what is still missing.
@@ -258,8 +260,10 @@ export const auth: Record<Locale, AuthCopy> = {
       copyLink: "Copy link",
       copied: "Link copied",
       manualTitle: "Install from the browser menu",
-      manualBody: "Tap the browser menu (⋮) and choose “Install app” or “Add to Home screen”.",
+      manualBody: "Tap the browser menu (⋮) and choose “Install app” or “Add to Home screen”. If you only see “Open app”, it is already installed.",
       continueInBrowser: "Continue in the browser instead",
+      supported: "Your phone can install this app",
+      notSupported: "This browser cannot install apps. Use Chrome (Android) or Safari (iPhone).",
     },
     password: {
       requirementsTitle: "Your password needs:",
@@ -389,8 +393,10 @@ export const auth: Record<Locale, AuthCopy> = {
       copyLink: "Koporora link",
       copied: "Link yakoporowe",
       manualTitle: "Shyiramo ukoresheje menu ya mushakisha",
-      manualBody: "Kanda menu ya mushakisha (⋮) maze uhitemo “Install app” cyangwa “Add to Home screen”.",
+      manualBody: "Kanda menu ya mushakisha (⋮) maze uhitemo “Install app” cyangwa “Add to Home screen”. Niba ubona “Open app” gusa, isanzwe iri kuri telefone yawe.",
       continueInBrowser: "Komeza muri mushakisha",
+      supported: "Telefone yawe ishobora gushyiramo iyi porogaramu",
+      notSupported: "Iyi mushakisha ntishobora gushyiramo porogaramu. Koresha Chrome (Android) cyangwa Safari (iPhone).",
     },
     password: {
       requirementsTitle: "Ijambobanga rigomba kugira:",

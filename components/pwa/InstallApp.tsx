@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Copy, Download, ExternalLink, Share, SquarePlus } from "lucide-react";
+import { Check, Copy, Download, ExternalLink, Info, Share, SquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AuthCopy } from "@/lib/i18n/dashboard/auth";
 
@@ -31,7 +31,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 type Platform = "android" | "ios" | "other";
-type View = "detecting" | "prompt" | "installing" | "installed" | "ios" | "inApp" | "manual";
+type View = "ready" | "installing" | "installed" | "ios" | "inApp" | "manual";
 
 const IN_APP_UA = /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|Snapchat|TikTok|musical_ly|; wv\)/i;
 
@@ -52,9 +52,14 @@ function isStandalone() {
 }
 
 export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
-  const [view, setView] = useState<View>("detecting");
+  // The server cannot see the phone, so it renders the install button: that is
+  // what most visitors (Android Chrome) need, and it is on screen from the very
+  // first paint. The effect below swaps it for iPhone steps etc. if needed.
+  const [view, setView] = useState<View>("ready");
   const [platform, setPlatform] = useState<Platform>("other");
-  const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
+  const [supported, setSupported] = useState<boolean | null>(null);
+  const deferred = useRef<BeforeInstallPromptEvent | null>(null);
+  const waiter = useRef<((e: BeforeInstallPromptEvent | null) => void) | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -65,47 +70,75 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
 
     const ua = navigator.userAgent;
     const p = detectPlatform(ua);
-    const early = (window as Window & { __installPrompt?: BeforeInstallPromptEvent }).__installPrompt;
-    const initial: View = IN_APP_UA.test(ua) ? "inApp" : p === "ios" ? "ios" : early ? "prompt" : "detecting";
+    // Chromium browsers (Chrome, Edge, Samsung Internet, Opera) expose this
+    // handler; Safari and Firefox do not, and cannot be prompted.
+    const canPrompt = "onbeforeinstallprompt" in window;
+    const initial: View = IN_APP_UA.test(ua)
+      ? "inApp"
+      : p === "ios"
+        ? "ios"
+        : canPrompt
+          ? "ready"
+          : "manual";
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reading the browser, which the server render cannot see
     setPlatform(p);
+    setSupported(canPrompt || p === "ios");
     setView(initial);
-    if (initial !== "prompt" && initial !== "detecting") return;
-    if (early) setDeferred(early);
+    if (initial !== "ready") return;
+
+    deferred.current = (window as Window & { __installPrompt?: BeforeInstallPromptEvent }).__installPrompt ?? null;
 
     const onPrompt = (e: Event) => {
       e.preventDefault();
-      setDeferred(e as BeforeInstallPromptEvent);
-      setView("prompt");
+      deferred.current = e as BeforeInstallPromptEvent;
+      waiter.current?.(deferred.current);
     };
     const onInstalled = () => {
-      setDeferred(null);
+      deferred.current = null;
       setView("installed");
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
-
-    // The prompt normally arrives within a second of the service worker
-    // registering. If it has not by now, this browser will not send one.
-    const fallback = window.setTimeout(() => {
-      setView((v) => (v === "detecting" ? "manual" : v));
-    }, 4000);
-
     return () => {
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
-      window.clearTimeout(fallback);
     };
   }, []);
 
+  /** The browser's prompt, waiting briefly if the button was tapped before it
+   *  arrived. Chrome keeps a tap "fresh" for about five seconds, so a prompt
+   *  that turns up within that can still be shown. */
+  function promptEvent(): Promise<BeforeInstallPromptEvent | null> {
+    if (deferred.current) return Promise.resolve(deferred.current);
+    return new Promise((resolve) => {
+      const timer = window.setTimeout(() => resolve(null), 4000);
+      waiter.current = (e) => {
+        window.clearTimeout(timer);
+        resolve(e);
+      };
+    });
+  }
+
   async function install() {
-    if (!deferred) return;
     setView("installing");
-    await deferred.prompt();
-    const { outcome } = await deferred.userChoice;
-    // A prompt event can only be used once.
-    setDeferred(null);
-    setView(outcome === "accepted" ? "installed" : "manual");
+    const event = await promptEvent();
+    waiter.current = null;
+    if (!event) {
+      // No prompt: the app is already installed, or the browser declined to
+      // offer it. Its own menu still works.
+      setView("manual");
+      return;
+    }
+    try {
+      await event.prompt();
+      const { outcome } = await event.userChoice;
+      setView(outcome === "accepted" ? "installed" : "ready");
+    } catch {
+      setView("manual");
+    } finally {
+      // A prompt event can only be used once.
+      deferred.current = null;
+    }
   }
 
   async function copyLink() {
@@ -129,13 +162,22 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
       <p className="mt-2 text-sm leading-relaxed text-ink-muted">{copy.subtitle}</p>
 
       <div className="mt-8">
-        {view === "detecting" && <div className="mx-auto h-14 w-full animate-pulse rounded-full bg-ink/5" />}
-
-        {(view === "prompt" || view === "installing") && (
+        {(view === "ready" || view === "installing") && (
           <Button size="lg" className="w-full" onClick={install} disabled={view === "installing"}>
             <Download className="size-5" />
             {view === "installing" ? copy.installing : copy.installButton}
           </Button>
+        )}
+
+        {supported !== null && view !== "installed" && (
+          <p
+            className={`mt-4 flex items-center justify-center gap-1.5 text-xs font-medium ${
+              supported ? "text-success" : "text-ink-muted"
+            }`}
+          >
+            {supported ? <Check className="size-4" /> : <Info className="size-4" />}
+            {supported ? copy.supported : copy.notSupported}
+          </p>
         )}
 
         {view === "installed" && (

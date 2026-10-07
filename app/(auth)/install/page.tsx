@@ -25,13 +25,15 @@ export default async function InstallPage() {
   const { d } = await getDashboardCopy();
   return (
     <>
-      {/* Chrome can fire the install prompt before React has hydrated, and the
-          event is not repeated. Catch it as the HTML parses; InstallApp picks
-          it up from here when it mounts. */}
+      {/* Runs as the HTML parses, before React loads. Registering the service
+          worker here rather than after hydration lets Chrome judge the site
+          installable seconds sooner, and the install prompt it then fires is
+          not repeated, so it is caught here for InstallApp to pick up. */}
       <script
         dangerouslySetInnerHTML={{
           __html:
-            "window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__installPrompt=e;});",
+            "window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__installPrompt=e;});" +
+            "if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(function(){});",
         }}
       />
       <InstallApp copy={d.auth.install} />
