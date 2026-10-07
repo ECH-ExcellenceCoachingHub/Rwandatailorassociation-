@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { X } from "lucide-react";
@@ -131,9 +130,11 @@ export function InstallBanner() {
             {copy.bannerInstall}
           </button>
         ) : (
-          <Link href="/install" className={button}>
+          // A full page load, not client-side navigation: Chrome sends a fresh
+          // install prompt only when a page loads, and /install needs one.
+          <a href="/install" className={button}>
             {copy.bannerInstall}
-          </Link>
+          </a>
         )}
         <button
           type="button"

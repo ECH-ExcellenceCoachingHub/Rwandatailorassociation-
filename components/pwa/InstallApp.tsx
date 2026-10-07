@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Check, Copy, Download, ExternalLink, Info, Loader2, Share, SquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AuthCopy } from "@/lib/i18n/dashboard/auth";
@@ -187,16 +188,37 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
       <p className="mt-2 text-sm leading-relaxed text-ink-muted">{copy.subtitle}</p>
 
       <div className="mt-8">
+        {/* A large version of the bottom-of-page install banner, which people
+            already recognise: app icon, name, one button. */}
         {(view === "ready" || view === "installing") && (
-          <Button
-            size="lg"
-            className={`w-full ${readyNow ? "ring-4 ring-primary/25" : ""}`}
-            onClick={install}
-            disabled={view === "installing"}
+          <div
+            className={`rounded-3xl border border-border bg-surface p-6 shadow-[0_12px_40px_rgba(0,0,0,0.12)] ${
+              readyNow ? "ring-4 ring-primary/25" : ""
+            }`}
           >
-            <Download className="size-5" />
-            {view === "installing" ? copy.installing : readyNow ? copy.readyNow : copy.installButton}
-          </Button>
+            <div className="flex items-center gap-4 text-left">
+              <Image
+                src="/icons/icon-192.png"
+                alt=""
+                width={72}
+                height={72}
+                className="size-[72px] shrink-0 rounded-2xl shadow-md"
+              />
+              <div className="min-w-0">
+                <p className="font-heading text-lg font-bold leading-snug text-ink">{copy.bannerTitle}</p>
+                <p className="mt-1 text-sm leading-snug text-ink-muted">{copy.bannerBody}</p>
+              </div>
+            </div>
+            <Button
+              size="lg"
+              className="mt-6 h-16 w-full text-lg"
+              onClick={install}
+              disabled={view === "installing"}
+            >
+              <Download className="size-6" />
+              {view === "installing" ? copy.installing : readyNow ? copy.readyNow : copy.installButton}
+            </Button>
+          </div>
         )}
 
         {view === "alreadyInstalled" && (
