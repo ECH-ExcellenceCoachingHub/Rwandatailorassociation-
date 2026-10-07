@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/jwt";
 import { ROLE_HOME, ROLE_LANDING } from "@/lib/auth/permissions";
+import { relativeRedirect } from "@/lib/relative-redirect";
 
 /**
  * Edge middleware: routing and coarse role separation.
@@ -59,24 +60,23 @@ export async function middleware(request: NextRequest) {
 
   if (protectedRoute) {
     if (!claims) {
-      const loginUrl = new URL("/login", request.url);
       // Preserve the destination so login can return them to it. Only the
       // path and query are carried over — never an absolute URL, which would
       // turn this into an open redirect.
-      loginUrl.searchParams.set("next", pathname + request.nextUrl.search);
-      return NextResponse.redirect(loginUrl);
+      const params = new URLSearchParams({ next: pathname + request.nextUrl.search });
+      return relativeRedirect(`/login?${params}`);
     }
 
     if (!protectedRoute.roles.includes(claims.role)) {
       // Wrong area for this role — send them to their own dashboard rather
       // than to a dead end.
-      return NextResponse.redirect(new URL(ROLE_HOME[claims.role], request.url));
+      return relativeRedirect(ROLE_HOME[claims.role]);
     }
   }
 
   if (claims && AUTH_ROUTES.some((route) => pathname.startsWith(route))) {
     // Already signed in, so treat it as arriving: the same place login sends them.
-    return NextResponse.redirect(new URL(ROLE_LANDING[claims.role], request.url));
+    return relativeRedirect(ROLE_LANDING[claims.role]);
   }
 
   // Server components cannot see the request URL, and the dashboard layout

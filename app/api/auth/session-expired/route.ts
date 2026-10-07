@@ -1,4 +1,5 @@
-import { NextResponse, type NextRequest } from "next/server";
+import type { NextRequest } from "next/server";
+import { relativeRedirect } from "@/lib/relative-redirect";
 import { getAuthContext } from "@/lib/auth/session";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/jwt";
 import { ROLE_LANDING } from "@/lib/auth/permissions";
@@ -27,19 +28,18 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
 
   const context = await getAuthContext();
   if (context) {
-    return NextResponse.redirect(
-      new URL(next ?? ROLE_LANDING[context.user.role], request.url)
-    );
+    return relativeRedirect(next ?? ROLE_LANDING[context.user.role]);
   }
 
-  const loginUrl = new URL("/login", request.url);
-  if (next) loginUrl.searchParams.set("next", next);
+  const params = new URLSearchParams();
+  if (next) params.set("next", next);
   // Only say "your session expired" when there was a session to expire.
   if (request.cookies.has(SESSION_COOKIE_NAME)) {
-    loginUrl.searchParams.set("expired", "1");
+    params.set("expired", "1");
   }
 
-  const response = NextResponse.redirect(loginUrl);
+  const query = params.toString();
+  const response = relativeRedirect(query ? `/login?${query}` : "/login");
   response.cookies.delete(SESSION_COOKIE_NAME);
   return response;
 });

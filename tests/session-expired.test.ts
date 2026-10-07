@@ -41,7 +41,7 @@ describe("GET /api/auth/session-expired", () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
-      "http://localhost/login?next=%2Fadmin&expired=1"
+      "/login?next=%2Fadmin&expired=1"
     );
     expect(clearsSessionCookie(response)).toBe(true);
   });
@@ -52,7 +52,7 @@ describe("GET /api/auth/session-expired", () => {
     const response = await GET(request("?next=%2Fadmin"));
 
     expect(response.headers.get("location")).toBe(
-      "http://localhost/login?next=%2Fadmin"
+      "/login?next=%2Fadmin"
     );
   });
 
@@ -62,7 +62,7 @@ describe("GET /api/auth/session-expired", () => {
 
     const response = await GET(request("?next=%2Fadmin%2Fmembers", "rta_session=live"));
 
-    expect(response.headers.get("location")).toBe("http://localhost/admin/members");
+    expect(response.headers.get("location")).toBe("/admin/members");
     expect(response.headers.get("set-cookie")).toBeNull();
   });
 
@@ -71,7 +71,21 @@ describe("GET /api/auth/session-expired", () => {
 
     const response = await GET(request("", "rta_session=live"));
 
-    expect(response.headers.get("location")).toBe("http://localhost/account/status");
+    expect(response.headers.get("location")).toBe("/account/status");
+  });
+
+  it("redirects with a relative path, not the server's bind address", async () => {
+    // Behind Render's proxy request.url is https://0.0.0.0:10000/..., and an
+    // absolute redirect built from it sends the browser nowhere.
+    getAuthContext.mockResolvedValue(null);
+
+    const response = await GET(
+      new NextRequest("https://0.0.0.0:10000/api/auth/session-expired?next=%2Fadmin", {
+        headers: { cookie: "rta_session=stale" },
+      })
+    );
+
+    expect(response.headers.get("location")).toBe("/login?next=%2Fadmin&expired=1");
   });
 
   it("drops an off-site next parameter", async () => {
@@ -81,7 +95,7 @@ describe("GET /api/auth/session-expired", () => {
       request("?next=https%3A%2F%2Fevil.example.com", "rta_session=stale")
     );
 
-    expect(response.headers.get("location")).toBe("http://localhost/login?expired=1");
+    expect(response.headers.get("location")).toBe("/login?expired=1");
   });
 });
 
