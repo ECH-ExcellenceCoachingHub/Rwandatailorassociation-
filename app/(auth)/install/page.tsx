@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { getDashboardCopy } from "@/lib/i18n/server";
 
 /**
@@ -22,10 +21,14 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-interface InstallPageProps {
-  searchParams?: Promise<{ returnTo?: string }>;
-}
-
 export default async function InstallPage() {
-  return <InstallBanner variant="page" />;
+  const { d } = await getDashboardCopy();
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="text-center">
+        <h1 className="font-heading text-3xl font-bold text-ink mb-4">{d.auth.install.title}</h1>
+        <p className="text-ink-muted max-w-md mx-auto">{d.auth.install.subtitle}</p>
+      </div>
+    </div>
+  );
 }
