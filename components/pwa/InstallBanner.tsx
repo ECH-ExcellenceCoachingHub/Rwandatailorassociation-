@@ -28,8 +28,9 @@ function dismissedRecently() {
 }
 
 type BannerView = "idle" | "installing" | "installed";
+type BannerVariant = "default" | "page";
 
-export function InstallBanner() {
+export function InstallBanner({ variant = "default" }: { variant?: BannerVariant } = {}) {
   const pathname = usePathname();
   const { d } = useLanguage();
   const copy = d.auth.install;
@@ -38,7 +39,11 @@ export function InstallBanner() {
   const [view, setView] = useState<BannerView>("idle");
 
   useEffect(() => {
-    if (pathname === "/install") return;
+    if (variant === "page" && isStandalone()) {
+      window.location.replace(pathname === "/install" ? "/login" : pathname);
+      return;
+    }
+
     if (isStandalone()) return;
     // Desktop browsers without an install prompt (Safari, Firefox) have
     // nothing useful to offer, so the bar is not worth the space there.
@@ -104,28 +109,44 @@ export function InstallBanner() {
   const button =
     "inline-flex h-12 shrink-0 items-center rounded-full bg-primary px-5 text-base font-semibold text-white hover:bg-primary-hover active:scale-[0.98]";
 
+  const isPageVariant = variant === "page";
+
   return (
     <div
       role="region"
       aria-label={copy.bannerTitle}
-      className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6"
+      className={
+        isPageVariant
+          ? "mx-auto max-w-2xl px-4 py-8 sm:px-6"
+          : "fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6"
+      }
     >
-      <div className="mx-auto flex max-w-2xl items-center gap-4 rounded-3xl border border-border bg-surface p-5 shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
+      <div
+        className={
+          isPageVariant
+            ? "flex flex-col items-center gap-6 rounded-3xl border border-border bg-surface p-8 shadow-[0_12px_40px_rgba(0,0,0,0.18)] sm:p-10"
+            : "mx-auto flex max-w-2xl items-center gap-4 rounded-3xl border border-border bg-surface p-5 shadow-[0_12px_40px_rgba(0,0,0,0.18)]"
+        }
+      >
         <Image
           src="/icons/icon-192.png"
           alt=""
-          width={72}
-          height={72}
-          className="size-[72px] shrink-0 rounded-2xl shadow-md"
+          width={isPageVariant ? 120 : 72}
+          height={isPageVariant ? 120 : 72}
+          className={
+            isPageVariant
+              ? "size-[120px] shrink-0 rounded-3xl shadow-md"
+              : "size-[72px] shrink-0 rounded-2xl shadow-md"
+          }
         />
-        <div className="min-w-0 flex-1 text-left">
-          <p className="font-heading text-lg font-semibold leading-snug text-ink">{copy.bannerTitle}</p>
+        <div className={isPageVariant ? "min-w-0 flex-1 text-center" : "min-w-0 flex-1 text-left"}>
+          <p className="font-heading text-lg font-semibold leading-snug text-ink sm:text-xl">{copy.bannerTitle}</p>
           {view === "installed" ? (
-            <p className="line-clamp-2 text-sm leading-snug text-success">{copy.installed}</p>
+            <p className="line-clamp-2 text-sm leading-snug text-success sm:text-base">{copy.installed}</p>
           ) : view === "installing" ? (
-            <p className="line-clamp-2 text-sm leading-snug text-ink-muted">{copy.installing}</p>
+            <p className="line-clamp-2 text-sm leading-snug text-ink-muted sm:text-base">{copy.installing}</p>
           ) : (
-            <p className="line-clamp-2 text-sm leading-snug text-ink-muted">{copy.bannerBody}</p>
+            <p className="line-clamp-2 text-sm leading-snug text-ink-muted sm:text-base">{copy.bannerBody}</p>
           )}
         </div>
         {view === "installed" ? (
@@ -145,7 +166,7 @@ export function InstallBanner() {
             {copy.bannerInstall}
           </a>
         )}
-        {view === "idle" && (
+        {view === "idle" && !isPageVariant && (
           <button
             type="button"
             onClick={dismiss}
