@@ -105,33 +105,31 @@ export function InstallBanner() {
   }
 
   const button =
-    "inline-flex h-10 shrink-0 items-center rounded-full bg-primary px-4 text-[13px] font-semibold text-white hover:bg-primary-hover active:scale-[0.98]";
+    "inline-flex h-12 shrink-0 items-center rounded-full bg-primary px-5 text-base font-semibold text-white hover:bg-primary-hover active:scale-[0.98]";
 
   return (
     <div
       role="region"
       aria-label={copy.bannerTitle}
-      className="fixed inset-x-0 bottom-0 z-50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-4"
+      className="fixed inset-x-0 bottom-0 z-50 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6"
     >
-      <div className="mx-auto flex max-w-xl items-center gap-3 rounded-2xl border border-border bg-surface p-3 shadow-[0_8px_30px_rgba(0,0,0,0.18)]">
+      <div className="mx-auto flex max-w-2xl items-center gap-4 rounded-3xl border border-border bg-surface p-5 shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
         <Image
           src="/icons/icon-192.png"
           alt=""
-          width={44}
-          height={44}
-          className="size-11 shrink-0 rounded-xl"
+          width={72}
+          height={72}
+          className="size-[72px] shrink-0 rounded-2xl shadow-md"
         />
         <div className="min-w-0 flex-1 text-left">
-          <p className="font-heading text-sm font-semibold leading-snug text-ink">{copy.bannerTitle}</p>
-          <p className="line-clamp-2 text-xs leading-snug text-ink-muted">{copy.bannerBody}</p>
+          <p className="font-heading text-lg font-semibold leading-snug text-ink">{copy.bannerTitle}</p>
+          <p className="line-clamp-2 text-sm leading-snug text-ink-muted">{copy.bannerBody}</p>
         </div>
         {prompt ? (
           <button type="button" onClick={install} className={button}>
             {copy.bannerInstall}
           </button>
         ) : (
-          // A full page load, not client-side navigation: Chrome sends a fresh
-          // install prompt only when a page loads, and /install needs one.
           <a href={`/install?returnTo=${encodeURIComponent(pathname)}`} className={button}>
             {copy.bannerInstall}
           </a>
@@ -140,9 +138,9 @@ export function InstallBanner() {
           type="button"
           onClick={dismiss}
           aria-label={copy.bannerDismiss}
-          className="flex size-8 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-ink/5"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full text-ink-muted hover:bg-ink/5"
         >
-          <X className="size-4" />
+          <X className="size-5" />
         </button>
       </div>
     </div>
