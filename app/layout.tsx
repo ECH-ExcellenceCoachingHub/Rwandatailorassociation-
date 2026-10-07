@@ -2,7 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Poppins, Manrope } from "next/font/google";
 import { LanguageProvider } from "@/components/LanguageProvider";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
-import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
+import { InstallBanner } from "@/components/pwa/InstallBanner";
+import { EARLY_INSTALL_SCRIPT } from "@/lib/pwa/install";
 import "./globals.css";
 
 /**
@@ -82,8 +83,13 @@ export default function RootLayout({
       className={`${poppins.variable} ${manrope.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-background text-ink">
-        <LanguageProvider>{children}</LanguageProvider>
-        <ServiceWorkerRegister />
+        {/* Before any React code: registers the service worker and catches
+            Chrome's one-off install prompt. See lib/pwa/install.ts. */}
+        <script dangerouslySetInnerHTML={{ __html: EARLY_INSTALL_SCRIPT }} />
+        <LanguageProvider>
+          {children}
+          <InstallBanner />
+        </LanguageProvider>
       </body>
     </html>
   );

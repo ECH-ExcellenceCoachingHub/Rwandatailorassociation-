@@ -5,6 +5,16 @@ import Link from "next/link";
 import { Check, Copy, Download, ExternalLink, Info, Share, SquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AuthCopy } from "@/lib/i18n/dashboard/auth";
+import {
+  type BeforeInstallPromptEvent,
+  type Platform,
+  IN_APP_UA,
+  canPromptInstall,
+  clearEarlyPrompt,
+  detectPlatform,
+  isStandalone,
+  takeEarlyPrompt,
+} from "@/lib/pwa/install";
 
 /**
  * The body of /install. Browsers do not let a page install itself without a
@@ -25,31 +35,7 @@ import type { AuthCopy } from "@/lib/i18n/dashboard/auth";
  * straight to sign-in.
  */
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-type Platform = "android" | "ios" | "other";
 type View = "ready" | "installing" | "installed" | "ios" | "inApp" | "manual";
-
-const IN_APP_UA = /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|Snapchat|TikTok|musical_ly|; wv\)/i;
-
-function detectPlatform(ua: string): Platform {
-  if (/android/i.test(ua)) return "android";
-  // iPadOS reports itself as a Mac; touch support gives it away.
-  if (/iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) {
-    return "ios";
-  }
-  return "other";
-}
-
-function isStandalone() {
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true
-  );
-}
 
 export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
   // The server cannot see the phone, so it renders the install button: that is
@@ -70,9 +56,7 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
 
     const ua = navigator.userAgent;
     const p = detectPlatform(ua);
-    // Chromium browsers (Chrome, Edge, Samsung Internet, Opera) expose this
-    // handler; Safari and Firefox do not, and cannot be prompted.
-    const canPrompt = "onbeforeinstallprompt" in window;
+    const canPrompt = canPromptInstall();
     const initial: View = IN_APP_UA.test(ua)
       ? "inApp"
       : p === "ios"
@@ -86,7 +70,7 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
     setView(initial);
     if (initial !== "ready") return;
 
-    deferred.current = (window as Window & { __installPrompt?: BeforeInstallPromptEvent }).__installPrompt ?? null;
+    deferred.current = takeEarlyPrompt();
 
     const onPrompt = (e: Event) => {
       e.preventDefault();
@@ -138,6 +122,7 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
     } finally {
       // A prompt event can only be used once.
       deferred.current = null;
+      clearEarlyPrompt();
     }
   }
 

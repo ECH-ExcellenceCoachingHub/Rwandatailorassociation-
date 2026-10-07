@@ -5,7 +5,8 @@ import { getDashboardCopy } from "@/lib/i18n/server";
 /**
  * The link to share with members: /install. Opening it on a phone offers to
  * put the STGT app on the home screen, using whichever route that phone's
- * browser allows (see InstallApp). Not in the middleware's AUTH_ROUTES on
+ * browser allows (see InstallApp). The install banner on every other page
+ * links here. Not in the middleware's AUTH_ROUTES on
  * purpose — a signed-in member may want to install the app too.
  */
 export async function generateMetadata(): Promise<Metadata> {
@@ -23,20 +24,5 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function InstallPage() {
   const { d } = await getDashboardCopy();
-  return (
-    <>
-      {/* Runs as the HTML parses, before React loads. Registering the service
-          worker here rather than after hydration lets Chrome judge the site
-          installable seconds sooner, and the install prompt it then fires is
-          not repeated, so it is caught here for InstallApp to pick up. */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html:
-            "window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__installPrompt=e;});" +
-            "if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(function(){});",
-        }}
-      />
-      <InstallApp copy={d.auth.install} />
-    </>
-  );
+  return <InstallApp copy={d.auth.install} />;
 }

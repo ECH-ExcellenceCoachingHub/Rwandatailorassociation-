@@ -134,6 +134,11 @@ export interface AuthCopy {
     continueInBrowser: string;
     supported: string;
     notSupported: string;
+    /// The bar along the bottom of every other page.
+    bannerTitle: string;
+    bannerBody: string;
+    bannerInstall: string;
+    bannerDismiss: string;
   };
   /// The password requirements checklist, keyed by the codes the assessment
   /// emits, and the line that sums up what is still missing.
@@ -264,6 +269,10 @@ export const auth: Record<Locale, AuthCopy> = {
       continueInBrowser: "Continue in the browser instead",
       supported: "Your phone can install this app",
       notSupported: "This browser cannot install apps. Use Chrome (Android) or Safari (iPhone).",
+      bannerTitle: "Get the STGT app",
+      bannerBody: "Quick access to your savings from your home screen",
+      bannerInstall: "Install",
+      bannerDismiss: "Close",
     },
     password: {
       requirementsTitle: "Your password needs:",
@@ -397,6 +406,10 @@ export const auth: Record<Locale, AuthCopy> = {
       continueInBrowser: "Komeza muri mushakisha",
       supported: "Telefone yawe ishobora gushyiramo iyi porogaramu",
       notSupported: "Iyi mushakisha ntishobora gushyiramo porogaramu. Koresha Chrome (Android) cyangwa Safari (iPhone).",
+      bannerTitle: "Porogaramu ya STGT",
+      bannerBody: "Gera ku buzigame bwawe vuba uhereye kuri telefone",
+      bannerInstall: "Shyiramo",
+      bannerDismiss: "Funga",
     },
     password: {
       requirementsTitle: "Ijambobanga rigomba kugira:",
