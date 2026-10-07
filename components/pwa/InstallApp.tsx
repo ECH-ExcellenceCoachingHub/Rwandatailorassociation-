@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Copy, Download, ExternalLink, Info, Share, SquarePlus } from "lucide-react";
+import { Check, Copy, Download, ExternalLink, Info, Loader2, Share, SquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { AuthCopy } from "@/lib/i18n/dashboard/auth";
 import {
@@ -32,11 +32,25 @@ import {
  *   copy the link.
  * - Anything else (or the prompt never comes): point at the browser menu.
  *
+ * Chrome only fires its prompt once the visitor has tapped the page and spent
+ * about 30 seconds on the site, so a first-time visitor's tap usually comes
+ * too early. That tap still counts as the engagement Chrome wants, so we show
+ * "getting ready" (with the menu as a shortcut) and bring the one-tap button
+ * back the moment the prompt arrives.
+ *
  * Opened from the installed app itself, there is nothing to do, so it goes
  * straight to sign-in.
  */
 
-type View = "ready" | "installing" | "installed" | "alreadyInstalled" | "ios" | "inApp" | "manual";
+type View =
+  | "ready"
+  | "installing"
+  | "preparing"
+  | "installed"
+  | "alreadyInstalled"
+  | "ios"
+  | "inApp"
+  | "manual";
 
 export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
   // The server cannot see the phone, so it renders the install button: that is
@@ -48,6 +62,8 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
   const deferred = useRef<BeforeInstallPromptEvent | null>(null);
   const waiter = useRef<((e: BeforeInstallPromptEvent | null) => void) | null>(null);
   const [copied, setCopied] = useState(false);
+  /** The prompt arrived while they were waiting: make the button stand out. */
+  const [readyNow, setReadyNow] = useState(false);
 
   useEffect(() => {
     if (isStandalone()) {
@@ -87,8 +103,12 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
     const onPrompt = (e: Event) => {
       deferred.current = e as BeforeInstallPromptEvent;
       waiter.current?.(deferred.current);
-      // Chrome offering to install means it is not installed after all.
-      setView((v) => (v === "alreadyInstalled" ? "ready" : v));
+      // Chrome offering to install means it is not installed after all, and
+      // anyone left waiting or reading the menu steps gets the button back.
+      setView((v) => {
+        if (v === "preparing" || v === "manual") setReadyNow(true);
+        return v === "alreadyInstalled" || v === "preparing" || v === "manual" ? "ready" : v;
+      });
     };
     const onInstalled = () => {
       deferred.current = null;
@@ -118,15 +138,21 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
   }
 
   async function install() {
-    setView("installing");
+    setReadyNow(false);
+    // With the prompt in hand this is instant; without it, say we are getting
+    // ready rather than leaving a frozen button.
+    setView(deferred.current ? "installing" : "preparing");
     const event = await promptEvent();
     waiter.current = null;
     if (!event) {
-      // No prompt: the app is already installed, or the browser declined to
-      // offer it. Its own menu still works.
-      setView((await isAppInstalled()) ? "alreadyInstalled" : "manual");
+      // Still no prompt. Either the app is already installed, or Chrome has
+      // not seen enough of the visitor yet — in which case it is coming, and
+      // onPrompt will swap the button back in.
+      if (await isAppInstalled()) setView("alreadyInstalled");
+      else if (!canPromptInstall()) setView("manual");
       return;
     }
+    setView("installing");
     try {
       await event.prompt();
       const { outcome } = await event.userChoice;
@@ -162,9 +188,14 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
 
       <div className="mt-8">
         {(view === "ready" || view === "installing") && (
-          <Button size="lg" className="w-full" onClick={install} disabled={view === "installing"}>
+          <Button
+            size="lg"
+            className={`w-full ${readyNow ? "ring-4 ring-primary/25" : ""}`}
+            onClick={install}
+            disabled={view === "installing"}
+          >
             <Download className="size-5" />
-            {view === "installing" ? copy.installing : copy.installButton}
+            {view === "installing" ? copy.installing : readyNow ? copy.readyNow : copy.installButton}
           </Button>
         )}
 
@@ -234,6 +265,19 @@ export default function InstallApp({ copy }: { copy: AuthCopy["install"] }) {
               {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
               {copied ? copy.copied : copy.copyLink}
             </Button>
+          </div>
+        )}
+
+        {view === "preparing" && (
+          <div className="rounded-2xl border border-border bg-surface p-5">
+            <p className="flex items-center justify-center gap-2 font-heading text-base font-semibold text-ink">
+              <Loader2 className="size-5 shrink-0 animate-spin text-primary" />
+              {copy.preparingTitle}
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-ink-muted">{copy.preparingBody}</p>
+            <p className="mt-4 border-t border-border pt-4 text-sm leading-relaxed text-ink-muted">
+              {copy.preparingMenu}
+            </p>
           </div>
         )}
 

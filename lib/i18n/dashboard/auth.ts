@@ -135,6 +135,13 @@ export interface AuthCopy {
     supported: string;
     notSupported: string;
     alreadyInstalledTitle: string;
+    /// Chrome has not offered the install yet (it waits for ~30 seconds on
+    /// the site); shown while we wait for it.
+    preparingTitle: string;
+    preparingBody: string;
+    preparingMenu: string;
+    /// The button's label once the install is ready after a wait.
+    readyNow: string;
     alreadyInstalledBody: string;
     /// The bar along the bottom of every other page.
     bannerTitle: string;
@@ -271,6 +278,10 @@ export const auth: Record<Locale, AuthCopy> = {
       continueInBrowser: "Continue in the browser instead",
       supported: "Your phone can install this app",
       notSupported: "This browser cannot install apps. Use Chrome (Android) or Safari (iPhone).",
+      preparingTitle: "Getting the app ready…",
+      preparingBody: "Keep this page open. In a few seconds the Install button comes back, ready to install in one tap.",
+      preparingMenu: "Can’t wait? Tap the browser menu (⋮) and choose “Install app” or “Add to Home screen”.",
+      readyNow: "Ready, tap to install",
       alreadyInstalledTitle: "The app is already on your phone",
       alreadyInstalledBody: "Look for the STGT icon on your home screen and open it from there.",
       bannerTitle: "Get the STGT app",
@@ -410,6 +421,10 @@ export const auth: Record<Locale, AuthCopy> = {
       continueInBrowser: "Komeza muri mushakisha",
       supported: "Telefone yawe ishobora gushyiramo iyi porogaramu",
       notSupported: "Iyi mushakisha ntishobora gushyiramo porogaramu. Koresha Chrome (Android) cyangwa Safari (iPhone).",
+      preparingTitle: "Turimo gutegura porogaramu…",
+      preparingBody: "Guma kuri iyi paji. Mu masegonda make akabuto ko Gushyiramo karagaruka, ushyiremo ukanze rimwe.",
+      preparingMenu: "Ntushaka gutegereza? Kanda menu ya mushakisha (⋮) maze uhitemo “Install app” cyangwa “Add to Home screen”.",
+      readyNow: "Byateguwe, kanda ushyiremo",
       alreadyInstalledTitle: "Porogaramu isanzwe iri kuri telefone yawe",
       alreadyInstalledBody: "Shaka ikirango cya STGT kuri telefone yawe maze uyifungurire aho.",
       bannerTitle: "Porogaramu ya STGT",
