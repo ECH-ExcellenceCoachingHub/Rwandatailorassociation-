@@ -38,7 +38,11 @@ export function InstallBanner() {
   const [view, setView] = useState<BannerView>("idle");
 
   useEffect(() => {
+<<<<<<< ours
     if (isStandalone()) return;
+=======
+    if (isStandalone() || dismissedRecently()) return;
+>>>>>>> theirs
     if (detectPlatform(navigator.userAgent) === "other" && !canPromptInstall()) return;
 
     const early = takeEarlyPrompt();
