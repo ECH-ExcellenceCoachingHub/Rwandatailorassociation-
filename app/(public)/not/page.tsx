@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getDashboardCopy } from "@/lib/i18n/server";
+import { InstallBanner } from "@/components/pwa/InstallBanner";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
@@ -17,6 +18,7 @@ export default async function NotPage() {
 
   return (
     <div className="text-center">
+      <InstallBanner variant="page" />
       <h1 className="font-heading text-3xl font-bold text-ink mb-4">{copy.title}</h1>
       <p className="text-ink-muted max-w-md mx-auto mb-8">{copy.subtitle}</p>
 
