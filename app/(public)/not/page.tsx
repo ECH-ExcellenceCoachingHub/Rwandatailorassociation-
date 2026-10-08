@@ -18,7 +18,7 @@ export default async function NotPage() {
 
   return (
     <div className="text-center">
-      <InstallBanner variant="page" />
+      <InstallBanner />
       <h1 className="font-heading text-3xl font-bold text-ink mb-4">{copy.title}</h1>
       <p className="text-ink-muted max-w-md mx-auto mb-8">{copy.subtitle}</p>
 
