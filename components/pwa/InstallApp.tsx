@@ -274,10 +274,6 @@ export default function InstallApp({
               {install.title}
             </h1>
 
-            <p className="mt-3 max-w-[42ch] text-pretty text-sm leading-6 text-ink-muted sm:text-base sm:leading-7">
-              {install.subtitle}
-            </p>
-
             {supported !== null &&
               view !== "installed" &&
               view !== "alreadyInstalled" && (

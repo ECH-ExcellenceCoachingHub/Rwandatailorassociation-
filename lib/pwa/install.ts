@@ -37,9 +37,20 @@ const INSTALLED_KEY = "rta-app-installed";
  *  /install we let it through: no page may open the install dialog without a
  *  tap, but Chrome's own bar appears by itself as the page loads, which is as
  *  close to automatic as browsers allow. Everywhere else it is held back for
- *  our banner. The saved event still works for our buttons either way. */
+ *  our banner. The saved event still works for our buttons either way.
+ *
+ *  It also puts the manifest link in the <head> on the way through. A page
+ *  with an async generateMetadata — /install and /login are both built on the
+ *  request's locale cookie — gets its entire metadata tree, manifest link
+ *  included, held back by React and floated into a hidden <div> at the end of
+ *  the <body> once the request resolves. Chrome looks for the manifest in the
+ *  <head>, and it looks while the page loads, long before that div is filled:
+ *  such a page never fetches the manifest, never fires beforeinstallprompt,
+ *  and the install button on /install never arms. Static pages already have
+ *  the link in their head, so the guard leaves those untouched. */
 export const EARLY_INSTALL_SCRIPT =
   "(function(){var k='" + INSTALLED_KEY + "';function s(f){try{f()}catch(e){}}" +
+  "if(!document.querySelector('link[rel=\"manifest\"]')){var m=document.createElement('link');m.rel='manifest';m.href='/manifest.webmanifest';document.head.appendChild(m);}" +
   "window.addEventListener('beforeinstallprompt',function(e){if(location.pathname.indexOf('/install')!==0)e.preventDefault();window.__installPrompt=e;s(function(){localStorage.removeItem(k)});});" +
   "window.addEventListener('appinstalled',function(){window.__installPrompt=null;s(function(){localStorage.setItem(k,'1')});});" +
   "if(matchMedia('(display-mode: standalone)').matches||navigator.standalone)s(function(){localStorage.setItem(k,'1')});})();" +
