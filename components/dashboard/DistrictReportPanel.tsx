@@ -14,6 +14,8 @@ import { formatMoney } from "@/lib/money";
 import { provinceLabel } from "@/lib/rwanda";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import type { DistrictReport } from "@/lib/services/district-report";
+import { GrowthImageButton } from "@/components/dashboard/GrowthImageButton";
+import { GROWTH_REPORT_NODE_ID } from "@/components/dashboard/GrowthReportCard";
 
 const ENDPOINT = "/api/admin/reports/districts";
 
@@ -43,13 +45,14 @@ export async function DistrictReportPanel({
           </p>
         </div>
         {canDownload && report.districts.length > 0 && (
-          <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 items-start gap-2">
             <Button asChild size="sm">
               <a href={`${ENDPOINT}?format=pdf`} download>
                 <FileText className="size-3.5" aria-hidden="true" />
                 {copy.districtDownloadPdf}
               </a>
             </Button>
+            <GrowthImageButton targetId={GROWTH_REPORT_NODE_ID} />
             <Button asChild size="sm" variant="outline">
               <a href={`${ENDPOINT}?format=csv`} download>
                 <FileSpreadsheet className="size-3.5" aria-hidden="true" />

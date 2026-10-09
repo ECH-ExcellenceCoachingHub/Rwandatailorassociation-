@@ -82,6 +82,8 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
     report.totals = {
       members: row.members,
       active: row.active,
+      savers: row.savers,
+      nonSavers: row.nonSavers,
       savings: row.savings,
       feesDeducted: row.feesDeducted,
       averageSavings: row.averageSavings,

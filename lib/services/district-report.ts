@@ -26,6 +26,13 @@ import type { MemberStatus } from "@/lib/generated/prisma/enums";
  * accounts — the same "balance" the member account statement shows. Service
  * fees deducted are every charged platform fee, already taken out of that
  * balance; they are shown so the officer can see where the difference went.
+ *
+ * Members are counted as savers and non-savers, never as one mixed figure: a
+ * saver has paid savings in at least once, a non-saver has never paid
+ * anything. Both sit on the register and both belong in the count, but a
+ * district of thirteen members where three have paid is not a district of
+ * thirteen savers, and the two numbers are reported separately so nobody has
+ * to guess which is which.
  */
 
 /// Everyone admitted to the register, as on the member account statement.
@@ -52,6 +59,10 @@ export interface DistrictRow {
   province: string | null;
   members: number;
   active: number;
+  /// Members who have paid savings in at least once.
+  savers: number;
+  /// Members on the register who have never paid anything in.
+  nonSavers: number;
   savings: string;
   feesDeducted: string;
   averageSavings: string;
@@ -67,6 +78,8 @@ export interface DistrictReport {
   totals: {
     members: number;
     active: number;
+    savers: number;
+    nonSavers: number;
     savings: string;
     feesDeducted: string;
     averageSavings: string;
@@ -107,7 +120,7 @@ export async function buildDistrictReport(
         district: true,
         province: true,
         user: { select: { firstName: true, lastName: true, phone: true } },
-        savingsAccounts: { select: { balance: true } },
+        savingsAccounts: { select: { balance: true, totalDeposits: true } },
       },
     }),
     prisma.platformFeeCharge.groupBy({
@@ -141,6 +154,8 @@ export async function buildDistrictReport(
           province: canonical ? (provinceForDistrict(canonical) ?? null) : null,
           members: 0,
           active: 0,
+          savers: 0,
+          nonSavers: 0,
           savings: "0.00",
           feesDeducted: "0.00",
           averageSavings: "0.00",
@@ -157,7 +172,17 @@ export async function buildDistrictReport(
     group.total = add(group.total, balance);
     const feesDeducted = add(ZERO, feesByMember.get(member.id) ?? ZERO);
     group.fees = add(group.fees, feesDeducted);
+    // A saver has paid savings in at least once; everyone else on the register
+    // has not. The two counts are kept apart so a report can never present a
+    // member who has never paid as one who has, and they always add back up to
+    // the district's members.
+    const paidIn = add(
+      ZERO,
+      ...member.savingsAccounts.map((a) => a.totalDeposits)
+    ).greaterThan(0);
     group.row.members += 1;
+    if (paidIn) group.row.savers += 1;
+    else group.row.nonSavers += 1;
     if (member.status === "ACTIVE") group.row.active += 1;
 
     // An unrecognised district has no province of its own; take the one the
@@ -206,6 +231,8 @@ export async function buildDistrictReport(
     totals: {
       members: members.length,
       active: districts.reduce((sum, d) => sum + d.active, 0),
+      savers: districts.reduce((sum, d) => sum + d.savers, 0),
+      nonSavers: districts.reduce((sum, d) => sum + d.nonSavers, 0),
       savings: toMoneyString(savings),
       feesDeducted: toMoneyString(add(ZERO, ...districts.map((d) => d.feesDeducted))),
       averageSavings: toMoneyString(members.length > 0 ? divide(savings, members.length) : ZERO),

@@ -782,6 +782,43 @@ export interface AdminCopy {
     feesOwedToPlatformHint: string;
     savingsAfterFees: string;
     savingsAfterFeesHint: string;
+    /// The shareable growth card on the reports page.
+      growth: {
+        title: string;
+        /// The two halves of the programme tagline; the second is the colour
+        /// accent in the header.
+        taglineLead: string;
+        taglineTail: string;
+        /// Caption over the sentence that says how the figures were counted.
+        introLabel: string;
+      /// {date} is the as-of date, {since} the day the period opened.
+      intro: string;
+      colNumber: string;
+      colDistrict: string;
+      colProvince: string;
+      /// Members who have paid savings in, and those who have not — never one
+      /// mixed figure.
+      colMembersPaid: string;
+      colMembersUnpaid: string;
+      colSavings: string;
+      statMembers: string;
+      statDistricts: string;
+      statSavings: string;
+      /// {count}
+      membersPaid: string;
+      /// {districts}, {unpaid}
+      membersUnpaidHint: string;
+      savingsTotal: string;
+      upliftTitle: string;
+      /// {previous}, {current}
+      upliftRange: string;
+      /// {previous}, {current}
+      upliftNote: string;
+      footer: string;
+      downloadImage: string;
+      imageReady: string;
+      imageFailed: string;
+    };
   };
   /// One member's payments, opened from the payments list.
   memberPayments: {
@@ -2140,6 +2177,35 @@ export const admin: Record<Locale, AdminCopy> = {
       feesOwedToPlatformHint: "{amount} already paid over",
       savingsAfterFees: "Savings after fees",
       savingsAfterFeesHint: "Savings held, less fees still to be taken",
+      growth: {
+        title: "Districts compared by savings",
+        taglineLead: "Save today,",
+        taglineTail: "prepare tomorrow",
+        introLabel: "How these figures were counted",
+        intro:
+          "As of {date}, based on all savings and the number of members — whether they have saved or not — since {since}.",
+        colNumber: "No",
+        colDistrict: "District",
+        colProvince: "Province",
+        colMembersPaid: "Members who have saved",
+        colMembersUnpaid: "Members yet to save",
+        colSavings: "Savings (RWF)",
+        statMembers: "Members",
+        statDistricts: "Districts",
+        statSavings: "Total savings",
+        /// {count}
+        membersPaid: "Members who have saved {count}",
+        /// {districts}, {unpaid}
+        membersUnpaidHint: "across {districts} districts · {unpaid} yet to save",
+        savingsTotal: "Savings (RWF)",
+        upliftTitle: "Growth in savings",
+        upliftRange: "({previous} → {current})",
+        upliftNote: "Savings grew from {previous} to {current}.",
+        footer: "Saving today is preparing for tomorrow!",
+        downloadImage: "Download image",
+        imageReady: "The report image has been downloaded.",
+        imageFailed: "The image could not be created. Please try again.",
+      },
     },
     memberPayments: {
       title: "Payments by {name}",
@@ -3512,8 +3578,7 @@ export const admin: Record<Locale, AdminCopy> = {
       description: "Aho amafaranga y'ihuriro ari, n'uko yagenze.",
 
       districtTitle: "Ubuzigame n'abanyamuryango ku karere",
-      districtIntro:
-        "Aho abanyamuryango batuye n'ubuzigame bafite, hakurikijwe akarere kari kuri dosiye ya buri munyamuryango. Kuramo raporo yose, cyangwa urutonde rw'abanyamuryango b'akarere kamwe, nka PDF.",
+      districtIntro: "Aho abanyamuryango batuye n'ubuzigame bafite, hakurikijwe akarere kari kuri dosiye ya buri munyamuryango. Kuramo raporo yose, cyangwa urutonde rw'abanyamuryango b'akarere kamwe, nka PDF.",
       districtDownloadPdf: "Kuramo PDF",
       districtDownloadCsv: "Kuramo CSV",
       districtRowPdf: "PDF",
@@ -3535,12 +3600,10 @@ export const admin: Record<Locale, AdminCopy> = {
       districtColJoined: "Yinjiye",
       districtNotRecorded: "Akarere ntikanditswe",
       districtUnrecognised: "(si akarere kazwi)",
-      districtSection:
-        "Umunyamuryango {count} - {savings} yazigamwe|Abanyamuryango {count} - {savings} yazigamwe",
+      districtSection: "Umunyamuryango {count} - {savings} yazigamwe|Abanyamuryango {count} - {savings} yazigamwe",
       districtPage: "Urupapuro {page} kuri {pages}",
       savingsHeld: "Ubuzigame bufitwe",
-      activeMembers:
-        "Umunyamuryango {count} ukora|Abanyamuryango {count} bakora",
+      activeMembers: "Umunyamuryango {count} ukora|Abanyamuryango {count} bakora",
       loansOutstanding: "Inguzanyo zisigaye",
       activeLoans: "Inguzanyo {count} iriho|Inguzanyo {count} ziriho",
       inArrears: "Umwenda urengeje igihe",
@@ -3574,8 +3637,7 @@ export const admin: Record<Locale, AdminCopy> = {
       noArrears: "Nta nguzanyo irengeje igihe kugeza ubu.",
 
       feesTitle: "Amafaranga ya serivisi",
-      feesIntro:
-        "Amafaranga 50 ku munsi kuri buri mugabane ya serivisi y'urubuga, atandukanye n'ubuzigame bw'abanyamuryango. Akurwa ku buzigame buri joro ku minsi umunyamuryango yishyuye.",
+      feesIntro: "Amafaranga 50 ku munsi kuri buri mugabane ya serivisi y'urubuga, atandukanye n'ubuzigame bw'abanyamuryango. Akurwa ku buzigame buri joro ku minsi umunyamuryango yishyuye.",
       feesTaken: "Amafaranga yakuweho",
       feesTakenHint: "Yakuwe ku buzigame kugeza ubu",
       feesPending: "Ategereje gukurwaho",
@@ -3584,6 +3646,33 @@ export const admin: Record<Locale, AdminCopy> = {
       feesOwedToPlatformHint: "{amount} yamaze kwishyurwa",
       savingsAfterFees: "Ubuzigame nyuma ya serivisi",
       savingsAfterFeesHint: "Ubuzigame bufitwe, havuyemo amafaranga ya serivisi ataravanwaho",
+      growth: {
+        title: "Uturere twarushanijwe mu kuzigama",
+        taglineLead: "Zigama uyu munsi,",
+        taglineTail: "utegure ejo hazaza",
+        introLabel: "Ibisobanuro by'uko imibare yabazwe",
+        intro:
+          "Kugeza ku wa {date}, hashingiwe ku mafaranga yose yazigamwe n'umubare w'abanyamuryango, baba barazigamye cyangwa batarazigama, kuva ku wa {since}.",
+        colNumber: "No",
+        colDistrict: "Akarere",
+        colProvince: "Intara",
+        colMembersPaid: "Abanyamuryango bazigamye",
+        colMembersUnpaid: "Abatarazigama",
+        colSavings: "Amafaranga yazigamwe (RWF)",
+        statMembers: "Abanyamuryango",
+        statDistricts: "Uturere",
+        statSavings: "Amafaranga yose yazigamwe",
+        membersPaid: "Abanyamuryango bazigamye {count}",
+        membersUnpaidHint: "mu turere {districts} · {unpaid} abatarazigama",
+        savingsTotal: "Amafaranga yazigamwe (RWF)",
+        upliftTitle: "Ubwiyongere bw'amafaranga yazigamwe",
+        upliftRange: "({previous} → {current})",
+        upliftNote: "Amafaranga yazigamwe yiyongereye ava kuri {previous} agera kuri {current}.",
+        footer: "Kuzigama uyu munsi ni ukwiteganyiriza ejo hazaza!",
+        downloadImage: "Kuramo ifoto",
+        imageReady: "Ifoto ya raporo yamanutse.",
+        imageFailed: "Ifoto ya raporo ntiyashoboye gukorerwa. Ongera ugerageze.",
+      },
     },
     memberPayments: {
       title: "Ubwishyu bwa {name}",

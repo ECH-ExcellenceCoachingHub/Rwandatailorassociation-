@@ -8,6 +8,8 @@ import {
   districtBelongsToProvince,
   districtsInProvince,
   provinceForDistrict,
+  provinceLabel,
+  provinceShortLabel,
 } from "@/lib/rwanda";
 import { createMemberSchema } from "@/lib/validation/members";
 
@@ -94,6 +96,30 @@ describe("districtBelongsToProvince", () => {
   it("treats a missing half as no contradiction — both fields are optional", () => {
     expect(districtBelongsToProvince("Kicukiro", "")).toBe(true);
     expect(districtBelongsToProvince("", "Kigali City")).toBe(true);
+  });
+});
+
+describe("province labels", () => {
+  it("carries the full form for a sentence", () => {
+    expect(provinceLabel("Eastern Province", "rw")).toBe("Intara y'Iburasirazuba");
+    expect(provinceLabel("Kigali City", "en")).toBe("Kigali City");
+  });
+
+  it("drops the decoration for a table column", () => {
+    expect(provinceShortLabel("Eastern Province", "rw")).toBe("Iburasirazuba");
+    expect(provinceShortLabel("Northern Province", "rw")).toBe("Amajyaruguru");
+    expect(provinceShortLabel("Southern Province", "rw")).toBe("Amajyepfo");
+    expect(provinceShortLabel("Western Province", "rw")).toBe("Iburengerazuba");
+    // Kigali's name carries no "Intara y'" to strip.
+    expect(provinceShortLabel("Kigali City", "rw")).toBe("Umujyi wa Kigali");
+    expect(provinceShortLabel("Eastern Province", "en")).toBe("Eastern");
+    expect(provinceShortLabel("Kigali City", "en")).toBe("Kigali City");
+  });
+
+  it("shows an unrecognised or missing province as it came", () => {
+    expect(provinceShortLabel("Central Province", "rw")).toBe("Central Province");
+    expect(provinceShortLabel(null, "rw")).toBe("");
+    expect(provinceShortLabel("", "en")).toBe("");
   });
 });
 

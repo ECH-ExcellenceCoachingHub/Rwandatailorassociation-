@@ -11,7 +11,9 @@ import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { ReportsView } from "@/components/dashboard/ReportsView";
 import { DistrictReportPanel } from "@/components/dashboard/DistrictReportPanel";
+import { GrowthReportCard } from "@/components/dashboard/GrowthReportCard";
 import { buildDistrictReport } from "@/lib/services/district-report";
+import { buildGrowthReport } from "@/lib/services/growth-report";
 import {
   AlertTriangle,
   Clock,
@@ -57,6 +59,8 @@ export default async function AdminReportsPage() {
   const canDownloadDistricts =
     context.permissions.has(PERMISSIONS.REPORTS_EXPORT) &&
     context.permissions.has(PERMISSIONS.SAVINGS_VIEW_ALL);
+  // Reuses the district rows already loaded — the register is scanned once.
+  const growth = districts ? await buildGrowthReport(associationId, districts) : null;
 
   return (
     <div className="space-y-7">
@@ -140,6 +144,14 @@ export default async function AdminReportsPage() {
           />
         </StatGrid>
       </section>
+
+      {growth && (
+        // The card is a fixed-width sheet, so a narrow screen scrolls it
+        // rather than squeezing the design the PNG is captured from.
+        <div className="-mx-1 overflow-x-auto px-1 pb-1">
+          <GrowthReportCard report={growth} />
+        </div>
+      )}
 
       {districts && (
         <DistrictReportPanel report={districts} canDownload={canDownloadDistricts} />

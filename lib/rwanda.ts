@@ -198,3 +198,21 @@ export function provinceLabel(
   if (!entry) return value;
   return locale === "rw" ? entry.kinyarwanda : entry.name;
 }
+
+/**
+ * The same province name with the decoration taken off — "Iburasirazuba" for
+ * "Intara y'Iburasirazuba", "Eastern" for "Eastern Province". Table columns and
+ * summary cards have the width of the name itself and no more; the full form
+ * belongs to a sentence.
+ */
+export function provinceShortLabel(
+  value: string | null | undefined,
+  locale: "en" | "rw"
+): string {
+  if (!value) return "";
+  const canonical = canonicalProvince(value);
+  const entry = RWANDA_PROVINCES.find((province) => province.name === canonical);
+  if (!entry) return value;
+  if (locale === "rw") return entry.kinyarwanda.replace(/^Intara y'/i, "");
+  return entry.name.replace(/ Province$/, "");
+}
