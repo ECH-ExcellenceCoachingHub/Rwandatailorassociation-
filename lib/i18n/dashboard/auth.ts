@@ -124,11 +124,22 @@ export interface AuthCopy {
     iosStep2: string;
     iosStep3: string;
     iosSafariOnly: string;
+    /// Steps for Android Chrome/Edge, where `beforeinstallprompt` has not fired
+    /// (too early, or the browser declined).
+    androidTitle: string;
+    androidStep1: string;
+    androidStep2: string;
+    /// Steps for a desktop browser, where the install lives in the address bar.
+    desktopTitle: string;
+    desktopStep1: string;
+    desktopStep2: string;
     inAppTitle: string;
     inAppBody: string;
     openInBrowser: string;
     copyLink: string;
     copied: string;
+    /// Supporting line on the brand panel of the standalone /install page.
+    pageIntro: string;
     manualTitle: string;
     manualBody: string;
     continueInBrowser: string;
@@ -268,11 +279,19 @@ export const auth: Record<Locale, AuthCopy> = {
       iosStep2: "Scroll down and tap “Add to Home Screen”.",
       iosStep3: "Tap “Add”. The STGT icon appears on your home screen.",
       iosSafariOnly: "If you do not see “Add to Home Screen”, open this link in Safari.",
+      androidTitle: "On Android",
+      androidStep1: "Tap the menu button (⋮) at the top right of Chrome.",
+      androidStep2: "Choose “Install app”. The STGT icon appears on your home screen.",
+      desktopTitle: "On a computer",
+      desktopStep1: "Look for the install icon at the right of the address bar.",
+      desktopStep2: "Click it, or open the browser menu (⋮) and choose “Install STGT”.",
       inAppTitle: "Open this link in your browser",
       inAppBody: "Apps like WhatsApp, Facebook and Instagram cannot install apps. Open this page in Chrome (Android) or Safari (iPhone) to install.",
       openInBrowser: "Open in Chrome",
       copyLink: "Copy link",
       copied: "Link copied",
+      pageIntro:
+        "Save today and be ready for tomorrow. Put STGT on your phone and your savings are one tap away.",
       manualTitle: "Install from the browser menu",
       manualBody: "Tap the browser menu (⋮) and choose “Install app” or “Add to Home screen”. If you only see “Open app”, it is already installed.",
       continueInBrowser: "Continue in the browser instead",
@@ -411,11 +430,19 @@ export const auth: Record<Locale, AuthCopy> = {
       iosStep2: "Manuka maze ukande “Add to Home Screen”.",
       iosStep3: "Kanda “Add”. Ikirango cya STGT kiragaragara kuri telefone yawe.",
       iosSafariOnly: "Niba utabona “Add to Home Screen”, fungura iyi link muri Safari.",
+      androidTitle: "Kuri Android",
+      androidStep1: "Kanda akabuto ka menu (⋮) hejuru iburyo muri Chrome.",
+      androidStep2: "Hitamo “Install app”. Ikirango cya STGT kiragaragara kuri telefone yawe.",
+      desktopTitle: "Kuri mudasobwa",
+      desktopStep1: "Shaka ikirango cyo gushyiramo iburyo bw'umurongo w'adiresi.",
+      desktopStep2: "Kikande, cyangwa fungura menu ya mushakisha (⋮) maze uhitemo “Install STGT”.",
       inAppTitle: "Fungura iyi link muri mushakisha",
       inAppBody: "Porogaramu nka WhatsApp, Facebook na Instagram ntizishobora gushyiramo porogaramu. Fungura iyi paji muri Chrome (Android) cyangwa Safari (iPhone).",
       openInBrowser: "Fungura muri Chrome",
       copyLink: "Koporora link",
       copied: "Link yakoporowe",
+      pageIntro:
+        "Zigama uyu munsi, witegure ejo hazaza. Shyira porogaramu ya STGT kuri telefone yawe kugira ngo uyigereho byoroshye.",
       manualTitle: "Shyiramo ukoresheje menu ya mushakisha",
       manualBody: "Kanda menu ya mushakisha (⋮) maze uhitemo “Install app” cyangwa “Add to Home screen”. Niba ubona “Open app” gusa, isanzwe iri kuri telefone yawe.",
       continueInBrowser: "Komeza muri mushakisha",

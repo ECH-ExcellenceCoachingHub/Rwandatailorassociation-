@@ -81,6 +81,10 @@ export function InstallBanner({ variant = "default" }: { variant?: BannerVariant
     };
   }, [variant, pathname]);
 
+  // The full /install page *is* the install UI, with the same button in it.
+  // A floating bar over it is noise, so it stands down there.
+  if (pathname === "/install") return null;
+
   if (!show) return null;
 
   async function install() {

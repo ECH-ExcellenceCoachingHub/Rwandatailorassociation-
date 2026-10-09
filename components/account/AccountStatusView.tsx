@@ -96,10 +96,10 @@ export function AccountStatusView({
             )}
 
             <DetailsList {...shared} delay={offset} />
-            <DailyList {...shared} delay={offset + STAGGER} locale={locale} />
             <PayButton copy={copy} delay={offset + STAGGER} />
-            <LoanList {...shared} delay={offset + STAGGER * 2} />
-            <PenaltiesList {...shared} delay={offset + STAGGER * 3} />
+            <DailyList {...shared} delay={offset + STAGGER * 2} locale={locale} />
+            <LoanList {...shared} delay={offset + STAGGER * 3} />
+            <PenaltiesList {...shared} delay={offset + STAGGER * 4} />
           </>
         )}
       </div>
