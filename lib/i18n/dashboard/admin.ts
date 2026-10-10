@@ -799,7 +799,6 @@ export interface AdminCopy {
       /// Members who have paid savings in, and those who have not — never one
       /// mixed figure.
       colMembersPaid: string;
-      colMembersUnpaid: string;
       colSavings: string;
       statMembers: string;
       statDistricts: string;
@@ -2188,7 +2187,6 @@ export const admin: Record<Locale, AdminCopy> = {
         colDistrict: "District",
         colProvince: "Province",
         colMembersPaid: "Members who have saved",
-        colMembersUnpaid: "Members yet to save",
         colSavings: "Savings (RWF)",
         statMembers: "Members",
         statDistricts: "Districts",
@@ -3657,7 +3655,6 @@ export const admin: Record<Locale, AdminCopy> = {
         colDistrict: "Akarere",
         colProvince: "Intara",
         colMembersPaid: "Abanyamuryango bazigamye",
-        colMembersUnpaid: "Abatarazigama",
         colSavings: "Amafaranga yazigamwe (RWF)",
         statMembers: "Abanyamuryango",
         statDistricts: "Uturere",

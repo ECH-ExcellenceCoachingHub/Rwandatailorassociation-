@@ -45,6 +45,15 @@ const RED_DARK = "#b33127";
 
 const RANK_COLOURS = ["#e6b84f", "#b9c2cc", "#c98a5a"];
 
+/**
+ * A district's bar as a percentage of the leading district's savings, capped
+ * at eighty so the top row never fills its cell edge to edge.
+ */
+function barWidth(savings: string, max: number): number {
+  if (max <= 0) return 0;
+  return Math.round((Number(savings) / max) * 80);
+}
+
 export function GrowthReportCard({ report }: { report: GrowthReport }) {
   const { locale, d } = useLanguage();
   const copy = d.admin.reports.growth;
@@ -57,6 +66,7 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
   const upliftPositive = !isNegative(uplift);
   const UpliftArrow = upliftPositive ? ArrowUpRight : ArrowDownRight;
   const UpliftTrend = upliftPositive ? TrendingUp : TrendingDown;
+  const maxSavings = Math.max(0, ...report.rows.map((row) => Number(row.savings)));
 
   const asOf = formatLongDate(report.asOf, locale);
   // The ledger window opens at midnight today, so the balance it derives is
@@ -73,14 +83,14 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
     >
       <div className="h-2" style={{ backgroundColor: GREEN }} />
 
-      <header className="flex items-center gap-6 px-9 pb-6 pt-7">
+      <header className="flex items-center gap-6 border-b border-[#eef0f3] px-9 pb-6 pt-7">
         {/* eslint-disable-next-line @next/next/no-img-element -- the export captures the resolved src, not the optimiser's set */}
         <img
           src="/images/rtalogo.jpg"
           alt=""
           width={80}
           height={80}
-          className="size-20 shrink-0 rounded-full object-cover ring-1 ring-black/5"
+          className="size-20 shrink-0 rounded-full object-cover ring-2 ring-[#5aa73a]/40"
         />
         <div>
           <p className="font-heading text-[30px] font-extrabold uppercase leading-[1.05] tracking-tight text-[#0b1b33]">
@@ -97,23 +107,37 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
           alt=""
           width={210}
           height={92}
-          className="ml-auto h-[92px] w-[210px] shrink-0 rounded-2xl object-cover ring-1 ring-black/5"
+          className="ml-auto h-[92px] w-[210px] shrink-0 rounded-2xl object-cover shadow-md ring-2 ring-[#5aa73a]/40"
         />
       </header>
 
       <div
-        className="flex items-center gap-3 px-9 py-3.5"
+        className="relative flex items-center gap-3 overflow-hidden px-9 py-4"
         style={{ backgroundImage: `linear-gradient(90deg, ${NAVY_FROM}, ${NAVY_TO})` }}
       >
-        <span className="h-6 w-1.5 rounded-full" style={{ backgroundColor: GREEN_LIGHT }} />
-        <h3 className="font-heading text-[21px] font-extrabold text-white">{copy.title}</h3>
+        {/* Faint diagonal weave, so the band reads as fabric rather than a
+            flat block of colour. */}
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(135deg, #ffffff 0 8px, transparent 8px 18px)",
+          }}
+        />
+        <TrendingUp className="relative size-5 shrink-0 text-[#8fd14f]" aria-hidden="true" />
+        <span className="relative h-6 w-1.5 rounded-full bg-[#8fd14f]" />
+        <h3 className="relative font-heading text-[21px] font-extrabold text-white">
+          {copy.title}
+        </h3>
       </div>
 
-      <div className="px-9 py-3">
-        <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-[#8a94a3]">
+      <div className="px-9 py-4">
+        <p className="inline-flex items-center gap-2 rounded-full bg-[#f2f7ee] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#4f7a35]">
+          <span className="inline-block h-1.5 w-5 rounded-full bg-[#5aa73a]" />
           {copy.introLabel}
         </p>
-        <p className="mt-1 text-[13px] leading-relaxed text-[#5b6472]">
+        <p className="mt-2.5 text-[13px] leading-relaxed text-[#5b6472]">
           {fill(copy.intro, { date: asOf, since })}
         </p>
       </div>
@@ -123,21 +147,21 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
           <StatTile
             icon={Users}
             iconColor="#1f4a88"
-            iconBg="#eef3fa"
+            tint="#eef3fa"
             value={String(report.totals.members)}
             label={copy.statMembers}
           />
           <StatTile
             icon={MapPinned}
             iconColor="#3f8a26"
-            iconBg="#eaf5e2"
+            tint="#eaf5e2"
             value={String(report.totals.districts)}
             label={copy.statDistricts}
           />
           <StatTile
             icon={HandCoins}
             iconColor="#b8860b"
-            iconBg="#fdf4e0"
+            tint="#fdf4e0"
             value={formatMoney(savings)}
             label={copy.statSavings}
           />
@@ -145,11 +169,11 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
 
         <div className="flex w-[300px] shrink-0 flex-col gap-3">
           <div
-            className="flex items-center gap-3 rounded-xl p-3 text-white"
-            style={{ backgroundImage: `linear-gradient(90deg, ${GREEN}, ${GREEN_DARK})` }}
+            className="flex items-center gap-3 rounded-2xl p-3.5 text-white shadow-sm ring-1 ring-white/25"
+            style={{ backgroundImage: `linear-gradient(135deg, ${GREEN}, ${GREEN_DARK})` }}
           >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white">
-              <UpliftTrend className="size-4" style={{ color: GREEN_DARK }} aria-hidden="true" />
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+              <UpliftTrend className="size-[18px]" style={{ color: GREEN_DARK }} aria-hidden="true" />
             </span>
             <div className="leading-tight">
               <p className="font-heading text-[15px] font-bold">
@@ -165,25 +189,25 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
           </div>
 
           <div
-            className="flex items-center gap-3 rounded-xl p-3 text-white"
-            style={{ backgroundImage: `linear-gradient(90deg, ${GREEN}, ${GREEN_DARK})` }}
+            className="flex items-center gap-3 rounded-2xl p-3.5 text-white shadow-sm ring-1 ring-white/25"
+            style={{ backgroundImage: `linear-gradient(135deg, ${GREEN}, ${GREEN_DARK})` }}
           >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white">
-              <HandCoins className="size-4" style={{ color: GREEN_DARK }} aria-hidden="true" />
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+              <HandCoins className="size-[18px]" style={{ color: GREEN_DARK }} aria-hidden="true" />
             </span>
             <div className="leading-tight">
-              <p className="text-[11px] uppercase tracking-wide text-white/80">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-white/80">
                 {copy.savingsTotal}
               </p>
-              <p className="mt-0.5 font-heading text-[15px] font-bold tabular-nums">
+              <p className="mt-0.5 font-heading text-[16px] font-bold tabular-nums">
                 {formatMoney(savings)}
               </p>
             </div>
           </div>
 
           <div
-            className="rounded-xl p-3.5 text-white"
-            style={{ backgroundImage: `linear-gradient(90deg, ${RED}, ${RED_DARK})` }}
+            className="rounded-2xl p-4 text-white shadow-sm ring-1 ring-white/25"
+            style={{ backgroundImage: `linear-gradient(135deg, ${RED}, ${RED_DARK})` }}
           >
             <p className="font-heading text-[13px] font-bold uppercase tracking-wide">
               {copy.upliftTitle}
@@ -194,13 +218,15 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
                 current: formatMoney(savings),
               })}
             </p>
-            <div className="mt-1.5 flex items-center gap-1.5">
-              <UpliftArrow className="size-6 shrink-0" aria-hidden="true" />
+            <div className="mt-2 flex items-center gap-2 border-t border-white/25 pt-2">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+                <UpliftArrow className="size-[18px]" style={{ color: RED_DARK }} aria-hidden="true" />
+              </span>
               <span className="font-heading text-[22px] font-extrabold tabular-nums">
                 {formatMoney(uplift, { signed: true })}
               </span>
             </div>
-            <p className="mt-1 text-[10.5px] leading-snug text-white/85">
+            <p className="mt-1.5 text-[10.5px] leading-snug text-white/85">
               {fill(copy.upliftNote, {
                 previous: formatMoney(previousSavings),
                 current: formatMoney(savings),
@@ -210,30 +236,33 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
         </div>
       </div>
 
-      <div className="mx-9 mt-5 overflow-hidden rounded-xl border border-[#e5e7eb]">
+      <div className="mx-9 mt-5 overflow-hidden rounded-2xl border border-[#e5e7eb] shadow-sm">
         <table className="w-full border-collapse text-left">
           <thead>
             <tr
               className="text-[11px] uppercase tracking-wide text-white"
               style={{ backgroundImage: `linear-gradient(90deg, ${NAVY_FROM}, ${NAVY_TO})` }}
             >
-              <th className="w-12 px-3 py-2.5 align-bottom font-heading font-semibold">
+              <th className="w-12 px-3 py-3 align-bottom font-heading font-semibold">
                 {copy.colNumber}
               </th>
-              <th className="px-3 py-2.5 align-bottom font-heading font-semibold">
+              <th className="px-3 py-3 align-bottom font-heading font-semibold">
                 {copy.colDistrict}
               </th>
-              <th className="px-3 py-2.5 align-bottom font-heading font-semibold">
+              <th className="px-3 py-3 align-bottom font-heading font-semibold">
                 {copy.colProvince}
               </th>
-              <th className="px-3 py-2.5 text-right align-bottom font-heading font-semibold leading-snug">
-                {copy.colMembersPaid}
+              <th className="px-3 py-3 align-bottom font-heading font-semibold">
+                <span className="flex items-center justify-end gap-1.5">
+                  <Users className="size-3.5" aria-hidden="true" />
+                  {copy.colMembersPaid}
+                </span>
               </th>
-              <th className="px-3 py-2.5 text-right align-bottom font-heading font-semibold leading-snug">
-                {copy.colMembersUnpaid}
-              </th>
-              <th className="px-3 py-2.5 text-right align-bottom font-heading font-semibold">
-                {copy.colSavings}
+              <th className="px-3 py-3 text-right align-bottom font-heading font-semibold">
+                <span className="flex items-center justify-end gap-1.5">
+                  <HandCoins className="size-3.5" aria-hidden="true" />
+                  {copy.colSavings}
+                </span>
               </th>
             </tr>
           </thead>
@@ -243,10 +272,10 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
                 key={row.district ?? "none"}
                 style={{ backgroundColor: index % 2 === 1 ? GREEN_PALE : "#ffffff" }}
               >
-                <td className="px-3 py-2">
+                <td className="px-3 py-2.5">
                   {index < RANK_COLOURS.length ? (
                     <span
-                      className="flex size-6 items-center justify-center rounded-full font-heading text-[12px] font-bold text-white"
+                      className="flex size-6 items-center justify-center rounded-full font-heading text-[12px] font-bold text-white shadow-sm"
                       style={{ backgroundColor: RANK_COLOURS[index] }}
                     >
                       {index + 1}
@@ -257,37 +286,39 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2 font-semibold text-[#0b1b33]">
+                <td className="px-3 py-2.5 font-semibold text-[#0b1b33]">
                   {row.district ?? <span className="text-[#9aa3af]">—</span>}
                 </td>
-                <td className="px-3 py-2 text-[#5b6472]">
+                <td className="px-3 py-2.5 text-[#5b6472]">
                   {row.district ? provinceShortLabel(row.province, locale) || "—" : "—"}
                 </td>
-                <td className="px-3 py-2 text-right font-semibold tabular-nums text-[#0b1b33]">
+                <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-[#0b1b33]">
                   {row.savers}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-[#8a94a3]">
-                  {row.nonSavers}
-                </td>
-                <td className="px-3 py-2 text-right font-semibold tabular-nums text-[#0b1b33]">
-                  {formatMoney(row.savings)}
+                <td className="relative px-3 py-2.5 text-right font-semibold tabular-nums text-[#0b1b33]">
+                  {/* A bar behind the figure, sized against the leading
+                      district: the ranking is readable at a glance without
+                      counting digits. */}
+                  <span
+                    aria-hidden="true"
+                    className="absolute inset-y-1 right-0 rounded-l-full bg-[#5aa73a]/15"
+                    style={{ width: `${barWidth(row.savings, maxSavings)}%` }}
+                  />
+                  <span className="relative">{formatMoney(row.savings)}</span>
                 </td>
               </tr>
             ))}
             <tr
-              className="font-heading text-[13px] font-bold text-[#0b1b33]"
-              style={{ backgroundColor: "#eef3fa" }}
+              className="font-heading text-[13px] font-bold text-white"
+              style={{ backgroundImage: `linear-gradient(90deg, ${NAVY_FROM}, ${NAVY_TO})` }}
             >
-              <td className="px-3 py-2.5" />
-              <td className="px-3 py-2.5">{d.common.total}</td>
-              <td className="px-3 py-2.5" />
-              <td className="px-3 py-2.5 text-right tabular-nums">
+              <td className="px-3 py-3" />
+              <td className="px-3 py-3">{d.common.total}</td>
+              <td className="px-3 py-3" />
+              <td className="px-3 py-3 text-right tabular-nums">
                 {report.totals.savers}
               </td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-[#8a94a3]">
-                {report.totals.nonSavers}
-              </td>
-              <td className="px-3 py-2.5 text-right tabular-nums">
+              <td className="px-3 py-3 text-right tabular-nums">
                 {formatMoney(report.totals.savings)}
               </td>
             </tr>
@@ -296,14 +327,14 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
       </div>
 
       <footer
-        className="relative mt-6 overflow-hidden px-9 py-6"
+        className="relative mt-6 overflow-hidden px-9 py-7"
         style={{ backgroundImage: `linear-gradient(90deg, ${NAVY_TO}, ${NAVY_FROM})` }}
       >
         <svg
           aria-hidden="true"
           viewBox="0 0 960 80"
           preserveAspectRatio="none"
-          className="absolute inset-x-0 bottom-0 h-20 w-full"
+          className="absolute inset-x-0 bottom-0 h-24 w-full"
         >
           <g fill="#061224" opacity="0.55">
             <rect x="0" y="52" width="54" height="28" />
@@ -328,6 +359,15 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
             <rect x="906" y="50" width="54" height="30" />
           </g>
         </svg>
+        {/* Skyline fading into the band, as a city seen at first light. */}
+        <span
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-24"
+          style={{
+            backgroundImage:
+              "linear-gradient(to bottom, rgba(11,27,51,0.92), rgba(11,27,51,0))",
+          }}
+        />
         <div className="relative flex items-center gap-3">
           <Scissors className="size-7 shrink-0" style={{ color: GREEN_LIGHT }} aria-hidden="true" />
           <p className="font-heading text-[17px] font-bold text-white">{copy.footer}</p>
@@ -343,29 +383,31 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
 function StatTile({
   icon: Icon,
   iconColor,
-  iconBg,
+  tint,
   value,
   label,
 }: {
   icon: typeof Users;
   iconColor: string;
-  iconBg: string;
+  tint: string;
   value: string;
   label: string;
 }) {
   return (
-    <div className="flex flex-1 items-center gap-3 rounded-xl border border-[#e5e7eb] p-3">
-      <span
-        className="flex size-9 shrink-0 items-center justify-center rounded-lg"
-        style={{ backgroundColor: iconBg }}
-      >
-        <Icon className="size-[18px]" style={{ color: iconColor }} aria-hidden="true" />
+    <div
+      className="flex flex-1 items-center gap-3 rounded-2xl p-3.5 ring-1 ring-black/[0.04]"
+      style={{ backgroundColor: tint }}
+    >
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
+        <Icon className="size-5" style={{ color: iconColor }} aria-hidden="true" />
       </span>
       <div className="leading-tight">
-        <p className="font-heading text-[19px] font-extrabold tabular-nums text-[#0b1b33]">
+        <p className="font-heading text-[20px] font-extrabold tabular-nums text-[#0b1b33]">
           {value}
         </p>
-        <p className="mt-0.5 text-[10.5px] uppercase tracking-wide text-[#5b6472]">{label}</p>
+        <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#5b6472]">
+          {label}
+        </p>
       </div>
     </div>
   );
