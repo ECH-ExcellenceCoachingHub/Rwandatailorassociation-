@@ -4,16 +4,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
+  Bell,
   Check,
   Copy,
   Download,
   ExternalLink,
-  Info,
   Loader2,
   Monitor,
   Share,
   Smartphone,
   SquarePlus,
+  WifiOff,
 } from "lucide-react";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import type { AuthCopy } from "@/lib/i18n/dashboard/auth";
@@ -41,14 +42,17 @@ type View =
 /**
  * /install, the whole page.
  *
- * It used to render inside the (auth) shell, which repeated the navy brand
- * panel and the STGT lockup around a card that already had both. It now owns
- * its own layout: the brand fills the viewport beside the instructions on a
- * desktop, and on a phone the same navy becomes a header above a rounded
- * sheet — so the page is never a card floating in someone else's frame.
+ * One centred card and nothing else. The page used to open with the navy brand
+ * panel — the STGT lockup, a headline, a tagline, a paragraph and a copyright
+ * beside the steps — which is a lot to read before the single thing the visitor
+ * arrived to do. Now the app icon, one line of copy and the install button
+ * carry the screen; the brand survives as a small mark in the corner, and the
+ * language switch travels with the page because the (auth) layout that used to
+ * provide it no longer wraps it.
  *
- * The language switch travels with it, because the (auth) layout is what used
- * to provide it.
+ * The states are unchanged from what they always were: one-tap install where
+ * the browser offers it, two or three short steps where it does not, and a way
+ * out for the in-app browsers that cannot install anything at all.
  */
 export default function InstallApp({
   copy,
@@ -59,13 +63,11 @@ export default function InstallApp({
 }) {
   const [view, setView] = useState<View>("ready");
   const [platform, setPlatform] = useState<Platform>("other");
-  const [supported, setSupported] = useState<boolean | null>(null);
   const deferred = useRef<BeforeInstallPromptEvent | null>(null);
   const [promptReady, setPromptReady] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const install = copy.install;
-  const layout = copy.layout;
   const target = returnTo || "/login";
 
   useEffect(() => {
@@ -88,7 +90,6 @@ export default function InstallApp({
     // Browser detection happens client-side; the server cannot identify the device.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPlatform(p);
-    setSupported(canPrompt || p === "ios");
     setView(initial);
 
     deferred.current = takeEarlyPrompt();
@@ -189,7 +190,9 @@ export default function InstallApp({
     stepsView !== null &&
     view !== "installed" &&
     view !== "alreadyInstalled";
-  const showPreview = view !== "inApp";
+
+  const card =
+    "rounded-3xl border border-border bg-surface/90 p-5 text-center shadow-card backdrop-blur sm:p-6";
 
   const primaryButton =
     "flex min-h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-primary px-5 py-3 text-base font-bold text-white shadow-lift transition duration-200 hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-75";
@@ -197,155 +200,136 @@ export default function InstallApp({
     "flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-3 text-sm font-semibold text-ink transition hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/20";
 
   return (
-    <main className="flex min-h-[100svh] w-full flex-col bg-footer lg:grid lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-      {/* Brand panel: beside the instructions on a desktop, a header above them on a phone. */}
-      <section className="relative isolate flex flex-col overflow-hidden bg-footer px-5 pb-10 pt-6 text-white sm:px-8 lg:min-h-[100svh] lg:justify-between lg:px-12 lg:py-10 xl:px-16">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 -z-10 bg-noise opacity-40"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-24 -top-24 -z-10 size-72 rounded-full border border-white/10 sm:size-96"
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-32 -left-24 -z-10 size-80 rounded-full border border-white/10"
-        />
+    <main className="motion-safe-install relative flex min-h-[100svh] flex-col overflow-hidden bg-background">
+      {/* Backdrop only: a fading dot field, three slowly drifting washes of
+          brand light and one warm one. Nothing here is read or clicked. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 -z-10 overflow-hidden"
+      >
+        <div className="absolute inset-0 bg-dots [mask-image:radial-gradient(65%_55%_at_50%_30%,black,transparent)]" />
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2">
+          <div className="install-drift size-[560px] rounded-full bg-primary-100/70 blur-[110px]" />
+        </div>
+        <div className="install-drift absolute -bottom-52 -right-28 size-[420px] rounded-full bg-primary-50 blur-[100px] [animation-delay:-6s]" />
+        <div className="install-drift absolute -bottom-44 -left-32 size-[340px] rounded-full bg-gold/20 blur-[100px] [animation-delay:-12s]" />
+      </div>
 
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <Image
-              src="/icons/icon-192.png"
-              alt="Rwanda Tailors Association"
-              width={56}
-              height={56}
-              priority
-              className="size-12 shrink-0 rounded-full bg-white object-contain p-1 shadow-lg ring-1 ring-white/30 sm:size-14"
-            />
-            <div className="min-w-0 text-left">
-              <p className="font-heading text-xl font-extrabold tracking-[0.08em] sm:text-2xl">
-                STGT
-              </p>
-              <p className="mt-1 text-[10px] font-bold leading-snug tracking-[0.16em] text-primary-light sm:text-xs">
-                {layout.brandTagline}
-              </p>
-            </div>
-          </div>
-
-          <LanguageToggle className="flex border-white/20 bg-white/95 shadow-lg shadow-black/20" />
+      <header className="relative flex items-center justify-between gap-4 px-5 pt-6 sm:px-8">
+        <div className="flex items-center gap-2.5">
+          <Image
+            src="/icons/icon-192.png"
+            alt=""
+            width={36}
+            height={36}
+            priority
+            className="size-9 rounded-xl object-contain ring-1 ring-border"
+          />
+          <span className="font-heading text-sm font-extrabold tracking-[0.2em] text-ink">
+            STGT
+          </span>
         </div>
 
-        <div className="mt-9 lg:mt-0">
-          <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-light sm:text-xs">
-            Rwanda Tailors Association
-          </p>
-          <h2 className="font-heading text-balance text-[clamp(1.75rem,7vw,2.5rem)] font-extrabold leading-tight tracking-tight text-white lg:text-[clamp(2rem,3.2vw,3.25rem)]">
-            {layout.headline}
-          </h2>
-          <p className="mt-5 hidden max-w-md text-sm leading-7 text-white/70 sm:block lg:text-base">
-            {install.pageIntro}
-          </p>
-        </div>
+        <LanguageToggle className="flex" />
+      </header>
 
-        <p className="mt-10 hidden text-xs text-white/40 lg:mt-12 lg:block">
-          © {new Date().getFullYear()} Rwanda Tailors Association
-        </p>
-      </section>
-
-      {/* Install content */}
-      <section className="flex flex-1 flex-col justify-center rounded-t-[32px] bg-background px-5 py-9 sm:px-8 lg:rounded-none lg:px-12 lg:py-14 xl:px-16">
-        <div className="mx-auto w-full max-w-lg">
+      <div className="relative flex flex-1 flex-col items-center justify-center px-5 py-10">
+        <div className="install-rise w-full max-w-[400px]">
           <div className="flex flex-col items-center text-center">
-            {showPreview && (
-              <div className="mb-5 rounded-3xl bg-surface p-2 shadow-card ring-1 ring-border">
+            {/* The icon stage: the app card floats, rings ripple out from it as
+                if it were landing on a home screen, and two chips hint at what
+                installing gets you. */}
+            <div className="relative grid place-items-center">
+              <span
+                aria-hidden="true"
+                className="install-ring absolute size-32 rounded-full border border-primary/25 sm:size-40"
+              />
+              <span
+                aria-hidden="true"
+                className="install-ring absolute size-32 rounded-full border border-primary/20 [animation-delay:-2.4s] sm:size-40"
+              />
+              <span
+                aria-hidden="true"
+                className="install-ring absolute size-32 rounded-full border border-primary/15 [animation-delay:-4.8s] sm:size-40"
+              />
+
+              <div className="install-float relative rounded-[28px] bg-surface p-3 shadow-lift ring-1 ring-border">
                 <Image
                   src="/icons/icon-192.png"
                   alt="STGT app icon"
-                  width={76}
-                  height={76}
+                  width={80}
+                  height={80}
                   priority
-                  className="size-16 rounded-[18px] object-contain sm:size-[76px]"
+                  className="size-[76px] rounded-[20px] object-contain sm:size-[84px]"
                 />
               </div>
-            )}
 
-            <h1 className="max-w-[18ch] font-heading text-balance text-[clamp(1.6rem,4.5vw,2.25rem)] font-extrabold leading-tight tracking-tight text-ink">
+              <span
+                aria-hidden="true"
+                className="install-float absolute -right-5 top-0 flex size-11 items-center justify-center rounded-2xl bg-surface shadow-card ring-1 ring-border [animation-delay:-2.5s] sm:-right-8"
+              >
+                <Bell className="size-5 text-primary" />
+              </span>
+              <span
+                aria-hidden="true"
+                className="install-float absolute -left-6 bottom-1 flex size-11 items-center justify-center rounded-2xl bg-surface shadow-card ring-1 ring-border [animation-delay:-4.5s] sm:-left-9"
+              >
+                <WifiOff className="size-5 text-success" />
+              </span>
+            </div>
+
+            <h1 className="mt-7 font-heading text-[clamp(1.5rem,5vw,1.9rem)] font-extrabold leading-tight tracking-tight text-ink">
               {install.title}
             </h1>
-
-            {supported !== null &&
-              view !== "installed" &&
-              view !== "alreadyInstalled" && (
-                <p
-                  className={`mt-5 flex max-w-full items-start justify-center gap-2 text-xs font-medium leading-5 sm:text-sm ${
-                    supported ? "text-success" : "text-ink-muted"
-                  }`}
-                >
-                  {supported ? (
-                    <Check
-                      className="mt-0.5 size-4 shrink-0"
-                      aria-hidden="true"
-                    />
-                  ) : (
-                    <Info
-                      className="mt-0.5 size-4 shrink-0"
-                      aria-hidden="true"
-                    />
-                  )}
-                  <span>{supported ? install.supported : install.notSupported}</span>
-                </p>
-              )}
+            <span
+              aria-hidden="true"
+              className="mt-3 h-1.5 w-10 rounded-full bg-primary/70"
+            />
           </div>
 
-          <div className="mt-7 space-y-4 sm:mt-8">
-            {view === "alreadyInstalled" && (
-              <div className="rounded-2xl border border-success/20 bg-success/10 px-4 py-4">
-                <p className="flex items-center justify-center gap-2 font-heading text-base font-semibold text-ink">
-                  <Check
-                    className="size-5 shrink-0 text-success"
-                    aria-hidden="true"
-                  />
-                  {install.alreadyInstalledTitle}
-                </p>
-                <p className="mt-1.5 text-center text-sm leading-relaxed text-ink-muted">
-                  {install.alreadyInstalledBody}
-                </p>
-              </div>
-            )}
-
+          <div className="install-rise mt-8 space-y-4 [animation-delay:180ms]">
             {(view === "ready" || view === "installing") && (
               <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={installApp}
-                  disabled={view === "installing" || !promptReady}
-                  aria-busy={view === "installing" || !promptReady}
-                  className={primaryButton}
-                >
-                  {view === "installing" ? (
-                    <>
-                      <Loader2
-                        className="size-5 shrink-0 animate-spin"
-                        aria-hidden="true"
-                      />
-                      {install.installing}
-                    </>
-                  ) : promptReady ? (
-                    <>
-                      <Download className="size-5 shrink-0" aria-hidden="true" />
-                      {install.installButton}
-                    </>
-                  ) : (
-                    <>
-                      <Loader2
-                        className="size-5 shrink-0 animate-spin"
-                        aria-hidden="true"
-                      />
-                      {install.preparingTitle}
-                    </>
-                  )}
-                </button>
+                {/* The one thing to do, so it gets the only glow on the page. */}
+                <div className="relative">
+                  <span
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-5 bottom-0 h-8 rounded-full bg-primary/30 blur-lg"
+                  />
+                  <button
+                    type="button"
+                    onClick={installApp}
+                    disabled={view === "installing" || !promptReady}
+                    aria-busy={view === "installing" || !promptReady}
+                    className={`relative ${primaryButton}`}
+                  >
+                    {view === "installing" ? (
+                      <>
+                        <Loader2
+                          className="size-5 shrink-0 animate-spin"
+                          aria-hidden="true"
+                        />
+                        {install.installing}
+                      </>
+                    ) : promptReady ? (
+                      <>
+                        <Download
+                          className="size-5 shrink-0"
+                          aria-hidden="true"
+                        />
+                        {install.installButton}
+                      </>
+                    ) : (
+                      <>
+                        <Loader2
+                          className="size-5 shrink-0 animate-spin"
+                          aria-hidden="true"
+                        />
+                        {install.preparingTitle}
+                      </>
+                    )}
+                  </button>
+                </div>
 
                 {!promptReady && view === "ready" && (
                   <p className="text-center text-xs leading-5 text-ink-muted">
@@ -356,50 +340,75 @@ export default function InstallApp({
             )}
 
             {view === "preparing" && (
-              <div className="space-y-4 rounded-2xl border border-border bg-surface p-5 shadow-card">
-                <div>
-                  <p className="flex items-center justify-center gap-2 font-heading text-base font-semibold text-ink">
-                    <Loader2
-                      className="size-5 shrink-0 animate-spin text-primary"
-                      aria-hidden="true"
-                    />
-                    {install.preparingTitle}
-                  </p>
-                  <p className="mt-2 text-center text-sm leading-relaxed text-ink-muted">
-                    {install.preparingBody}
-                  </p>
-                </div>
-                <p className="border-t border-border pt-4 text-center text-sm leading-relaxed text-ink-muted">
+              <div className={card}>
+                <p className="flex items-center justify-center gap-2 font-heading text-base font-bold text-ink">
+                  <Loader2
+                    className="size-5 shrink-0 animate-spin text-primary"
+                    aria-hidden="true"
+                  />
+                  {install.preparingTitle}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-ink-muted">
+                  {install.preparingBody}
+                </p>
+                <p className="mt-3 border-t border-border pt-3 text-xs leading-5 text-ink-muted">
                   {install.preparingMenu}
                 </p>
               </div>
             )}
 
             {view === "installed" && (
-              <p className="flex items-center justify-center gap-2 rounded-2xl bg-success/10 px-4 py-3 text-sm font-medium text-ink">
-                <Check
-                  className="size-5 shrink-0 text-success"
-                  aria-hidden="true"
-                />
-                {install.installed}
-              </p>
+              <div className="space-y-3">
+                <p className="flex items-center justify-center gap-2 rounded-2xl bg-success/10 px-4 py-3.5 text-sm font-semibold text-ink">
+                  <Check
+                    className="size-5 shrink-0 text-success"
+                    aria-hidden="true"
+                  />
+                  {install.installed}
+                </p>
+                <Link href={target} className={primaryButton}>
+                  <ExternalLink className="size-5 shrink-0" aria-hidden="true" />
+                  {install.openApp}
+                </Link>
+              </div>
+            )}
+
+            {view === "alreadyInstalled" && (
+              <div className="space-y-3">
+                <div className={card}>
+                  <p className="flex items-center justify-center gap-2 font-heading text-base font-bold text-ink">
+                    <Check
+                      className="size-5 shrink-0 text-success"
+                      aria-hidden="true"
+                    />
+                    {install.alreadyInstalledTitle}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-ink-muted">
+                    {install.alreadyInstalledBody}
+                  </p>
+                </div>
+                <Link href={target} className={primaryButton}>
+                  <ExternalLink className="size-5 shrink-0" aria-hidden="true" />
+                  {install.openApp}
+                </Link>
+              </div>
             )}
 
             {view === "inApp" && (
-              <div className="space-y-4 rounded-2xl border border-border bg-surface p-5 text-left shadow-card">
+              <div className={card}>
                 <h2 className="font-heading text-base font-bold text-ink">
                   {install.inAppTitle}
                 </h2>
-                <p className="text-sm leading-relaxed text-ink-muted">
+                <p className="mt-2 text-sm leading-6 text-ink-muted">
                   {install.inAppBody}
                 </p>
                 {platform === "android" && (
                   <a
                     href={chromeIntentUrl()}
-                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-lift transition hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/30"
+                    className={`${primaryButton} mt-4`}
                   >
                     <ExternalLink
-                      className="size-4 shrink-0"
+                      className="size-5 shrink-0"
                       aria-hidden="true"
                     />
                     {install.openInBrowser}
@@ -408,7 +417,7 @@ export default function InstallApp({
                 <button
                   type="button"
                   onClick={copyLink}
-                  className={secondaryButton}
+                  className={`${secondaryButton} mt-3`}
                 >
                   {copied ? (
                     <Check className="size-4 shrink-0" aria-hidden="true" />
@@ -471,42 +480,29 @@ export default function InstallApp({
             )}
 
             {view === "manual" && (
-              <div className="rounded-2xl border border-border bg-surface p-5 shadow-card">
+              <div className={card}>
                 <h2 className="font-heading text-base font-bold text-ink">
                   {install.manualTitle}
                 </h2>
-                <p className="mt-2 text-sm leading-relaxed text-ink-muted">
+                <p className="mt-2 text-sm leading-6 text-ink-muted">
                   {install.manualBody}
                 </p>
               </div>
             )}
-
-            {(view === "installed" || view === "alreadyInstalled") && (
-              <Link href={target} className={primaryButton}>
-                <ExternalLink className="size-5 shrink-0" aria-hidden="true" />
-                {install.openApp}
-              </Link>
-            )}
           </div>
 
           {view !== "installed" && view !== "alreadyInstalled" && (
-            <p className="mt-6 text-center text-sm leading-6 text-ink-muted">
+            <p className="install-rise mt-6 text-center text-sm [animation-delay:260ms]">
               <Link
                 href="/login"
-                className="font-semibold text-primary underline-offset-4 hover:underline focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                className="font-medium text-ink-muted underline-offset-4 transition-colors hover:text-primary hover:underline focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               >
                 {install.continueInBrowser}
               </Link>
             </p>
           )}
-
-          {/* On a desktop the brand panel carries the copyright; here it would
-              be the second copy of it on one screen. */}
-          <p className="mt-8 text-center text-xs leading-5 text-ink-muted/70 lg:hidden">
-            © {new Date().getFullYear()} Rwanda Tailors Association · STGT
-          </p>
         </div>
-      </section>
+      </div>
     </main>
   );
 }
@@ -521,13 +517,26 @@ function Steps({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-4 text-left shadow-card sm:p-5">
-      <h2 className="font-heading text-base font-bold text-ink sm:text-lg">
+    <section className="relative overflow-hidden rounded-3xl border border-border bg-surface/90 p-5 text-left shadow-card backdrop-blur sm:p-6">
+      {/* A wash of brand light across the top edge, so the sheet does not sit
+          flat on the page. */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-primary-50/80 to-transparent"
+      />
+      <h2 className="relative text-center font-heading text-base font-bold text-ink">
         {title}
       </h2>
-      <ol className="mt-4 space-y-4 text-sm text-ink">{children}</ol>
+      <ol className="relative mt-4 space-y-3.5">
+        {/* The thread that ties the numbered circles into one instruction. */}
+        <span
+          aria-hidden="true"
+          className="absolute bottom-2 left-[13px] top-2 w-px bg-border"
+        />
+        {children}
+      </ol>
       {note && (
-        <p className="mt-4 border-t border-border pt-3 text-xs leading-relaxed text-ink-muted">
+        <p className="relative mt-4 border-t border-border pt-3 text-center text-xs leading-5 text-ink-muted">
           {note}
         </p>
       )}
@@ -545,15 +554,15 @@ function Step({
   text: string;
 }) {
   return (
-    <li className="flex min-w-0 items-start gap-3">
+    <li className="flex min-w-0 items-center gap-3">
       <span
         aria-hidden="true"
-        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-50 font-heading text-sm font-bold text-primary"
+        className="relative flex size-7 shrink-0 items-center justify-center rounded-full bg-primary-50 font-heading text-xs font-bold text-primary ring-4 ring-surface/90"
       >
         {n}
       </span>
-      <span className="min-w-0 flex-1 break-words leading-relaxed">{text}</span>
-      <span className="shrink-0 pt-1 text-primary">{icon}</span>
+      <span className="min-w-0 flex-1 text-sm leading-6 text-ink">{text}</span>
+      <span className="shrink-0 text-primary">{icon}</span>
     </li>
   );
 }

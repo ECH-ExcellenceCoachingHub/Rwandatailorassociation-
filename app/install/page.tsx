@@ -8,11 +8,10 @@ import { getDashboardCopy } from "@/lib/i18n/server";
  * /install — the shareable page that puts the app on a member's phone.
  *
  * Stands outside the (auth) shell on purpose. That shell is built around a
- * form sitting in a white sheet on a light page; this page is a full-height
- * invitation — brand on one side, install steps on the other, its own
- * language switch — and wrapping it in the sign-in layout only repeated the
- * navy panel, the STGT lockup and the copyright inside the very card that
- * already carried them.
+ * form sitting in a white sheet on a light page, with a navy brand panel of its
+ * own; this page is a single centred card — icon, one line of copy, the install
+ * button — so there is nothing to read before the one action, and no brand
+ * panel competing with the page it wraps.
  *
  * The service worker and the catch for Chrome's one-off install prompt are
  * registered by the root layout, so they behave here exactly as they do

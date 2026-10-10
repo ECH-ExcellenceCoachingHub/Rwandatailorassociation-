@@ -113,6 +113,9 @@ export interface AuthCopy {
   };
   /// The shareable /install page that puts the app on a member's phone.
   install: {
+    /// The heading and the whole of the page's copy. The page itself shows
+    /// nothing else — the button, the steps and one link out — so `subtitle`
+    /// below is for the browser tab and link previews only.
     title: string;
     subtitle: string;
     installButton: string;
@@ -138,13 +141,9 @@ export interface AuthCopy {
     openInBrowser: string;
     copyLink: string;
     copied: string;
-    /// Supporting line on the brand panel of the standalone /install page.
-    pageIntro: string;
     manualTitle: string;
     manualBody: string;
     continueInBrowser: string;
-    supported: string;
-    notSupported: string;
     alreadyInstalledTitle: string;
     /// Chrome has not offered the install yet (it waits for ~30 seconds on
     /// the site); shown while we wait for it.
@@ -269,40 +268,41 @@ export const auth: Record<Locale, AuthCopy> = {
     },
     install: {
       title: "Install the STGT app",
-      subtitle: "Add the app to your phone's home screen. It opens straight to sign-in, with no app store needed.",
+      subtitle: "Add STGT to your home screen. No app store needed.",
       installButton: "Install app",
       installing: "Installing…",
       installed: "Installed. Look for the STGT icon on your home screen.",
       openApp: "Go to sign-in",
       iosTitle: "On iPhone or iPad",
-      iosStep1: "Tap the Share button at the bottom of Safari (a square with an arrow).",
-      iosStep2: "Scroll down and tap “Add to Home Screen”.",
-      iosStep3: "Tap “Add”. The STGT icon appears on your home screen.",
-      iosSafariOnly: "If you do not see “Add to Home Screen”, open this link in Safari.",
+      iosStep1: "Tap Share in Safari.",
+      iosStep2: "Tap “Add to Home Screen”.",
+      iosStep3: "Tap “Add”. The icon lands on your home screen.",
+      iosSafariOnly: "Don’t see it? Open this link in Safari.",
       androidTitle: "On Android",
-      androidStep1: "Tap the menu button (⋮) at the top right of Chrome.",
-      androidStep2: "Choose “Install app”. The STGT icon appears on your home screen.",
+      androidStep1: "Tap the menu (⋮) in Chrome.",
+      androidStep2: "Tap “Install app”.",
       desktopTitle: "On a computer",
-      desktopStep1: "Look for the install icon at the right of the address bar.",
-      desktopStep2: "Click it, or open the browser menu (⋮) and choose “Install STGT”.",
-      inAppTitle: "Open this link in your browser",
-      inAppBody: "Apps like WhatsApp, Facebook and Instagram cannot install apps. Open this page in Chrome (Android) or Safari (iPhone) to install.",
+      desktopStep1: "Tap the install icon in the address bar.",
+      desktopStep2: "Or open the browser menu (⋮) and choose “Install STGT”.",
+      inAppTitle: "Open in your browser",
+      inAppBody:
+        "WhatsApp, Facebook and Instagram can’t install apps. Open this page in Chrome or Safari.",
       openInBrowser: "Open in Chrome",
       copyLink: "Copy link",
       copied: "Link copied",
-      pageIntro:
-        "Save today and be ready for tomorrow. Put STGT on your phone and your savings are one tap away.",
       manualTitle: "Install from the browser menu",
-      manualBody: "Tap the browser menu (⋮) and choose “Install app” or “Add to Home screen”. If you only see “Open app”, it is already installed.",
+      manualBody:
+        "Tap the menu (⋮), then “Install app” or “Add to Home screen”.",
       continueInBrowser: "Continue in the browser instead",
-      supported: "Your phone can install this app",
-      notSupported: "This browser cannot install apps. Use Chrome (Android) or Safari (iPhone).",
+      alreadyInstalledTitle: "Already installed",
+      /// Chrome has not offered the install yet (it waits for ~30 seconds on
+      /// the site); shown while we wait for it.
       preparingTitle: "Getting the app ready…",
-      preparingBody: "Keep this page open. In a few seconds the Install button comes back, ready to install in one tap.",
-      preparingMenu: "Can’t wait? Tap the browser menu (⋮) and choose “Install app” or “Add to Home screen”.",
+      preparingBody:
+        "Keep this page open. The Install button comes back in a few seconds.",
+      preparingMenu: "Can’t wait? Tap the menu (⋮), then “Install app”.",
       readyNow: "Ready, tap to install",
-      alreadyInstalledTitle: "The app is already on your phone",
-      alreadyInstalledBody: "Look for the STGT icon on your home screen and open it from there.",
+      alreadyInstalledBody: "Open it from your home screen.",
       bannerTitle: "Get the STGT app",
       bannerBody: "Quick access to your savings from your home screen",
       bannerInstall: "Install",
@@ -419,41 +419,41 @@ export const auth: Record<Locale, AuthCopy> = {
       backToWebsite: "Subira ku rubuga",
     },
     install: {
-      title: "Shyira porogaramu ya STGT kuri telefone",
-      subtitle: "Shyira porogaramu kuri telefone yawe. Ifungukira ahinjirirwa ako kanya, nta Play Store cyangwa App Store ikenewe.",
+      title: "Shyira STGT kuri telefone",
+      subtitle:
+        "Shyira STGT kuri telefone yawe. Nta Play Store cyangwa App Store ikenewe.",
       installButton: "Shyiramo porogaramu",
       installing: "Birimo gushyirwamo…",
       installed: "Byarangiye. Shaka ikirango cya STGT kuri telefone yawe.",
       openApp: "Jya ahinjirirwa",
       iosTitle: "Kuri iPhone cyangwa iPad",
-      iosStep1: "Kanda akabuto ko Gusangiza (Share) hasi muri Safari (kare irimo akambi).",
-      iosStep2: "Manuka maze ukande “Add to Home Screen”.",
-      iosStep3: "Kanda “Add”. Ikirango cya STGT kiragaragara kuri telefone yawe.",
-      iosSafariOnly: "Niba utabona “Add to Home Screen”, fungura iyi link muri Safari.",
+      iosStep1: "Kanda Share muri Safari.",
+      iosStep2: "Kanda “Add to Home Screen”.",
+      iosStep3: "Kanda “Add”. Ikarango kiragaragara kuri telefone yawe.",
+      iosSafariOnly: "Ntubibona? Fungura iyi link muri Safari.",
       androidTitle: "Kuri Android",
-      androidStep1: "Kanda akabuto ka menu (⋮) hejuru iburyo muri Chrome.",
-      androidStep2: "Hitamo “Install app”. Ikirango cya STGT kiragaragara kuri telefone yawe.",
+      androidStep1: "Kanda menu (⋮) muri Chrome.",
+      androidStep2: "Kanda “Install app”.",
       desktopTitle: "Kuri mudasobwa",
-      desktopStep1: "Shaka ikirango cyo gushyiramo iburyo bw'umurongo w'adiresi.",
-      desktopStep2: "Kikande, cyangwa fungura menu ya mushakisha (⋮) maze uhitemo “Install STGT”.",
-      inAppTitle: "Fungura iyi link muri mushakisha",
-      inAppBody: "Porogaramu nka WhatsApp, Facebook na Instagram ntizishobora gushyiramo porogaramu. Fungura iyi paji muri Chrome (Android) cyangwa Safari (iPhone).",
+      desktopStep1: "Kanda ikirango cyo gushyiramo mu murongo w'adiresi.",
+      desktopStep2: "Cyangwa fungura menu (⋮), uhitemo “Install STGT”.",
+      inAppTitle: "Fungura muri mushakisha",
+      inAppBody:
+        "WhatsApp, Facebook na Instagram ntishobora gushyiramo porogaramu. Fungura iyi paji muri Chrome cyangwa Safari.",
       openInBrowser: "Fungura muri Chrome",
       copyLink: "Koporora link",
       copied: "Link yakoporowe",
-      pageIntro:
-        "Zigama uyu munsi, witegure ejo hazaza. Shyira porogaramu ya STGT kuri telefone yawe kugira ngo uyigereho byoroshye.",
-      manualTitle: "Shyiramo ukoresheje menu ya mushakisha",
-      manualBody: "Kanda menu ya mushakisha (⋮) maze uhitemo “Install app” cyangwa “Add to Home screen”. Niba ubona “Open app” gusa, isanzwe iri kuri telefone yawe.",
+      manualTitle: "Shyira ukoresheje menu",
+      manualBody:
+        "Kanda menu (⋮), hanyuma “Install app” cyangwa “Add to Home screen”.",
       continueInBrowser: "Komeza muri mushakisha",
-      supported: "Telefone yawe ishobora gushyiramo iyi porogaramu",
-      notSupported: "Iyi mushakisha ntishobora gushyiramo porogaramu. Koresha Chrome (Android) cyangwa Safari (iPhone).",
-      preparingTitle: "Turimo gutegura porogaramu…",
-      preparingBody: "Guma kuri iyi paji. Mu masegonda make akabuto ko Gushyiramo karagaruka, ushyiremo ukanze rimwe.",
-      preparingMenu: "Ntushaka gutegereza? Kanda menu ya mushakisha (⋮) maze uhitemo “Install app” cyangwa “Add to Home screen”.",
+      alreadyInstalledTitle: "Iri kuri telefone yawe",
+      preparingTitle: "Turimo gutegura…",
+      preparingBody:
+        "Guma kuri iyi paji. Akabuto ko Gushyiramo karagaruka mu masegonda make.",
+      preparingMenu: "Ntushaka gutegereza? Kanda menu (⋮), hanyuma “Install app”.",
       readyNow: "Byateguwe, kanda ushyiremo",
-      alreadyInstalledTitle: "Porogaramu isanzwe iri kuri telefone yawe",
-      alreadyInstalledBody: "Shaka ikirango cya STGT kuri telefone yawe maze uyifungurire aho.",
+      alreadyInstalledBody: "Ifungure kuri telefone yawe.",
       bannerTitle: "Porogaramu ya STGT",
       bannerBody: "Gera ku buzigame bwawe vuba uhereye kuri telefone",
       bannerInstall: "Shyiramo",

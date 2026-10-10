@@ -71,6 +71,53 @@
       transform: translate3d(-40px, 50px, 0) scale(1.15);
     }
   }
+
+  /* Install page: the icon floats, its rings ripple outward to say "this is
+     arriving on your home screen", the backdrop washes drift, and the card
+     rises in. */
+  --animate-install-float: install-float 7s ease-in-out infinite;
+  --animate-install-rise: install-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-install-drift: install-drift 18s ease-in-out infinite alternate;
+  --animate-install-ring: install-ring 4.8s ease-out infinite;
+
+  @keyframes install-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-7px);
+    }
+  }
+  @keyframes install-rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes install-drift {
+    from {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+      transform: translate3d(34px, -42px, 0) scale(1.12);
+    }
+  }
+  @keyframes install-ring {
+    0% {
+      opacity: 0.55;
+      transform: scale(0.92);
+    }
+    70%,
+    100% {
+      opacity: 0;
+      transform: scale(1.4);
+    }
+  }
   @keyframes marquee {
     from {
       transform: translateX(0);
@@ -212,6 +259,26 @@
     background-size: 3px 3px;
   }
 
+  /* A faint dot field for a light page, where the white noise above is
+     invisible. Used masked, so it fades out instead of ending at an edge. */
+  .bg-dots {
+    background-image: radial-gradient(rgba(31, 74, 136, 0.12) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  .install-rise {
+    animation: var(--animate-install-rise);
+  }
+  .install-float {
+    animation: var(--animate-install-float);
+  }
+  .install-drift {
+    animation: var(--animate-install-drift);
+  }
+  .install-ring {
+    animation: var(--animate-install-ring);
+  }
+
   /* Account status: each list's rows rise in one after another, starting
      from the list's own `--status-delay`, so the page reads top to bottom
      the way it is meant to be read. */
@@ -250,7 +317,9 @@
 @media (prefers-reduced-motion: reduce) {
   .motion-safe-status,
   .motion-safe-status *,
-  .motion-safe-status *::after {
+  .motion-safe-status *::after,
+  .motion-safe-install,
+  .motion-safe-install * {
     animation: none !important;
     transition: none !important;
   }
