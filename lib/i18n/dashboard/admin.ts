@@ -800,13 +800,15 @@ export interface AdminCopy {
       /// mixed figure.
       colMembersPaid: string;
       colSavings: string;
-      statMembers: string;
+      /// The only member figure the image carries: the members who have
+      /// saved. The register's own totals live on the district table.
+      statSavers: string;
       statDistricts: string;
       statSavings: string;
       /// {count}
       membersPaid: string;
-      /// {districts}, {unpaid}
-      membersUnpaidHint: string;
+      /// {districts} — the districts holding savings.
+      saversHint: string;
       savingsTotal: string;
       upliftTitle: string;
       /// {previous}, {current}
@@ -2182,19 +2184,19 @@ export const admin: Record<Locale, AdminCopy> = {
         taglineTail: "prepare tomorrow",
         introLabel: "How these figures were counted",
         intro:
-          "As of {date}, based on all savings and the number of members — whether they have saved or not — since {since}.",
+          "As of {date}, based on savings held and the members who have saved since {since}; districts that have saved nothing are not shown.",
         colNumber: "No",
         colDistrict: "District",
         colProvince: "Province",
         colMembersPaid: "Members who have saved",
         colSavings: "Savings (RWF)",
-        statMembers: "Members",
+        statSavers: "Members who have saved",
         statDistricts: "Districts",
         statSavings: "Total savings",
         /// {count}
         membersPaid: "Members who have saved {count}",
-        /// {districts}, {unpaid}
-        membersUnpaidHint: "across {districts} districts · {unpaid} yet to save",
+        /// {districts}
+        saversHint: "across {districts} districts",
         savingsTotal: "Savings (RWF)",
         upliftTitle: "Growth in savings",
         upliftRange: "({previous} → {current})",
@@ -3650,17 +3652,17 @@ export const admin: Record<Locale, AdminCopy> = {
         taglineTail: "utegure ejo hazaza",
         introLabel: "Ibisobanuro by'uko imibare yabazwe",
         intro:
-          "Kugeza ku wa {date}, hashingiwe ku mafaranga yose yazigamwe n'umubare w'abanyamuryango, baba barazigamye cyangwa batarazigama, kuva ku wa {since}.",
+          "Kugeza ku wa {date}, hashingiwe ku mafaranga yazigamwe n'abanyamuryango bazigamye kuva ku wa {since}; uturere tutarazigama ntabwo twerekanwa.",
         colNumber: "No",
         colDistrict: "Akarere",
         colProvince: "Intara",
         colMembersPaid: "Abanyamuryango bazigamye",
         colSavings: "Amafaranga yazigamwe (RWF)",
-        statMembers: "Abanyamuryango",
+        statSavers: "Abanyamuryango bazigamye",
         statDistricts: "Uturere",
         statSavings: "Amafaranga yose yazigamwe",
         membersPaid: "Abanyamuryango bazigamye {count}",
-        membersUnpaidHint: "mu turere {districts} · {unpaid} abatarazigama",
+        saversHint: "mu turere {districts}",
         savingsTotal: "Amafaranga yazigamwe (RWF)",
         upliftTitle: "Ubwiyongere bw'amafaranga yazigamwe",
         upliftRange: "({previous} → {current})",

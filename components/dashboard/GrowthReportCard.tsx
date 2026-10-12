@@ -148,8 +148,8 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
             icon={Users}
             iconColor="#1f4a88"
             tint="#eef3fa"
-            value={String(report.totals.members)}
-            label={copy.statMembers}
+            value={String(report.totals.savers)}
+            label={copy.statSavers}
           />
           <StatTile
             icon={MapPinned}
@@ -180,10 +180,7 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
                 {fill(copy.membersPaid, { count: report.totals.savers })}
               </p>
               <p className="mt-0.5 text-[11px] leading-snug text-white/80">
-                {fill(copy.membersUnpaidHint, {
-                  districts: report.totals.districts,
-                  unpaid: report.totals.nonSavers,
-                })}
+                {fill(copy.saversHint, { districts: report.totals.districts })}
               </p>
             </div>
           </div>
