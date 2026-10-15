@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { IdCard, ImageOff, Printer, ArrowUpDown } from "lucide-react";
+import { IdCard, ImageOff, Printer } from "lucide-react";
 import { requirePermission, resolveAssociationScope } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getDashboardCopy } from "@/lib/i18n/server";
@@ -21,17 +21,11 @@ import { PaginationLinks } from "@/components/dashboard/PaginationLinks";
 import { CardPdfButton } from "@/components/dashboard/CardPdfButton";
 import { CardPaymentToggle } from "@/components/dashboard/CardPaymentToggle";
 import { CardDeliveryToggle } from "@/components/dashboard/CardDeliveryToggle";
+import { SortDropdown } from "@/components/dashboard/SortDropdown";
 import { CardFrontPreview } from "@/components/account/CardPreview";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Alert } from "@/components/ui/alert";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 /**
  * The card register: every member's card, for the office that prints them.
@@ -122,6 +116,11 @@ export default async function AdminMemberCardsPage({
     sort: params.sort,
   };
 
+  const filterParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(filterQuery)) {
+    if (value) filterParams.set(key, value);
+  }
+
   const pageHref = (next: Partial<SearchParams>) => {
     const search = new URLSearchParams();
     for (const [key, value] of Object.entries({ ...filterQuery, ...next })) {
@@ -204,19 +203,14 @@ export default async function AdminMemberCardsPage({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-ink">{copy.sortLabel}:</span>
-        <Select value={filters.sort ?? "name"} onValueChange={(value) => pageHref({ sort: value, page: undefined })} disabled={register.total === 0}>
-          <SelectTrigger className="w-auto min-w-[140px]">
-            <SelectValue placeholder={copy.sortByName} />
-          </SelectTrigger>
-          <SelectContent>
-            {sortOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <SortDropdown
+          basePath={BASE_PATH}
+          currentSort={filters.sort ?? "name"}
+          disabled={register.total === 0}
+          options={sortOptions}
+          label={copy.sortLabel}
+          params={filterParams}
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
