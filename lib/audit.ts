@@ -73,6 +73,9 @@ export const AUDIT_ACTIONS = {
   /// The office recorded a member's printed card as paid for, or took that back.
   MEMBER_CARD_PAYMENT_RECORDED: "MEMBER_CARD_PAYMENT_RECORDED",
   MEMBER_CARD_PAYMENT_CLEARED: "MEMBER_CARD_PAYMENT_CLEARED",
+  /// The office recorded a member's printed card as delivered to the member, or took that back.
+  MEMBER_CARD_DELIVERY_RECORDED: "MEMBER_CARD_DELIVERY_RECORDED",
+  MEMBER_CARD_DELIVERY_CLEARED: "MEMBER_CARD_DELIVERY_CLEARED",
 
   // Savings ledger
   SAVINGS_DEPOSIT_POSTED: "SAVINGS_DEPOSIT_POSTED",

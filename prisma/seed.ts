@@ -330,7 +330,7 @@ async function seedPlatformSettings() {
 async function seedSuperAdmin() {
   console.log("→ bootstrap super admin");
 
-  const email = process.env.SEED_SUPER_ADMIN_EMAIL ?? "superadmin@rta.rw";
+  const email = process.env.SEED_SUPER_ADMIN_EMAIL ?? "superadmin@rta.org.rw";
   const password = process.env.SEED_SUPER_ADMIN_PASSWORD;
 
   const existing = await prisma.user.findUnique({ where: { email } });

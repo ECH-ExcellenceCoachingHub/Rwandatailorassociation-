@@ -45,7 +45,7 @@ import type { UserRole } from "@/lib/generated/prisma/enums";
  * The front composites seven live fields onto the supplied artwork: the name,
  * the office, the membership number, the holder's own telephone number, where
  * they live, their sign-in QR and their photograph. Everything else on that
- * side — logo, header, swoosh, icons, "www.rta.rw", the signature — is
+ * side — logo, header, swoosh, icons, "www.rta.org.rw", the signature — is
  * identical on every card and belongs in the artwork rather than in this file.
  */
 

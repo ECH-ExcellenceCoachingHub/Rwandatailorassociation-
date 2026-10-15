@@ -13,6 +13,8 @@ export type DistrictFilter = string | typeof NO_DISTRICT;
 
 export type CardPaidFilter = "paid" | "unpaid";
 
+export type CardDeliveredFilter = "delivered" | "not-delivered";
+
 /**
  * One of Rwanda's thirty districts (canonical spelling), "none", or undefined
  * for every district. Anything else is ignored rather than trusted, since it
@@ -26,6 +28,10 @@ export function parseDistrictFilter(value: string | null | undefined): DistrictF
 
 export function parseCardPaidFilter(value: string | null | undefined): CardPaidFilter | undefined {
   return value === "paid" || value === "unpaid" ? value : undefined;
+}
+
+export function parseCardDeliveredFilter(value: string | null | undefined): CardDeliveredFilter | undefined {
+  return value === "delivered" || value === "not-delivered" ? value : undefined;
 }
 
 /**
@@ -42,6 +48,12 @@ export function districtWhere(district: DistrictFilter | undefined): Prisma.Memb
 export function cardPaidWhere(paid: CardPaidFilter | undefined): Prisma.MemberWhereInput {
   if (paid === "paid") return { cardPaidAt: { not: null } };
   if (paid === "unpaid") return { cardPaidAt: null };
+  return {};
+}
+
+export function cardDeliveredWhere(delivered: CardDeliveredFilter | undefined): Prisma.MemberWhereInput {
+  if (delivered === "delivered") return { cardDeliveredAt: { not: null } };
+  if (delivered === "not-delivered") return { cardDeliveredAt: null };
   return {};
 }
 

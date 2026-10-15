@@ -86,7 +86,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   const passwordHash = await hash(DEMO_PASSWORD, ARGON2_OPTIONS);
 
   // Association admin ------------------------------------------------------
-  const adminEmail = "admin@rta.rw";
+  const adminEmail = "admin@rta.org.rw";
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail },
   });

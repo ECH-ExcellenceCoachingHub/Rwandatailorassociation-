@@ -9,11 +9,14 @@ import {
 } from "@/lib/cards/membership-card";
 import {
   cardPaidWhere,
+  cardDeliveredWhere,
   districtWhere,
   memberSearchWhere,
   parseCardPaidFilter,
+  parseCardDeliveredFilter,
   parseDistrictFilter,
   type CardPaidFilter,
+  type CardDeliveredFilter,
   type DistrictFilter,
 } from "@/lib/services/member-filters";
 
@@ -42,6 +45,9 @@ export interface CardFilters {
   photo?: PhotoFilter;
   district?: DistrictFilter;
   paid?: CardPaidFilter;
+  delivered?: CardDeliveredFilter;
+  /// Sort order: "name" (default), "printed" (lastPrintedAt desc), "delivered" (cardDeliveredAt desc)
+  sort?: "name" | "printed" | "delivered";
 }
 
 const STATUSES = new Set<string>(Object.values(MemberStatus));
@@ -69,6 +75,8 @@ export function parseCardFilters(params: Record<string, string | undefined>): Ca
     photo: photo === "missing" || photo === "present" ? photo : undefined,
     district: parseDistrictFilter(params.district),
     paid: parseCardPaidFilter(params.paid),
+    delivered: parseCardDeliveredFilter(params.delivered),
+    sort: params.sort === "printed" || params.sort === "delivered" ? params.sort : "name",
   };
 }
 
@@ -85,6 +93,7 @@ function cardWhere(
         ? { user: { avatar: { isNot: null } } }
         : {}),
     ...cardPaidWhere(filters.paid),
+    ...cardDeliveredWhere(filters.delivered),
     // Each of these may carry its own OR, so they are ANDed rather than spread.
     AND: [districtWhere(filters.district), memberSearchWhere(filters.search)],
   };
@@ -94,6 +103,14 @@ function cardWhere(
 /// out in the order someone would look for their card in. The member number
 /// breaks ties, which keeps batch boundaries stable between two requests.
 const CARD_ORDER: Prisma.MemberOrderByWithRelationInput[] = [
+  { user: { lastName: "asc" } },
+  { user: { firstName: "asc" } },
+  { memberNumber: "asc" },
+];
+
+/// Sort by when the card was delivered to the member, newest first.
+const CARD_ORDER_DELIVERED: Prisma.MemberOrderByWithRelationInput[] = [
+  { cardDeliveredAt: "desc" },
   { user: { lastName: "asc" } },
   { user: { firstName: "asc" } },
   { memberNumber: "asc" },
@@ -123,6 +140,8 @@ export interface CardRegisterEntry {
   /// When the office last downloaded this member's front, or null if it never
   /// has. A member printing their own card is not counted: that is not logged.
   lastPrintedAt: Date | null;
+  /// When the office handed the printed card to the member, or null if not yet.
+  cardDeliveredAt: Date | null;
 }
 
 const CARD_SELECT = {
@@ -134,6 +153,7 @@ const CARD_SELECT = {
   city: true,
   province: true,
   cardPaidAt: true,
+  cardDeliveredAt: true,
   user: {
     select: {
       id: true,
@@ -172,7 +192,9 @@ export async function listCardRegister(params: {
   const fetchPage = (page: number) =>
     prisma.member.findMany({
       where,
-      orderBy: CARD_ORDER,
+      orderBy: params.filters.sort === "delivered"
+        ? CARD_ORDER_DELIVERED
+        : CARD_ORDER,
       skip: (page - 1) * CARD_BATCH_SIZE,
       take: CARD_BATCH_SIZE,
       select: CARD_SELECT,
@@ -234,6 +256,7 @@ export async function listCardRegister(params: {
     hasPhoto: Boolean(m.user.avatar),
     cardPaidAt: m.cardPaidAt,
     lastPrintedAt: printed.get(m.id) ?? null,
+    cardDeliveredAt: m.cardDeliveredAt,
   }));
 
   return {
@@ -261,7 +284,9 @@ export async function getCardBatch(params: {
 }) {
   return prisma.member.findMany({
     where: cardWhere(params.associationId, params.filters),
-    orderBy: CARD_ORDER,
+    orderBy: params.filters.sort === "delivered"
+      ? CARD_ORDER_DELIVERED
+      : CARD_ORDER,
     skip: (Math.max(1, params.batch) - 1) * CARD_BATCH_SIZE,
     take: CARD_BATCH_SIZE,
     select: { id: true, memberNumber: true, associationId: true, userId: true },

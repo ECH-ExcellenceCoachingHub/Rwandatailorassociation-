@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { IdCard, ImageOff, Printer } from "lucide-react";
+import { IdCard, ImageOff, Printer, ArrowUpDown } from "lucide-react";
 import { requirePermission, resolveAssociationScope } from "@/lib/auth/guards";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getDashboardCopy } from "@/lib/i18n/server";
@@ -20,10 +20,18 @@ import { MemberSearch } from "@/components/dashboard/MemberSearch";
 import { PaginationLinks } from "@/components/dashboard/PaginationLinks";
 import { CardPdfButton } from "@/components/dashboard/CardPdfButton";
 import { CardPaymentToggle } from "@/components/dashboard/CardPaymentToggle";
+import { CardDeliveryToggle } from "@/components/dashboard/CardDeliveryToggle";
 import { CardFrontPreview } from "@/components/account/CardPreview";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Alert } from "@/components/ui/alert";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 /**
  * The card register: every member's card, for the office that prints them.
@@ -63,6 +71,8 @@ type SearchParams = {
   photo?: string;
   district?: string;
   paid?: string;
+  delivered?: string;
+  sort?: string;
 };
 
 export default async function AdminMemberCardsPage({
@@ -108,6 +118,8 @@ export default async function AdminMemberCardsPage({
     photo: params.photo,
     district: params.district,
     paid: params.paid,
+    delivered: params.delivered,
+    sort: params.sort,
   };
 
   const pageHref = (next: Partial<SearchParams>) => {
@@ -131,6 +143,17 @@ export default async function AdminMemberCardsPage({
     { value: undefined, label: copy.photoAny },
     { value: "missing", label: fill(copy.photoMissing, { count: register.missingPhotos }) },
     { value: "present", label: copy.photoPresent },
+  ] as const;
+
+  const sortOptions = [
+    { value: "name", label: copy.sortByName },
+    { value: "delivered", label: copy.sortByDelivered },
+  ] as const;
+
+  const deliveryOptions = [
+    { value: undefined, label: copy.deliveryAny },
+    { value: "delivered", label: copy.deliveryDelivered },
+    { value: "not-delivered", label: copy.deliveryNotDelivered },
   ] as const;
 
   const batches = Array.from({ length: register.total ? register.totalPages : 0 }, (_, i) => {
@@ -166,6 +189,44 @@ export default async function AdminMemberCardsPage({
             <Link
               key={option.label}
               href={pageHref({ photo: option.value, page: undefined })}
+              aria-current={active ? "true" : undefined}
+              className={cn(
+                "rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
+                active
+                  ? "border-primary bg-primary text-white"
+                  : "border-border bg-surface text-ink-muted hover:border-primary hover:text-primary"
+              )}
+            >
+              {option.label}
+            </Link>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-ink">{copy.sortLabel}:</span>
+        <Select value={filters.sort ?? "name"} onValueChange={(value) => pageHref({ sort: value, page: undefined })} disabled={register.total === 0}>
+          <SelectTrigger className="w-auto min-w-[140px]">
+            <SelectValue placeholder={copy.sortByName} />
+          </SelectTrigger>
+          <SelectContent>
+            {sortOptions.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-semibold text-ink">{copy.deliveryLabel}:</span>
+        {deliveryOptions.map((option) => {
+          const active = (filters.delivered ?? undefined) === option.value;
+          return (
+            <Link
+              key={option.label}
+              href={pageHref({ delivered: option.value, page: undefined })}
               aria-current={active ? "true" : undefined}
               className={cn(
                 "rounded-full border px-3 py-1 text-xs font-semibold transition-colors",
@@ -294,10 +355,15 @@ export default async function AdminMemberCardsPage({
                     </span>
                   </div>
 
-                  <div className="mt-3">
+                  <div className="mt-3 grid grid-cols-2 gap-2">
                     <CardPaymentToggle
                       memberId={card.memberId}
                       paidAt={card.cardPaidAt}
+                      canEdit={canMarkPaid}
+                    />
+                    <CardDeliveryToggle
+                      memberId={card.memberId}
+                      deliveredAt={card.cardDeliveredAt}
                       canEdit={canMarkPaid}
                     />
                   </div>

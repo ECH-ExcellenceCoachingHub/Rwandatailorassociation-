@@ -40,7 +40,7 @@ const schema = z
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
-    APP_URL: z.string().url().default("http://localhost:3000"),
+    APP_URL: z.string().url().default("https://rta.org.rw"),
 
     DATABASE_URL: z
       .string()
@@ -101,7 +101,7 @@ const schema = z
 
     // Notifications ---------------------------------------------------------
     EMAIL_PROVIDER: z.enum(["log", "smtp"]).default("log"),
-    EMAIL_FROM: z.string().default("RTA Savings <no-reply@rta.rw>"),
+    EMAIL_FROM: z.string().default("RTA Savings <no-reply@rta.org.rw>"),
     SMTP_HOST: z.string().optional(),
     SMTP_PORT: intFrom(587, 1, 65535),
     SMTP_SECURE: booleanish.default(false),

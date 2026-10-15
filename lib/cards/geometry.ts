@@ -55,7 +55,7 @@ export const FRONT = {
   idNumber: { x: 0.0605, y: 0.333, size: 0.027, maxWidth: 0.285 },
   /**
    * The holder's own number, beside the telephone icon. Same left edge as the
-   * artwork's "www.rta.rw", and its caps centred on the icon.
+   * artwork's "www.rta.org.rw", and its caps centred on the icon.
    */
   phone: { x: 0.128, y: 0.442, size: 0.0337, maxWidth: 0.215 },
   /**

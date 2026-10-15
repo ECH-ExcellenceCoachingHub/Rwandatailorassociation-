@@ -139,6 +139,22 @@ export interface AdminCopy {
     markUnpaid: string;
     paymentFailed: string;
     unpaidCount: string;
+    /// Sort options
+    sortLabel: string;
+    sortByName: string;
+    sortByPrinted: string;
+    sortByDelivered: string;
+    /// Delivered filter
+    deliveryLabel: string;
+    deliveryAny: string;
+    deliveryDelivered: string;
+    deliveryNotDelivered: string;
+    /// Delivered toggle
+    markDelivered: string;
+    markNotDelivered: string;
+    deliveredOn: string;
+    notDelivered: string;
+    deliveryFailed: string;
   };
   /// A single member's file.
   file: {
@@ -1445,6 +1461,22 @@ export const admin: Record<Locale, AdminCopy> = {
       markUnpaid: "Mark unpaid",
       paymentFailed: "The payment could not be saved. Try again.",
       unpaidCount: "{count} of these cards is not paid yet.|{count} of these cards are not paid yet.",
+      /// Sort options
+      sortLabel: "Sort by",
+      sortByName: "Name (A–Z)",
+      sortByPrinted: "Recently printed",
+      sortByDelivered: "Recently delivered",
+      /// Delivered filter
+      deliveryLabel: "Delivery",
+      deliveryAny: "Delivered or not",
+      deliveryDelivered: "Delivered",
+      deliveryNotDelivered: "Not delivered",
+      /// Delivered toggle
+      markDelivered: "Mark delivered",
+      markNotDelivered: "Mark not delivered",
+      deliveredOn: "Delivered {date}",
+      notDelivered: "Not delivered",
+      deliveryFailed: "The delivery status could not be saved. Try again.",
     },
     file: {
       description: "Member {number} · payment reference {reference}",
@@ -2878,6 +2910,22 @@ export const admin: Record<Locale, AdminCopy> = {
       markUnpaid: "Ntiyishyuwe",
       paymentFailed: "Ubwishyu ntibwashoboye kubikwa. Ongera ugerageze.",
       unpaidCount: "Ikarita {count} muri izi ntiyishyuwe.|Amakarita {count} muri aya ntiyishyuwe.",
+      /// Sort options
+      sortLabel: "Rorodera",
+      sortByName: "Amazina (A–Z)",
+      sortByPrinted: "Yacapwe nyuma",
+      sortByDelivered: "Yoherejwe nyuma",
+      /// Delivered filter
+      deliveryLabel: "Gutangira",
+      deliveryAny: "Yatanzwe cyangwa ntibyatanzwe",
+      deliveryDelivered: "Yatanzwe",
+      deliveryNotDelivered: "Ntiyatanzwe",
+      /// Delivered toggle
+      markDelivered: "Yatanzwe",
+      markNotDelivered: "Ntiyatanzwe",
+      deliveredOn: "Yatanzwe {date}",
+      notDelivered: "Ntiyatanzwe",
+      deliveryFailed: "Ibimenyetso byo gutangirwa ntibyashoboye kubikwa. Ongera ugerageze.",
     },
     file: {
       description: "Umunyamuryango {number} · nimero y'ubwishyu {reference}",

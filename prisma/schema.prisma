@@ -888,6 +888,12 @@ model Member {
   cardPaidAt   DateTime?
   cardPaidById String?
 
+  /// When the office handed the printed card to the member. Null means not
+  /// yet delivered. Who recorded it is in the audit log; the id here is for
+  /// display only.
+  cardDeliveredAt   DateTime?
+  cardDeliveredById String?
+
   suspendedAt      DateTime?
   suspensionReason String?
   exitedAt         DateTime?
@@ -926,6 +932,7 @@ model Member {
   @@index([associationId, kycStatus])
   @@index([associationId, createdAt(sort: Desc)])
   @@index([associationId, cardPaidAt])
+  @@index([associationId, cardDeliveredAt])
   @@index([mobileMoneyNumber])
   @@index([bankAccountNumber])
   @@index([nationalId])
