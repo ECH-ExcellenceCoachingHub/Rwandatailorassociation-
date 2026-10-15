@@ -459,6 +459,8 @@ model Member {
   @@index([mobileMoneyNumber])
   @@index([bankAccountNumber])
   @@index([nationalId])
+  @@index([district(ops: raw("gin_trgm_ops"))], map: "members_district_trgm_idx", type: Gin)
+  @@index([city(ops: raw("gin_trgm_ops"))], map: "members_city_trgm_idx", type: Gin)
   @@index([memberNumber(ops: raw("gin_trgm_ops"))], map: "members_member_number_trgm_idx", type: Gin)
   @@index([paymentReference(ops: raw("gin_trgm_ops"))], map: "members_payment_reference_trgm_idx", type: Gin)
   @@index([nationalId(ops: raw("gin_trgm_ops"))], map: "members_national_id_trgm_idx", type: Gin)

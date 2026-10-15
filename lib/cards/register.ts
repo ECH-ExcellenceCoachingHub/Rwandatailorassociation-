@@ -46,8 +46,8 @@ export interface CardFilters {
   district?: DistrictFilter;
   paid?: CardPaidFilter;
   delivered?: CardDeliveredFilter;
-  /// Sort order: "name" (default), "printed" (lastPrintedAt desc), "delivered" (cardDeliveredAt desc)
-  sort?: "name" | "printed" | "delivered";
+  /// Sort order: "name" (default), "delivered" (cardDeliveredAt desc)
+  sort?: "name" | "delivered";
 }
 
 const STATUSES = new Set<string>(Object.values(MemberStatus));
@@ -76,7 +76,7 @@ export function parseCardFilters(params: Record<string, string | undefined>): Ca
     district: parseDistrictFilter(params.district),
     paid: parseCardPaidFilter(params.paid),
     delivered: parseCardDeliveredFilter(params.delivered),
-    sort: params.sort === "printed" || params.sort === "delivered" ? params.sort : "name",
+    sort: params.sort === "delivered" ? params.sort : "name",
   };
 }
 
@@ -170,6 +170,54 @@ const CARD_SELECT = {
   },
 } satisfies Prisma.MemberSelect;
 
+/**
+ * Fast count of members without photos using a NOT EXISTS subquery.
+ * This avoids the LEFT JOIN that Prisma generates for { user: { avatar: { is: null } } }
+ * which can be slow on large tables.
+ */
+async function countMissingPhotos(
+  associationId: string | null,
+  filters: Omit<CardFilters, "photo">
+): Promise<number> {
+  const conditions: string[] = [];
+  const values: unknown[] = [];
+
+  if (associationId) {
+    conditions.push(`m."associationId" = $${values.length + 1}`);
+    values.push(associationId);
+  }
+  if (filters.status) {
+    conditions.push(`m."status" = $${values.length + 1}`);
+    values.push(filters.status);
+  }
+
+  // Add district filter (simplified - exact match on canonical district)
+  if (filters.district && filters.district !== "none") {
+    conditions.push(`m."district" ILIKE $${values.length + 1}`);
+    values.push(`${filters.district}%`);
+  } else if (filters.district === "none") {
+    conditions.push(`(m."district" IS NULL OR m."district" = '')`);
+  }
+
+  // Add search filter (memberNumber only for speed)
+  if (filters.search) {
+    conditions.push(`m."memberNumber" ILIKE $${values.length + 1}`);
+    values.push(`%${filters.search}%`);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const sql = `
+    SELECT COUNT(*) FROM "members" m
+    ${whereClause}
+    AND NOT EXISTS (
+      SELECT 1 FROM "user_avatars" ua WHERE ua."userId" = m."userId"
+    )
+  `;
+
+  const result = await prisma.$queryRawUnsafe<[{ count: bigint }]>(sql, ...values);
+  return Number(result[0]?.count ?? 0);
+}
+
 export async function listCardRegister(params: {
   associationId: string | null;
   filters: CardFilters;
@@ -179,10 +227,6 @@ export async function listCardRegister(params: {
   viewer: CardIssuer;
 }) {
   const where = cardWhere(params.associationId, params.filters);
-  const withoutPhotoFilter = cardWhere(params.associationId, {
-    ...params.filters,
-    photo: undefined,
-  });
 
   // The page of cards is fetched alongside the counts rather than after them:
   // each is a round trip to a hosted database, and waiting on the count first
@@ -202,9 +246,7 @@ export async function listCardRegister(params: {
 
   const [total, missingPhotos, unpaid, firstTry] = await Promise.all([
     prisma.member.count({ where }),
-    prisma.member.count({
-      where: { AND: [withoutPhotoFilter, { user: { avatar: { is: null } } }] },
-    }),
+    countMissingPhotos(params.associationId, params.filters),
     prisma.member.count({ where: { AND: [where, { cardPaidAt: null }] } }),
     fetchPage(requested),
   ]);

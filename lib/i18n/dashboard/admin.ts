@@ -627,6 +627,13 @@ export interface AdminCopy {
     confirmReasonLabel: string;
     confirmReasonPlaceholder: string;
     attestation: string;
+
+    // Card payment from statement import
+    cardPaymentTitle: string;
+    cardPaymentDescription: string;
+    cardPaymentButton: string;
+    cardPaymentProcessing: string;
+    cardPaymentMembers: string;
   };
   applications: {
     title: string;
@@ -2027,6 +2034,14 @@ export const admin: Record<Locale, AdminCopy> = {
         "e.g. Equity Bank statement for August 2026, downloaded from internet banking on 14 Aug",
       attestation:
         "You are attesting that this PDF is a genuine statement for this association's account and that you have checked the rows you selected. Your name is recorded against every payment this creates.",
+
+      // Card payment from statement import
+      cardPaymentTitle: "Mark membership card payments from this import",
+      cardPaymentDescription:
+        "If members paid the 2,000 RWF card fee via MoMo, this will find those payments and mark their cards as paid automatically.",
+      cardPaymentButton: "Mark card payments from this import",
+      cardPaymentProcessing: "Processing…",
+      cardPaymentMembers: "Members marked as paid",
     },
     applications: {
       title: "Loan applications",
@@ -3511,6 +3526,14 @@ export const admin: Record<Locale, AdminCopy> = {
         "urugero: Inyandiko ya Equity Bank yo muri Kanama 2026, yakuwe kuri interineti ya banki ku wa 14 Kanama",
       attestation:
         "Uremeza ko iyi PDF ari inyandiko nyayo ya konti y'iri huriro kandi ko wagenzuye imirongo watoranyije. Izina ryawe ryandikwa kuri buri bwishyu ibi bizakora.",
+
+      // Card payment from statement import
+      cardPaymentTitle: "Kwandikisha ubwishyu bw'ikarita ya ubumwe muri iyi nyandiko",
+      cardPaymentDescription:
+        "Niba abanyamuryango bashyuye amafranga 2,000 RWF y'ikarita ya ubumwe na MoMo, ibi bizaba ibyo bwishyu kandi bizandikisha ko batangiye ikarita.",
+      cardPaymentButton: "Wandikisha ubwishyu bw'ikarita muri iyi nyandiko",
+      cardPaymentProcessing: "Bikora…",
+      cardPaymentMembers: "Abanyamuryango banditswe ko barashyuje",
     },
     applications: {
       title: "Ubusabe bw'inguzanyo",
