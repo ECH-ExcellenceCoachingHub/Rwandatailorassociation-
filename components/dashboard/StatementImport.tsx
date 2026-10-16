@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   CheckCircle2,
-  CreditCard,
   FileUp,
   Loader2,
   Phone,
@@ -125,13 +124,6 @@ export function StatementImport({ canImport }: { canImport: boolean }) {
     skipped: number;
   } | null>(null);
 
-  const [processingCardPayments, setProcessingCardPayments] = useState(false);
-  const [cardPaymentResult, setCardPaymentResult] = useState<{
-    processed: number;
-    members: string[];
-    message: string;
-  } | null>(null);
-
   async function handleUpload(file: File) {
     setError(null);
     setResult(null);
@@ -221,34 +213,6 @@ export function StatementImport({ canImport }: { canImport: boolean }) {
     router.refresh();
   }
 
-  async function processCardPayments() {
-    setProcessingCardPayments(true);
-    setCardPaymentResult(null);
-
-    try {
-      const response = await fetch("/api/admin/members/card-payments/from-statement-import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cardFeeAmount: 2000,
-          daysBack: 30,
-        }),
-      });
-
-      const payload = await response.json();
-
-      if (!response.ok) {
-        throw new Error(payload?.error?.message ?? "Failed to process card payments");
-      }
-
-      setCardPaymentResult(payload);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to process card payments");
-    } finally {
-      setProcessingCardPayments(false);
-    }
-  }
-
   const confidenceLabel = (value: PreviewRow["confidence"]) =>
     value === "high"
       ? copy.confidenceHigh
@@ -283,58 +247,6 @@ export function StatementImport({ canImport }: { canImport: boolean }) {
             .filter(Boolean)
             .join(" ")}
         </Alert>
-
-        {/* Card payment processing from statement import */}
-        {(result.credited > 0 || cardPaymentResult) && (
-          <div className="rounded-2xl border border-border bg-surface p-5 space-y-3">
-            <p className="text-sm font-medium text-ink">
-              {copy.cardPaymentTitle}
-            </p>
-            <p className="text-sm text-ink-muted">{copy.cardPaymentDescription}</p>
-
-            {cardPaymentResult ? (
-              <Alert variant={cardPaymentResult.processed > 0 ? "success" : "info"} title={cardPaymentResult.message}>
-                {cardPaymentResult.members.length > 0 && (
-                  <p className="mt-2 text-sm text-ink">
-                    {copy.cardPaymentMembers}:{" "}
-                    <span className="font-mono">{cardPaymentResult.members.join(", ")}</span>
-                  </p>
-                )}
-              </Alert>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={processCardPayments}
-                disabled={processingCardPayments}
-              >
-                {processingCardPayments ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin mr-2" aria-hidden="true" />
-                    {copy.cardPaymentProcessing}
-                  </>
-                ) : (
-                  <>
-                    <CreditCard className="size-4 mr-2" aria-hidden="true" />
-                    {copy.cardPaymentButton}
-                  </>
-                )}
-              </Button>
-            )}
-
-            {cardPaymentResult && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCardPaymentResult(null)}
-              >
-                <X className="size-3.5 mr-2" aria-hidden="true" />
-                {d.common.clear}
-              </Button>
-            )}
-          </div>
-        )}
-
         <Button onClick={() => setResult(null)}>
           <Upload className="size-4" aria-hidden="true" />
           {copy.importAnother}

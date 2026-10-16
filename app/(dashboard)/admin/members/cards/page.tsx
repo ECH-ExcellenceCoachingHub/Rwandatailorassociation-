@@ -21,6 +21,7 @@ import { PaginationLinks } from "@/components/dashboard/PaginationLinks";
 import { CardPdfButton } from "@/components/dashboard/CardPdfButton";
 import { CardPaymentToggle } from "@/components/dashboard/CardPaymentToggle";
 import { CardDeliveryToggle } from "@/components/dashboard/CardDeliveryToggle";
+import { MoMoStatementImport } from "@/components/dashboard/MomoStatementImport";
 import { SortDropdown } from "@/components/dashboard/SortDropdown";
 import { CardFrontPreview } from "@/components/account/CardPreview";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -234,6 +235,8 @@ export default async function AdminMemberCardsPage({
           );
         })}
       </div>
+
+      <MoMoStatementImport canImport={canMarkPaid} />
 
       {register.total === 0 ? (
         <EmptyState icon={IdCard} title={copy.noneTitle} description={copy.noneBody} />
