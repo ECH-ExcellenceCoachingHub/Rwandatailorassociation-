@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { requireAdmin } from "@/lib/auth/guards";
 import { resolveAssociationScope } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
@@ -8,7 +9,6 @@ import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { DocumentUpload } from "@/components/dashboard/DocumentUpload";
 import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FileText, File, Trash2, Eye, Download } from "lucide-react";
 import {
@@ -61,13 +61,10 @@ export default async function EvidencePage() {
         title={copy.title}
         description={copy.description}
         actions={
-          <Button
-            asChild
-            className="text-sm"
-          >
-            <File className="size-4 mr-2" aria-hidden="true" />
+          <Link href="#" className="text-sm flex items-center gap-2 rounded-lg px-3 py-2 text-primary hover:bg-primary-50 transition-colors">
+            <File className="size-4" aria-hidden="true" />
             {copy.uploadButton}
-          </Button>
+          </Link>
         }
       />
 
