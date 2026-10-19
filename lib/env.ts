@@ -119,7 +119,7 @@ const schema = z
     TWILIO_FROM_NUMBER: z.string().optional(),
 
     // Storage ---------------------------------------------------------------
-    STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+    STORAGE_DRIVER: z.enum(["local", "s3"]).default("s3"),
     STORAGE_LOCAL_PATH: z.string().default("./storage"),
     STORAGE_MAX_UPLOAD_MB: intFrom(10, 1, 100),
     STORAGE_S3_BUCKET: z.string().optional(),

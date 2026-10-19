@@ -17,29 +17,25 @@ export function DocumentUpload() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [titles, setTitles] = useState<string[]>([]);
   const [type, setType] = useState<StatementType>("BANK_STATEMENT");
-  const [title, setTitle] = useState("");
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const f = e.target.files?.[0] ?? null;
-      setFile(f);
+      const next = Array.from(e.target.files ?? []);
+      setFiles(next);
+      setTitles(next.map((f) => f.name));
       setError(null);
       setSuccess(null);
-      if (f && !title) setTitle(f.name);
     },
-    [title]
+    []
   );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!file) {
+    if (files.length === 0) {
       setError(copy.fileRequired);
-      return;
-    }
-    if (!title.trim()) {
-      setError(copy.titlePlaceholder);
       return;
     }
 
@@ -49,9 +45,11 @@ export function DocumentUpload() {
 
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      for (const file of files) {
+        formData.append("file", file);
+      }
       formData.append("type", type);
-      formData.append("title", title.trim());
+      formData.append("title", titles.join("||"));
 
       const response = await fetch("/api/admin/documents", {
         method: "POST",
@@ -70,9 +68,9 @@ export function DocumentUpload() {
       }
 
       setSuccess(copy.uploaded);
-      setFile(null);
+      setFiles([]);
+      setTitles([]);
       setType("BANK_STATEMENT");
-      setTitle("");
       const input = document.getElementById("evidence-statement-file");
       if (input instanceof HTMLInputElement) input.value = "";
     } catch {
@@ -97,12 +95,21 @@ export function DocumentUpload() {
             </Label>
             <Input
               id="evidence-statement-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              value={titles.join(", ")}
+              onChange={(e) => {
+                const value = e.target.value;
+                const parts = value.split(",").map((s) => s.trim()).filter(Boolean);
+                setTitles(parts.length > 0 ? parts : files.map((f) => f.name));
+              }}
               placeholder={copy.titlePlaceholder}
               disabled={uploading}
               className="text-sm h-9"
             />
+            <span className="mt-0.5 block text-[11px] text-ink-muted">
+              {titles.length > 1
+                ? "Comma-separated titles, one per file (in upload order)"
+                : copy.titlePlaceholder}
+            </span>
           </div>
           <div>
             <Label>{copy.typeRequired}</Label>
@@ -146,12 +153,15 @@ export function DocumentUpload() {
               {uploading ? "Uploading…" : copy.uploadButton}
             </span>
             <span className="mt-1 block max-w-sm text-xs text-ink-muted">
-              {copy.uploadHint}
+              {files.length > 0
+                ? `${files.length} file(s) selected · ${copy.uploadHint}`
+                : copy.uploadHint}
             </span>
             <input
               id="evidence-statement-file"
               type="file"
               accept="application/pdf,.pdf,.png,.jpg,.jpeg"
+              multiple
               className="sr-only"
               disabled={uploading}
               onChange={handleFileChange}
@@ -159,12 +169,30 @@ export function DocumentUpload() {
           </div>
         </div>
 
+        {files.length > 0 && (
+          <div className="space-y-1">
+            <span className="text-xs font-semibold uppercase tracking-wider text-ink-muted">
+              Selected files
+            </span>
+            <ul className="space-y-1 text-sm">
+              {files.map((file, i) => (
+                <li key={i} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-surface/50">
+                  <span className="truncate text-ink">{file.name}</span>
+                  <span className="text-[11px] text-ink-muted tabular-nums">
+                    {(file.size / 1024).toFixed(1)} KB
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {error && <Alert variant="error">{error}</Alert>}
         {success && <Alert variant="success">{success}</Alert>}
 
         <Button
           type="submit"
-          disabled={uploading || !file || !title.trim()}
+          disabled={uploading || files.length === 0}
           className="w-full sm:w-auto"
         >
           {uploading ? (

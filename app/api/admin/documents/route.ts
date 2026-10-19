@@ -18,15 +18,15 @@ import { RATE_LIMITS, checkRateLimit, getClientIp } from "@/lib/api/rate-limit";
 /**
  * POST /api/admin/documents
  *
- * Upload a bank statement or MoMo statement as evidence. The file is stored
- * (local disk or S3, per STORAGE_DRIVER) and a Document row records it so the
- * admin can view or download it later. Every upload is audited under the
+ * Upload one or more bank statements / MoMo statements as evidence. Files are
+ * stored on S3 (off-site, survives deploys) and Document rows record them so
+ * admins can view or download them later. Every upload is audited under the
  * uploader's name.
  *
  * The body is multipart/form-data:
- *   file        — the statement PDF (required)
+ *   file        — statement file(s), repeated (required, at least one)
  *   type        — "BANK_STATEMENT" | "MOMO_STATEMENT" (required)
- *   title       — human label, defaults to the file name
+ *   title       — optional human label; defaults to each file's own name
  *   memberId    — optional member the evidence relates to
  *   associationId — which association this evidence belongs to; required for
  *                   an association admin, optional (any) for a super admin.
@@ -47,20 +47,31 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   const maxBytes = env.STORAGE_MAX_UPLOAD_MB * 1024 * 1024;
 
   const formData = await request.formData().catch(() => null);
-  const file = formData?.get("file");
+  const files = formData?.getAll("file");
   const type = formData?.get("type");
   const title = formData?.get("title");
   const memberId = formData?.get("memberId");
   const associationIdParam = formData?.get("associationId");
 
-  if (!(file instanceof File) || file.size === 0) {
-    return apiBadRequest("Attach a statement file");
+  if (!Array.isArray(files) || files.length === 0) {
+    return apiBadRequest("Attach at least one statement file");
   }
-  if (file.size > maxBytes) {
-    return apiBadRequest(
-      `The file is ${(file.size / 1024 / 1024).toFixed(1)} MB, above the ${env.STORAGE_MAX_UPLOAD_MB} MB limit`
-    );
+  if (!(files[0] instanceof File)) {
+    return apiBadRequest("Attach statement file(s)");
   }
+
+  const uploadedFiles = files as File[];
+  for (const file of uploadedFiles) {
+    if (file.size === 0) {
+      return apiBadRequest("One of the files is empty");
+    }
+    if (file.size > maxBytes) {
+      return apiBadRequest(
+        `The file "${file.name}" is ${(file.size / 1024 / 1024).toFixed(1)} MB, above the ${env.STORAGE_MAX_UPLOAD_MB} MB limit`
+      );
+    }
+  }
+
   if (type !== "BANK_STATEMENT" && type !== "MOMO_STATEMENT") {
     return apiBadRequest('type must be "BANK_STATEMENT" or "MOMO_STATEMENT"');
   }
@@ -70,60 +81,56 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     return apiBadRequest("Choose an association to store this evidence under");
   }
 
-  // The document belongs to an association; an association admin must not be
-  // able to file evidence under another's tenant.
   const association = await prisma.association.findUnique({
     where: { id: associationId },
     select: { id: true, code: true, name: true },
   });
   if (!association) return apiNotFound("No such association");
 
-  const buffer = Buffer.from(await file.arrayBuffer());
   const store = await documentStore();
-  const storageKey = await store.put(buffer, file.type, file.name);
+  const documentType = type as "BANK_STATEMENT" | "MOMO_STATEMENT";
+  const uploadedTitles = (title as string | null)?.split("||") ?? [];
 
-  const document = await prisma.document.create({
-    data: {
-      associationId,
-      memberId: memberId as string | null || undefined,
-      type: type as "BANK_STATEMENT" | "MOMO_STATEMENT",
-      title: (title as string) || file.name,
-      storageKey,
-      mimeType: file.type || "application/octet-stream",
-      sizeBytes: buffer.length,
-      uploadedById: context.user.id,
-    },
-    select: {
-      id: true,
-      type: true,
-      title: true,
-      storageKey: true,
-      mimeType: true,
-      sizeBytes: true,
-      createdAt: true,
-      association: { select: { id: true, code: true, name: true } },
-      uploadedBy: { select: { id: true, firstName: true, lastName: true } },
-    },
-  });
+  const created: Awaited<ReturnType<typeof prisma.document.create>>[] = [];
 
-  await recordAudit(
-    {
-      action: AUDIT_ACTIONS.DOCUMENT_UPLOADED,
-      entityType: "Document",
-      entityId: document.id,
-      associationId,
-      metadata: {
-        type: document.type,
-        title: document.title,
-        mimeType: document.mimeType,
-        sizeBytes: document.sizeBytes,
-        storage: env.STORAGE_DRIVER,
+  for (let i = 0; i < uploadedFiles.length; i++) {
+    const file = uploadedFiles[i];
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const storageKey = await store.put(buffer, file.type, file.name);
+
+    const document = await prisma.document.create({
+      data: {
+        associationId,
+        memberId: memberId as string | null || undefined,
+        type: documentType,
+        title: uploadedTitles[i]?.trim() || file.name,
+        storageKey,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: buffer.length,
+        uploadedById: context.user.id,
       },
-    },
-    context
-  );
+    });
+    created.push(document);
 
-  return apiCreated(document);
+    await recordAudit(
+      {
+        action: AUDIT_ACTIONS.DOCUMENT_UPLOADED,
+        entityType: "Document",
+        entityId: document.id,
+        associationId,
+        metadata: {
+          type: document.type,
+          title: document.title,
+          mimeType: document.mimeType,
+          sizeBytes: document.sizeBytes,
+          storage: env.STORAGE_DRIVER,
+        },
+      },
+      context
+    );
+  }
+
+  return apiCreated({ count: created.length, documents: created });
 });
 
 /**
