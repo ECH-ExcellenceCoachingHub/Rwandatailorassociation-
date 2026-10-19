@@ -301,6 +301,12 @@ const ADMIN_NAV: NavSection[] = [
         icon: Landmark,
         permission: PERMISSIONS.BK_VIEW,
       },
+      {
+        labelKey: "evidence",
+        href: "/admin/evidence",
+        icon: FileUp,
+        permission: PERMISSIONS.DOCUMENTS_VIEW,
+      },
     ],
   },
   {
@@ -446,6 +452,12 @@ const SUPER_ADMIN_NAV: NavSection[] = [
       { labelKey: "allPayments", href: "/super-admin/payments", icon: CreditCard },
       { labelKey: "loanPortfolio", href: "/super-admin/loans", icon: HandCoins },
       { labelKey: "reports", href: "/super-admin/reports", icon: BarChart3 },
+      {
+        labelKey: "evidence",
+        href: "/super-admin/evidence",
+        icon: FileUp,
+        permission: PERMISSIONS.DOCUMENTS_VIEW,
+      },
     ],
   },
   {
@@ -539,6 +551,7 @@ export const BREADCRUMB_LABELS: Record<string, string> = {
   permissions: "Permissions",
   integrations: "Integrations",
   jobs: "Background jobs",
+  evidence: "Evidence",
   apply: "New application",
   association: "Our association",
   borrowings: "Bank borrowing",

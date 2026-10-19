@@ -119,9 +119,15 @@ const schema = z
     TWILIO_FROM_NUMBER: z.string().optional(),
 
     // Storage ---------------------------------------------------------------
-    STORAGE_DRIVER: z.enum(["local"]).default("local"),
+    STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
     STORAGE_LOCAL_PATH: z.string().default("./storage"),
     STORAGE_MAX_UPLOAD_MB: intFrom(10, 1, 100),
+    STORAGE_S3_BUCKET: z.string().optional(),
+    STORAGE_S3_REGION: z.string().default("auto"),
+    STORAGE_S3_ENDPOINT: z.string().url().optional().or(z.literal("").transform(() => undefined)),
+    STORAGE_S3_ACCESS_KEY_ID: z.string().optional(),
+    STORAGE_S3_SECRET_ACCESS_KEY: z.string().optional(),
+    STORAGE_S3_PREFIX: z.string().default(""),
 
     // Worker ----------------------------------------------------------------
     WORKER_ENABLED: booleanish.default(true),
@@ -247,6 +253,20 @@ const schema = z
       message:
         "BK_MODE=live requires BK_COLLECTION_ACCOUNT to identify the association's bank account",
       path: ["BK_COLLECTION_ACCOUNT"],
+    }
+  )
+  .refine(
+    (e) =>
+      e.STORAGE_DRIVER !== "s3" ||
+      Boolean(
+        e.STORAGE_S3_BUCKET &&
+          e.STORAGE_S3_ACCESS_KEY_ID &&
+          e.STORAGE_S3_SECRET_ACCESS_KEY
+      ),
+    {
+      message:
+        "STORAGE_DRIVER=s3 requires STORAGE_S3_BUCKET, STORAGE_S3_ACCESS_KEY_ID and STORAGE_S3_SECRET_ACCESS_KEY",
+      path: ["STORAGE_S3_BUCKET"],
     }
   );
 

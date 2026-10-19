@@ -327,6 +327,39 @@ export interface PlatformCopy {
     neverReconciled: string;
     never: string;
   };
+    documents: {
+    title: string;
+    description: string;
+    colAssociation: string;
+    colType: string;
+    colTitle: string;
+    colMember: string;
+    colUploaded: string;
+    colSize: string;
+    colActions: string;
+    bankStatement: string;
+    momoStatement: string;
+    uploadTitle: string;
+    uploadButton: string;
+    uploadHint: string;
+    chooseFile: string;
+    fileRequired: string;
+    typeRequired: string;
+    titlePlaceholder: string;
+    memberPlaceholder: string;
+    uploaded: string;
+    view: string;
+    download: string;
+    delete: string;
+    deleting: string;
+    deleted: string;
+    noneTitle: string;
+    noneBody: string;
+    deletedTitle: string;
+    deletedBody: string;
+    uploadFailed: string;
+    noPermission: string;
+  };
 }
 
 export const platform: Record<Locale, PlatformCopy> = {
@@ -674,6 +707,41 @@ export const platform: Record<Locale, PlatformCopy> = {
       neverReconciled:
         "Reconciliation has never run. Start the worker with `npm run worker`.",
       never: "Never",
+    },
+    documents: {
+      title: "Evidence storage",
+      description:
+        "Store bank statements and MoMo statements here so they can be viewed or downloaded at any time. Every upload is recorded under your name.",
+      colAssociation: "Association",
+      colType: "Type",
+      colTitle: "Title",
+      colMember: "Member",
+      colUploaded: "Uploaded",
+      colSize: "Size",
+      colActions: "Actions",
+      bankStatement: "Bank statement",
+      momoStatement: "MoMo statement",
+      uploadTitle: "Upload evidence",
+      uploadButton: "Upload statement",
+      uploadHint: "PDF only. Up to 10 MB per file.",
+      chooseFile: "Choose file",
+      fileRequired: "Attach a statement file",
+      typeRequired: "Choose bank statement or MoMo statement",
+      titlePlaceholder: "Statement title",
+      memberPlaceholder: "Member (optional)",
+      uploaded: "Statement uploaded",
+      view: "View",
+      download: "Download",
+      delete: "Delete",
+      deleting: "Deleting…",
+      deleted: "Deleted",
+      noneTitle: "No evidence yet",
+      noneBody:
+        "No bank statements or MoMo statements have been uploaded. Upload one to get started.",
+      deletedTitle: "Evidence deleted",
+      deletedBody: "The statement has been removed from the evidence store.",
+      uploadFailed: "The upload failed. Please try again.",
+      noPermission: "You do not have permission to do this.",
     },
   },
 
@@ -1028,6 +1096,41 @@ export const platform: Record<Locale, PlatformCopy> = {
       neverReconciled:
         "Guhuza ubwishyu ntibwarakora. Tangiza umukozi wa sisitemu ukoresheje `npm run worker`.",
       never: "Nta na rimwe",
+    },
+    documents: {
+      title: "Ububiko bw'amashyo",
+      description:
+        "Bwonge amashyo y'abangazi n'itererwa ry'moMo hano ku rubuga, kugira ngo ube batangira kureba cyangwa kuramo igihe gishushanjwe. Uburimuso bwose bubandikwa n'umwo kuramo.",
+      colAssociation: "Ihuriro",
+      colType: "Ubwoko",
+      colTitle: "Izina",
+      colMember: "Umunyamuryango",
+      colUploaded: "Byashyizweho",
+      colSize: "Umubare",
+      colActions: "Ibikorwa",
+      bankStatement: "Inyandiko ya bangazi",
+      momoStatement: "Inyandiko ya moMo",
+      uploadTitle: "Wongere amashyo",
+      uploadButton: "Wongera inyandiko",
+      uploadHint: "PDF wa gushya tujyanya. Igiciro 10 MB gusohoka rimwe mu file.",
+      chooseFile: "Bigira file",
+      fileRequired: "Bigira file y'inyandiko",
+      typeRequired: "Hagaruka bank statement cyangwa momo statement",
+      titlePlaceholder: "Izina rya statement",
+      memberPlaceholder: "Umunyamuryango (cyangwe)",
+      uploaded: "Inyandiko yashyizweho",
+      view: "Reba",
+      download: "Kuramo",
+      delete: "Siba",
+      deleting: "Sibura…",
+      deleted: "Byasibwe",
+      noneTitle: "Nta amashyo nyarambye",
+      noneBody:
+        "Nta bangazi cyangwa inyandiko ya moMo ibashyizweho. Wongera rimwe ku buhoro.",
+      deletedTitle: "Amashyo yasibwe",
+      deletedBody: "Inyandiko yarengetseho mu ububiko bw'amashyo.",
+      uploadFailed: "Ukwongera ntibyakunze. Ongera ugerageze.",
+      noPermission: "Ntufite uburenganzira bwo kubikora.",
     },
   },
 };

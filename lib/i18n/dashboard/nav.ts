@@ -63,6 +63,7 @@ export interface NavCopy {
   financialOversight: string;
   allTransactions: string;
   loanPortfolio: string;
+  evidence: string;
   system: string;
   integrations: string;
   backgroundJobs: string;
@@ -120,6 +121,7 @@ export const nav: Record<Locale, NavCopy> = {
     loanProducts: "Loan products",
     association: "Association",
     reports: "Reports",
+    evidence: "Evidence storage",
     auditLog: "Audit log",
     settings: "Settings",
 
@@ -187,6 +189,7 @@ export const nav: Record<Locale, NavCopy> = {
     loanProducts: "Ubwoko bw'inguzanyo",
     association: "Ihuriro",
     reports: "Raporo",
+    evidence: "Ububiko bw'amashyo",
     auditLog: "Ibyakozwe byose",
     settings: "Igenamiterere",
 
