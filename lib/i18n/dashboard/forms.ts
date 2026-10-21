@@ -95,14 +95,7 @@ export interface FormsCopy {
     alreadyMember: string;
     signIn: string;
     successTitle: string;
-    /// What happens next after the application lands. The API answers in
-    /// English only, so the applicant is told here instead — this is the last
-    /// thing they read before leaving the page.
-    successBody: string;
     membershipNumber: string;
-    paymentReference: string;
-    copyReference: string;
-    keepReferenceBody: string;
     goToSignIn: string;
     backHome: string;
     error: {
@@ -313,11 +306,7 @@ export const forms: Record<Locale, FormsCopy> = {
       alreadyMember: "Already a member?",
       signIn: "Sign in",
       successTitle: "Application received",
-      successBody: "We'll let you know once you're approved.",
       membershipNumber: "Membership number",
-      paymentReference: "Your payment reference",
-      copyReference: "Copy payment reference",
-      keepReferenceBody: "Use it on every payment. Tap to copy.",
       goToSignIn: "Sign in",
       backHome: "Home",
       error: {
@@ -523,11 +512,7 @@ export const forms: Record<Locale, FormsCopy> = {
       alreadyMember: "Usanzwe uri umunyamuryango?",
       signIn: "Injira muri konti yawe",
       successTitle: "Ubusabe bwakiriwe",
-      successBody: "Tuzakumenyesha nibumara kwemezwa.",
       membershipNumber: "Nimero y'umunyamuryango",
-      paymentReference: "Nimero yawe y'ubwishyu",
-      copyReference: "Koporora nimero y'ubwishyu",
-      keepReferenceBody: "Yikoreshe kuri buri bwishyu. Kanda uyikoporore.",
       goToSignIn: "Injira",
       backHome: "Ahabanza",
       error: {

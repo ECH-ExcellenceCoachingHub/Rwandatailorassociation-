@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import Link from "next/link";
 import {
   Camera,
   CheckCircle2,
-  Copy,
   Eye,
   EyeOff,
   Loader2,
@@ -136,7 +135,39 @@ export default function RegisterForm({
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<SuccessState | null>(null);
-  const [copied, setCopied] = useState(false);
+
+  const STORAGE_KEY = "rta-register-draft";
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setValues((prev) => ({ ...prev, ...parsed }));
+      }
+    } catch {
+      // ignore malformed storage
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const { photo, successorPhoto, ...rest } = values;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
+    } catch {
+      // ignore quota errors
+    }
+  }, [values]);
+
+  useEffect(() => {
+    if (success) {
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch {
+        // ignore
+      }
+    }
+  }, [success]);
 
   // What the chosen shares cost each day, shown beside the choice so nobody
   // commits to a figure they first discover on their statement. The saving and
@@ -346,31 +377,6 @@ export default function RegisterForm({
           <h2 className="mt-6 font-heading text-2xl font-bold text-ink">
             {copy.successTitle}
           </h2>
-          <p className="mt-2 text-[15px] text-ink-muted">{copy.successBody}</p>
-
-          <div className="mt-8 rounded-2xl bg-primary-50 px-5 py-6">
-            <p className="text-xs font-semibold uppercase tracking-wider text-primary-hover">
-              {copy.paymentReference}
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                void navigator.clipboard.writeText(success.paymentReference);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-              }}
-              className="mx-auto mt-2 flex items-center gap-2 rounded-lg px-2 py-1 font-heading text-2xl font-bold tracking-wide text-primary-hover transition-colors hover:bg-primary/10"
-              aria-label={copy.copyReference}
-            >
-              {success.paymentReference}
-              {copied ? (
-                <CheckCircle2 className="size-5 text-success" aria-hidden="true" />
-              ) : (
-                <Copy className="size-5 text-primary" aria-hidden="true" />
-              )}
-            </button>
-            <p className="mt-2 text-sm text-ink-muted">{copy.keepReferenceBody}</p>
-          </div>
 
           <p className="mt-5 text-sm text-ink-muted">
             {copy.membershipNumber}:{" "}
