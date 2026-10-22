@@ -123,7 +123,20 @@ export default function RegisterForm({
   const field = d.forms.field;
   const app = d.forms.application;
 
-  const [values, setValues] = useState(INITIAL);
+  const STORAGE_KEY = "rta-register-draft";
+
+  const [values, setValues] = useState<typeof INITIAL>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return { ...INITIAL, ...parsed };
+      }
+    } catch {
+      // ignore malformed storage
+    }
+    return INITIAL;
+  });
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   // Both photographs are optional, and a camera button on the form reads as
@@ -135,20 +148,6 @@ export default function RegisterForm({
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<SuccessState | null>(null);
-
-  const STORAGE_KEY = "rta-register-draft";
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setValues((prev) => ({ ...prev, ...parsed }));
-      }
-    } catch {
-      // ignore malformed storage
-    }
-  }, []);
 
   useEffect(() => {
     try {
