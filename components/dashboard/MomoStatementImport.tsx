@@ -110,8 +110,138 @@ export function MoMoStatementImport({ canImport }: { canImport: boolean }) {
     return "+" + digits;
   }
 
+  function extractNameFromDescription(description: string): string | null {
+    const match = description.match(/SUCCESSFUL PAYMENT\s+\d{2}:\d{2}:\d{2}\s+(.+?)\s+EXCELLENCE COACHING/);
+    if (!match) return null;
+    const between = match[1].trim().replace(/\s+/g, " ");
+    if (!/[A-Za-z]/.test(between)) return null;
+    if (between.replace(/\D/g, "").length >= 9) return null;
+    return between;
+  }
+
   function findMemberIdByName(fullName: string): string | undefined {
     return members.find((m) => m.fullName === fullName)?.id;
+  }
+
+  function MemberAssignmentPicker({
+    row,
+    members,
+    value,
+    onChange,
+  }: {
+    row: ParsedPreviewRow;
+    members: MemberOption[];
+    value: string | undefined;
+    onChange: (memberId: string | null) => void;
+  }) {
+    const [query, setQuery] = useState(
+      value
+        ? members.find((m) => m.id === value)?.fullName ?? ""
+        : extractNameFromDescription(row.description) ?? ""
+    );
+    const [open, setOpen] = useState(false);
+    const [matches, setMatches] = useState<MemberOption[]>([]);
+    const [highlighted, setHighlighted] = useState(0);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const assigned = members.find((m) => m.id === value);
+
+    useEffect(() => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        const q = query.toLowerCase().trim();
+        setOpen(Boolean(q));
+        if (!q) {
+          setMatches([]);
+          setHighlighted(0);
+          return;
+        }
+        const filtered = members.filter(
+          (m) =>
+            m.fullName.toLowerCase().includes(q) ||
+            m.memberNumber.toLowerCase().includes(q) ||
+            (m.phone && m.phone.includes(q))
+        );
+        setMatches(filtered.slice(0, 8));
+        setHighlighted(0);
+      }, 300);
+      return () => {
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+      };
+    }, [query, members]);
+
+    useEffect(() => {
+      if (value) {
+        const name = members.find((m) => m.id === value)?.fullName;
+        if (name && query !== name) setQuery(name);
+      }
+    }, [value, members, query]);
+
+    function select(member: MemberOption | null) {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      setOpen(false);
+      setMatches([]);
+      setQuery(member ? member.fullName : extractNameFromDescription(row.description) ?? "");
+      onChange(member ? member.id : null);
+    }
+
+    return (
+      <div className="relative">
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setOpen(false);
+              setMatches([]);
+            }
+            if (e.key === "Enter") {
+              if (matches[highlighted]) {
+                e.preventDefault();
+                select(matches[highlighted]);
+              } else if (matches.length === 1) {
+                e.preventDefault();
+                select(matches[0]);
+              }
+            }
+            if (e.key === "ArrowDown" && matches.length) {
+              e.preventDefault();
+              setHighlighted((h) => (h + 1) % matches.length);
+            }
+            if (e.key === "ArrowUp" && matches.length) {
+              e.preventDefault();
+              setHighlighted((h) => (h - 1 + matches.length) % matches.length);
+            }
+          }}
+          placeholder="Search member…"
+          className="text-sm h-8 w-full min-w-[180px]"
+        />
+        {open && matches.length > 0 && (
+          <ul className="absolute z-20 mt-1 w-full min-w-[180px] rounded-xl border border-border bg-white shadow-lg overflow-hidden">
+            {matches.map((member, i) => (
+              <li
+                key={member.id}
+                onClick={() => select(member)}
+                onMouseEnter={() => setHighlighted(i)}
+                className={`px-3 py-2.5 text-sm cursor-pointer ${i === highlighted ? "bg-primary-50 text-primary" : "text-ink"} hover:bg-primary-50`}
+              >
+                <div className="text-ink">{member.fullName}</div>
+                <div className="text-[10px] text-ink-muted">
+                  {member.memberNumber}{member.phone ? ` • ${member.phone}` : ""}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {assigned && !open && (
+          <span className="text-[10px] text-emerald-700 mt-0.5 block">
+            {assigned.fullName} • {assigned.memberNumber}
+          </span>
+        )}
+      </div>
+    );
   }
 
 // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -442,9 +572,6 @@ export function MoMoStatementImport({ canImport }: { canImport: boolean }) {
             <tbody className="divide-y divide-border">
               {unmatchedCardFeeRows.map((row) => {
                 const assignedMemberId = manualAssignments.get(row.fingerprint);
-                const assignedMember = members.find(
-                  (m) => m.id === assignedMemberId
-                );
 
                 return (
                   <tr key={row.fingerprint}>
@@ -458,29 +585,17 @@ export function MoMoStatementImport({ canImport }: { canImport: boolean }) {
                       {formatMoney(row.amount)}
                     </td>
                     <td className="py-2">
-                      <Input
-                        value={assignedMember?.fullName ?? ""}
-                        onChange={(e) => {
-                          const query = e.target.value.toLowerCase();
-                          const match = members.find(
-                            (m) =>
-                              m.fullName.toLowerCase().includes(query) ||
-                              m.memberNumber.toLowerCase().includes(query)
-                          );
-                          if (match) {
-                            const next = new Map(manualAssignments);
-                            next.set(row.fingerprint, match.id);
-                            setManualAssignments(next);
-                          }
+                      <MemberAssignmentPicker
+                        row={row}
+                        members={members}
+                        value={assignedMemberId}
+                        onChange={(memberId) => {
+                          const next = new Map(manualAssignments);
+                          if (memberId) next.set(row.fingerprint, memberId);
+                          else next.delete(row.fingerprint);
+                          setManualAssignments(next);
                         }}
-                        placeholder="Search member…"
-                        className="text-sm h-8 w-full min-w-[180px]"
                       />
-                      {assignedMember && (
-                        <span className="text-[10px] text-emerald-700 mt-0.5 block">
-                          {assignedMember.memberNumber}
-                        </span>
-                      )}
                     </td>
                   </tr>
                 );
