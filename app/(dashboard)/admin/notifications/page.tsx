@@ -13,6 +13,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SearchFilterForm } from "@/components/dashboard/SearchFilterForm";
 import { PaginationLinks } from "@/components/dashboard/PaginationLinks";
+import { ResendEmailButton } from "@/components/dashboard/ResendEmailButton";
 import { parsePage } from "@/lib/validation/filters";
 import { NotificationStatus } from "@/lib/generated/prisma/enums";
 import { Button } from "@/components/ui/button";
@@ -289,6 +290,12 @@ export default async function AdminNotificationsPage({
                               {delivery.channel}
                             </span>
                             <StatusBadge status={delivery.status} size="sm" />
+                            {delivery.channel === "EMAIL" && delivery.status === "FAILED" && (
+                              <ResendEmailButton
+                                notificationId={notification.id}
+                                deliveryId={delivery.id}
+                              />
+                            )}
                           </span>
                         ))}
                         {notification.deliveries

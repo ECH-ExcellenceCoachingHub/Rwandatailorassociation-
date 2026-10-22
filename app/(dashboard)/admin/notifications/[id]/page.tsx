@@ -11,6 +11,7 @@ import { formatDateTime } from "@/lib/i18n/dates";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
+import { ResendEmailButton } from "@/components/dashboard/ResendEmailButton";
 import {
   Card,
   CardContent,
@@ -165,6 +166,12 @@ export default async function AdminNotificationDetailPage({
                     <Icon className="size-4 text-ink-muted" aria-hidden="true" />
                     <span className="font-semibold text-ink">{channelLabel}</span>
                     <StatusBadge status={delivery.status} size="sm" />
+                    {delivery.channel === "EMAIL" && delivery.status === "FAILED" && (
+                      <ResendEmailButton
+                        notificationId={notification.id}
+                        deliveryId={delivery.id}
+                      />
+                    )}
                   </div>
 
                   <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">

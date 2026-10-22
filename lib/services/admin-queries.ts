@@ -905,6 +905,7 @@ export async function listSentNotifications(
         },
         deliveries: {
           select: {
+            id: true,
             channel: true,
             status: true,
             errorMessage: true,
@@ -948,6 +949,7 @@ export async function listSentNotifications(
         recipient: `${n.user.firstName} ${n.user.lastName}`.trim(),
         memberNumber: n.user.member?.memberNumber ?? null,
         deliveries: n.deliveries.map((d) => ({
+          id: d.id,
           channel: d.channel,
           status: d.status,
           errorMessage: d.errorMessage,

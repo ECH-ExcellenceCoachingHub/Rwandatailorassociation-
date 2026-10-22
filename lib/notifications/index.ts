@@ -298,6 +298,51 @@ export async function retryFailedDeliveries(limit = 100): Promise<number> {
   return attempted;
 }
 
+/**
+ * Re-sends a single failed email delivery, on an administrator's request.
+ *
+ * The delivery is reset to PENDING and dispatched through the normal path, so
+ * the same provider, backoff and recording logic applies. Only a FAILED EMAIL
+ * delivery belonging to the caller's association can be re-sent: SMS is
+ * deliberately excluded (a wrong number is rarely fixed by retrying) and an
+ * in-app delivery has nothing external to re-send.
+ */
+export async function resendFailedEmailDelivery(params: {
+  notificationId: string;
+  deliveryId: string;
+  associationId: string | null;
+}): Promise<{ deliveryId: string } | null> {
+  const delivery = await prisma.notificationDelivery.findFirst({
+    where: {
+      id: params.deliveryId,
+      notificationId: params.notificationId,
+      channel: "EMAIL",
+      status: "FAILED",
+      notification: { ...scopeOf(params.associationId) },
+    },
+  });
+
+  if (!delivery) return null;
+
+  await prisma.notificationDelivery.update({
+    where: { id: params.deliveryId },
+    data: {
+      status: "PENDING",
+      errorMessage: null,
+      nextRetryAt: null,
+    },
+  });
+
+  await dispatchDeliveries(params.notificationId);
+
+  return { deliveryId: params.deliveryId };
+}
+
+/** Association scope for tenant isolation: null means platform-wide. */
+function scopeOf(associationId: string | null) {
+  return associationId ? { associationId } : {};
+}
+
 /** Sends the same event to every admin of an association. */
 export async function notifyAssociationAdmins(
   associationId: string,
