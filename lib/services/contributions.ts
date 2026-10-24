@@ -26,13 +26,13 @@ import { notify, NOTIFICATION_EVENTS } from "@/lib/notifications";
 /**
  * THE DAILY SAVING, AND WHAT HAPPENS WHEN SOMEBODY FALLS BEHIND.
  *
- * The rule is one line — save 1,000 a day plus 50 service fee, and a fine
+ * The rule is one line — save 500 a day plus 25 service fee, and a fine
  * follows seven missed days — and every hard decision in this module comes
  * from refusing to store that as a schedule.
  *
  * WHY THERE IS NO ROW PER DAY. The obvious design gives every member a row per
  * calendar day, marked paid or missed. It is wrong for the people this is
- * built for: a tailor does not pay 1,050 on Tuesday, they pay 7,350 on
+ * built for: a tailor does not pay 525 on Tuesday, they pay 3,675 on
  * Saturday when the market has been good, and a schedule of daily slots has to
  * be told how to spread that. Instead, TWO COUNTS ARE COMPARED:
  *
@@ -892,11 +892,11 @@ export interface FeeRunResult {
    * THE SEQUENCE THIS PRODUCES ON A STATEMENT, which is the whole point of doing
    * it as a debit rather than by splitting the deposit:
    *
-   *     DEPOSIT   +1,050    balance 1,050
-   *     FEE          -50    balance 1,000
+   *     DEPOSIT   +525    balance 525
+   *     FEE          -25    balance 500
    *
    * The member sees what they paid, what the service cost, and what they saved.
-   * Crediting 1,000 and quietly pocketing 50 would show a member who paid 1,050
+   * Crediting 500 and quietly pocketing 25 would show a member who paid 525
    * a deposit of 1,000, and there is no honest way to explain that on a receipt.
    *
    * The daily fee is per share, so a member holding three shares is debited

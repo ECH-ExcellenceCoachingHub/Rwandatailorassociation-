@@ -38,7 +38,7 @@ const TZ = "Africa/Kigali";
 /** Midday, so a timezone slip of a couple of hours cannot change the day. */
 const at = (iso: string) => new Date(`${iso}T12:00:00.000Z`);
 
-/** RTA's own rules: 1,000 + 50 a day per share, 500 per share after 7 days, 2% a month split 1/1. */
+/** RTA's own rules: 500 + 25 a day per share, 500 per share after 7 days, 2% a month split 1/1. */
 const POLICY: AssociationPolicy = DEFAULT_POLICY;
 
 function standing(overrides: Partial<StandingInputs> = {}) {
@@ -65,22 +65,22 @@ describe("the daily contribution", () => {
         shares: 5,
       });
 
-      expect(result.dailySavings).toBe("5000.00");
-      expect(result.dailyFee).toBe("250.00");
-      expect(result.dailyTotal).toBe("5250.00");
-      expect(result.arrearsTotal).toBe("5250.00");
+      expect(result.dailySavings).toBe("2500.00");
+      expect(result.dailyFee).toBe("125.00");
+      expect(result.dailyTotal).toBe("2625.00");
+      expect(result.arrearsTotal).toBe("2625.00");
     });
 
     it("counts a member with no shares recorded as holding one", () => {
-      expect(standing({ shares: undefined }).dailyTotal).toBe("1050.00");
+      expect(standing({ shares: undefined }).dailyTotal).toBe("525.00");
     });
 
     it("covers days at the member's own daily total", () => {
-      // Five shares cost 5,250 a day, so 15,150 buys two days — not three.
+      // Five shares cost 2,625 a day, so 6,000 buys two days — not three.
       const result = standing({
         obligationStart: at("2026-01-01"),
         asOf: at("2026-01-03"),
-        totalContributed: "15150",
+        totalContributed: "6000",
         shares: 5,
       });
 
@@ -96,14 +96,14 @@ describe("the daily contribution", () => {
 
     expect(result.dueDays).toBe(1);
     expect(result.missedDays).toBe(1);
-    expect(result.arrearsTotal).toBe("1050.00");
+    expect(result.arrearsTotal).toBe("525.00");
   });
 
   it("treats a member who has paid every day as up to date", () => {
-    // Ten days at 1,050.
+    // Ten days at 525.
     const result = standing({
       asOf: at("2026-01-10"),
-      totalContributed: "10500",
+      totalContributed: "5250",
     });
 
     expect(result.dueDays).toBe(10);
@@ -117,7 +117,7 @@ describe("the daily contribution", () => {
   it("credits a lump sum as the days it buys", () => {
     const result = standing({
       asOf: at("2026-01-07"),
-      totalContributed: "7350",
+      totalContributed: "3675",
     });
 
     expect(result.coveredDays).toBe(7);
@@ -125,10 +125,10 @@ describe("the daily contribution", () => {
   });
 
   it("ignores a part-day: money that does not buy a whole day buys none", () => {
-    // 7,000 is six full days plus 700 — not enough for the seventh.
+    // 3,550 is six full days at 525 plus 400 — not enough for the seventh.
     const result = standing({
       asOf: at("2026-01-07"),
-      totalContributed: "7000",
+      totalContributed: "3550",
     });
 
     expect(result.coveredDays).toBe(6);
@@ -142,9 +142,9 @@ describe("the daily contribution", () => {
     });
 
     expect(result.missedDays).toBe(5);
-    expect(result.arrearsSavings).toBe("5000.00");
-    expect(result.arrearsFee).toBe("250.00");
-    expect(result.arrearsTotal).toBe("5250.00");
+    expect(result.arrearsSavings).toBe("2500.00");
+    expect(result.arrearsFee).toBe("125.00");
+    expect(result.arrearsTotal).toBe("2625.00");
   });
 
   it("owes nothing before the obligation starts", () => {
@@ -169,7 +169,7 @@ describe("the daily contribution", () => {
 
 describe("warning before the fine", () => {
   it("is current with nothing missed", () => {
-    expect(standing({ asOf: at("2026-01-03"), totalContributed: "3150" }).status).toBe(
+    expect(standing({ asOf: at("2026-01-03"), totalContributed: "1575" }).status).toBe(
       "CURRENT"
     );
   });
@@ -219,9 +219,9 @@ describe("warning before the fine", () => {
       outstandingFineAmount: "350.00",
     });
 
-    // Six days of 1,050, plus a fine already owed.
-    expect(result.arrearsTotal).toBe("6300.00");
-    expect(result.clearingAmount).toBe("6650.00");
+    // Six days of 525, plus a fine already owed.
+    expect(result.arrearsTotal).toBe("3150.00");
+    expect(result.clearingAmount).toBe("3500.00");
   });
 });
 
@@ -235,11 +235,11 @@ describe("assessing the fine", () => {
 
     expect(result.missedDays).toBe(7);
     expect(result.status).toBe("FINABLE");
-    // A flat 500 per share. The 7,000 of saving the week left unpaid is
+    // A flat 500 per share. The 3,500 of saving the week left unpaid is
     // recorded beside it for the member to read, but the fine does not depend
     // on it.
     expect(result.fineDue).toMatchObject({
-      arrearsAmount: "7000.00",
+      arrearsAmount: "3500.00",
       amountPerShare: "500.00",
       shares: 1,
       amount: "500.00",
@@ -251,7 +251,7 @@ describe("assessing the fine", () => {
 
     expect(result.missedDays).toBe(7);
     expect(result.fineDue).toMatchObject({
-      arrearsAmount: "21000.00",
+      arrearsAmount: "10500.00",
       amountPerShare: "500.00",
       shares: 3,
       amount: "1500.00",
@@ -275,7 +275,7 @@ describe("assessing the fine", () => {
       const result = standing({
         obligationStart: start,
         asOf: at("2026-01-24"),
-        totalContributed: "10500", // 10 days covered
+        totalContributed: "5250", // 10 days covered
       });
 
       expect(result.missedDays).toBe(14);
@@ -284,9 +284,8 @@ describe("assessing the fine", () => {
 
     it("does not fine again the next night", () => {
       const result = standing({
-        obligationStart: start,
         asOf: at("2026-01-25"),
-        totalContributed: "10500",
+        totalContributed: "5250",
         priorFines: [{ missedDays: 14, dueDayIndex: 24 }],
       });
 
@@ -298,7 +297,7 @@ describe("assessing the fine", () => {
       const result = standing({
         obligationStart: start,
         asOf: at("2026-01-25"),
-        totalContributed: "15750", // 15 days covered
+        totalContributed: "7875", // 15 days covered
         priorFines: [{ missedDays: 14, dueDayIndex: 24 }],
       });
 
@@ -310,7 +309,7 @@ describe("assessing the fine", () => {
       const result = standing({
         obligationStart: start,
         asOf: at("2026-02-05"), // day 36
-        totalContributed: "15750", // 15 days covered
+        totalContributed: "7875", // 15 days covered
         priorFines: [{ missedDays: 14, dueDayIndex: 24 }],
       });
 
@@ -319,7 +318,7 @@ describe("assessing the fine", () => {
 
       // Seven NEW missed days since the fine at day 14 — not all twenty-one.
       // One more flat fine for the new stretch.
-      expect(result.fineDue?.arrearsAmount).toBe("7000.00");
+      expect(result.fineDue?.arrearsAmount).toBe("3500.00");
       expect(result.fineDue?.amount).toBe("500.00");
     });
 
@@ -337,7 +336,7 @@ describe("assessing the fine", () => {
         priorFines: [{ missedDays: 7, dueDayIndex: 7 }],
       });
       expect(day14.missedDays).toBe(14);
-      expect(day14.fineDue?.arrearsAmount).toBe("7000.00");
+      expect(day14.fineDue?.arrearsAmount).toBe("3500.00");
       expect(day14.fineDue?.amount).toBe("500.00");
 
       const day21 = standing({
@@ -349,7 +348,7 @@ describe("assessing the fine", () => {
         ],
       });
       expect(day21.missedDays).toBe(21);
-      expect(day21.fineDue?.arrearsAmount).toBe("7000.00");
+      expect(day21.fineDue?.arrearsAmount).toBe("3500.00");
       expect(day21.fineDue?.amount).toBe("500.00");
     });
 
@@ -357,7 +356,7 @@ describe("assessing the fine", () => {
       const result = standing({
         obligationStart: start,
         asOf: at("2026-02-13"), // day 44
-        totalContributed: "37800", // 36 days covered — past the old fine's day
+        totalContributed: "18900", // 36 days covered — past the old fine's day
         priorFines: [
           { missedDays: 14, dueDayIndex: 24 },
           { missedDays: 21, dueDayIndex: 36 },
@@ -384,18 +383,18 @@ describe("the platform service fee", () => {
     // Twenty days have passed; the member has paid for five.
     const result = standing({
       asOf: at("2026-01-20"),
-      totalContributed: "5250",
+      totalContributed: "2625",
     });
 
     expect(result.missedDays).toBe(15);
     expect(result.feeDaysOwed).toBe(5);
-    expect(result.feeAmountOwed).toBe("250.00");
+    expect(result.feeAmountOwed).toBe("125.00");
   });
 
   it("charges nothing again for days already charged", () => {
     const result = standing({
       asOf: at("2026-01-10"),
-      totalContributed: "10500",
+      totalContributed: "5250",
       feeChargedThroughDay: 10,
     });
 
@@ -406,12 +405,12 @@ describe("the platform service fee", () => {
   it("charges only the new days after a partial run", () => {
     const result = standing({
       asOf: at("2026-01-10"),
-      totalContributed: "10500",
+      totalContributed: "5250",
       feeChargedThroughDay: 6,
     });
 
     expect(result.feeDaysOwed).toBe(4);
-    expect(result.feeAmountOwed).toBe("200.00");
+    expect(result.feeAmountOwed).toBe("100.00");
   });
 });
 

@@ -8,6 +8,7 @@ import {
   ROLE_PERMISSIONS,
 } from "../lib/auth/permissions";
 import type { UserRole } from "../lib/generated/prisma/enums";
+import { RULE_CATALOGUE, RULE_KEYS } from "../lib/rules/catalogue";
 
 /**
  * Database seed.
@@ -121,10 +122,10 @@ async function seedAssociation() {
 
   await prisma.savingsRule.upsert({
     where: { associationId: association.id },
-    update: {},
+    update: { minimumDeposit: "500" },
     create: {
       associationId: association.id,
-      minimumDeposit: "1000",
+      minimumDeposit: "500",
       minimumBalance: "0",
       allowWithdrawals: true,
       withdrawalRequiresApproval: true,
@@ -137,6 +138,36 @@ async function seedAssociation() {
       annualInterestRate: "0",
     },
   });
+
+  // Converge the association's contribution and platform-fee rules to the
+  // catalogue defaults so a deployed association picks up retuned figures on
+  // re-seed, not the old ones forever.
+  for (const key of [
+    RULE_KEYS.DAILY_SAVINGS,
+    RULE_KEYS.PLATFORM_FEE_DAILY,
+  ]) {
+    const rule = RULE_CATALOGUE.find((r) => r.key === key);
+    if (!rule) continue;
+    await prisma.associationRule.upsert({
+      where: { associationId_key: { associationId: association.id, key } },
+      update: { value: rule.defaultValue, isActive: true },
+      create: {
+        associationId: association.id,
+        key,
+        category: rule.category,
+        valueType: rule.valueType,
+        enforcement: rule.enforcement,
+        value: rule.defaultValue,
+        isSystem: true,
+        isActive: true,
+        displayOrder: rule.displayOrder,
+        titleEn: rule.title.en,
+        titleRw: rule.title.rw,
+        bodyEn: rule.body.en,
+        bodyRw: rule.body.rw,
+      },
+    });
+  }
 
   /**
    * THE PRODUCT, EXPRESSED SO THAT ONLY THE RULEBOOK BINDS.

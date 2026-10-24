@@ -148,15 +148,15 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
     category: "CONTRIBUTIONS",
     valueType: "MONEY",
     enforcement: "AUTOMATIC",
-    defaultValue: "1000.00",
+    defaultValue: "500.00",
     displayOrder: 10,
     title: {
       en: "Save every day, for each share",
       rw: "Kuzigama buri munsi, ku mugabane",
     },
     body: {
-      en: "Each share you hold saves this amount every day (Art. 6) — a member with five shares saves five times it. You may always save more than one share a day. It is your own money: it goes straight into your savings account and stays yours. The service fee below is also charged per share, so one share costs 1,050 a day and five shares 5,250.",
-      rw: "Buri mugabane ufite uzigama aya mafaranga buri munsi (Ingingo ya 6) — umunyamuryango ufite imigabane itanu azigama inshuro eshanu zayo. Wemerewe gutanga umugabane urenze umwe ku munsi. Ni amafaranga yawe bwite: ajya mu konti yawe y'ubuzigame kandi akomeza kuba ayawe. Amafaranga ya serivisi ari hasi aha yongerwaho kuri buri mugabane, bityo umugabane umwe ni 1,050 ku munsi naho imigabane itanu ni 5,250.",
+      en: "Each share you hold saves this amount every day (Art. 6) — a member with five shares saves five times it. You may always save more than one share a day. It is your own money: it goes straight into your savings account and stays yours. The service fee below is also charged per share, so one share costs 525 a day and five shares 2,625.",
+      rw: "Buri mugabane ufite uzigama aya mafaranga buri munsi (Ingingo ya 6) — umunyamuryango ufite imigabane itanu azigama inshuro eshanu zayo. Wemerewe gutanga umugabane urenze umwe ku munsi. Ni amafaranga yawe bwite: ajya mu konti yawe y'ubuzigame kandi akomeza kuba ayawe. Amafaranga ya serivisi ari hasi aha yongerwaho kuri buri mugabane, bityo umugabane umwe ni 525 ku munsi naho imigabane itanu ni 2,625.",
     },
   },
   {
@@ -191,8 +191,8 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
       rw: "Uko imigabane ibarwa",
     },
     body: {
-      en: "Your number of shares is everything you have saved divided by 1,000: 1,000 is one share, 5,000 is five, 10,000 is ten. The service fee and the membership card are not counted. Every share earns the same, so a member with two shares receives twice the profit of a member with one — but every member has the same basic rights, however many shares they hold (Art. 45–49, 53).",
-      rw: "Umubare w'imigabane yawe ni amafaranga yose wazigamye agabanyijwe na 1,000: 1,000 ni umugabane 1, 5,000 ni imigabane 5, 10,000 ni imigabane 10. Amafaranga ya serivisi n'ikarita y'umunyamuryango ntibibarwa. Buri mugabane ugira igipimo kimwe cy'inyungu, bityo ufite imigabane 2 ahabwa inshuro ebyiri z'inyungu y'ufite umugabane 1 — ariko buri munyamuryango afite uburenganzira bw'ibanze bungana n'ubw'abandi, uko imigabane ye yaba ingana kose (Ingingo ya 45–49, 53).",
+      en: "Your number of shares is everything you have saved divided by 500: 500 is one share, 2,500 is five, 5,000 is ten. The service fee and the membership card are not counted. Every share earns the same, so a member with two shares receives twice the profit of a member with one — but every member has the same basic rights, however many shares they hold (Art. 45–49, 53).",
+      rw: "Umubare w'imigabane yawe ni amafaranga yose wazigamye agabanyijwe na 500: 500 ni umugabane 1, 2,500 ni imigabane 5, 5,000 ni imigabane 10. Amafaranga ya serivisi n'ikarita y'umunyamuryango ntibibarwa. Buri mugabane ugira igipimo kimwe cy'inyungu, bityo ufite imigabane 2 ahabwa inshuro ebyiri z'inyungu y'ufite umugabane 1 — ariko buri munyamuryango afite uburenganzira bw'ibanze bungana n'ubw'abandi, uko imigabane ye yaba ingana kose (Ingingo ya 45–49, 53).",
     },
   },
   {
@@ -218,7 +218,7 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
     category: "CONTRIBUTIONS",
     valueType: "MONEY",
     enforcement: "INFORMATIONAL",
-    defaultValue: "1000.00",
+    defaultValue: "2000.00",
     displayOrder: 26,
     title: {
       en: "The membership card",
@@ -238,7 +238,7 @@ export const RULE_CATALOGUE: readonly RuleDefinition[] = [
     category: "PLATFORM_FEE",
     valueType: "MONEY",
     enforcement: "AUTOMATIC",
-    defaultValue: "50.00",
+    defaultValue: "25.00",
     displayOrder: 30,
     title: {
       en: "Daily service fee",

@@ -113,8 +113,8 @@ export async function getMemberPaymentHistory(
     }),
   ]);
 
-  // The fee is owed per WHOLE contribution day paid for — 50 per share for
-  // every 1,050 — exactly as the nightly fee run charges it. A payment's fee
+  // The fee is owed per WHOLE contribution day paid for — 25 per share for
+  // every 525 — exactly as the nightly fee run charges it. A payment's fee
   // part is therefore the fee on the whole days it completes; the remainder of
   // a part-paid day stays savings until the day is paid in full. Figures come
   // from the standing so this page and the fee run cannot disagree.

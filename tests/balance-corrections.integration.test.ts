@@ -186,7 +186,7 @@ describe("savings corrections", () => {
     expect(after.totalDeposits.toFixed(2)).toBe(before.totalDeposits.plus(5000).toFixed(2));
 
     // The service fee on every day now paid for came off with the deposit:
-    // 105,000 covers 100 days at 1,050, so 100 days at 50.
+    // 105,000 covers 200 days at 525, so 200 days at 25.
     const fee = await prisma.platformFeeCharge.findFirstOrThrow({
       where: { memberId, status: "CHARGED" },
     });
