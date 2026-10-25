@@ -101,6 +101,8 @@ export interface AccountCopy {
     totalContributedHint: string;
     serviceFeesDeducted: string;
     serviceFeesDeductedHint: string;
+    finesDeducted: string;
+    finesDeductedHint: string;
     balanceAfterFeesHint: string;
     totalWithdrawn: string;
     interestEarned: string;
@@ -394,7 +396,9 @@ export const account: Record<Locale, AccountCopy> = {
       totalContributedHint: "Everything ever credited to your account",
       serviceFeesDeducted: "Service fees deducted",
       serviceFeesDeductedHint: "{fee} per share each day, taken from your balance",
-      balanceAfterFeesHint: "What you paid in, less service fees and any other deductions",
+      finesDeducted: "Fines deducted",
+      finesDeductedHint: "Contribution fines taken from your balance",
+      balanceAfterFeesHint: "What you paid in, less service fees, fines and any other deductions",
       totalWithdrawn: "Total withdrawn",
       interestEarned: "Interest earned",
       feesCharged: "Fees charged",
@@ -708,6 +712,8 @@ export const account: Record<Locale, AccountCopy> = {
       totalContributedHint: "Ibyinjiye byose kuri konti yawe kuva watangira",
       serviceFeesDeducted: "Amafaranga ya serivisi yakuweho",
       serviceFeesDeductedHint: "{fee} ku mugabane buri munsi, akurwa ku mafaranga yawe",
+      finesDeducted: "Amafaranga ya penalti yakuweho",
+      finesDeductedHint: "Amafaranga ya penalti yishobora ku mafaranga yawe",
       balanceAfterFeesHint: "Ayo watanze, hakuweho amafaranga ya serivisi n'ibindi byakuweho",
       totalWithdrawn: "Amafaranga wabikuje",
       interestEarned: "Inyungu wabonye",

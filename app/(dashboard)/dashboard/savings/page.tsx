@@ -102,9 +102,13 @@ export default async function MemberSavingsPage() {
           label={copy.currentBalance}
           value={formatMoney(account.balance)}
           hint={
-            Number(account.serviceFeesDeducted) > 0
+            Number(account.serviceFeesDeducted) > 0 ||
+            Number(account.finesDeducted) > 0
               ? fill(copy.afterServiceFees, {
-                  amount: formatMoney(account.serviceFeesDeducted),
+                  amount: formatMoney(
+                    Number(account.serviceFeesDeducted) +
+                      Number(account.finesDeducted)
+                  ),
                 })
               : fill(copy.transactionCount, { count: account.transactionCount })
           }
@@ -127,7 +131,8 @@ export default async function MemberSavingsPage() {
           label={copy.totalContributed}
           value={formatMoney(account.totalDeposits)}
           hint={
-            Number(account.serviceFeesDeducted) > 0
+            Number(account.serviceFeesDeducted) > 0 ||
+            Number(account.finesDeducted) > 0
               ? copy.beforeServiceFees
               : copy.lifetimeDeposits
           }

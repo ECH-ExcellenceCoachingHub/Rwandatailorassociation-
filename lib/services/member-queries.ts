@@ -131,13 +131,22 @@ export async function getServiceFeesDeducted(memberId: string): Promise<string> 
   return toMoneyString(charged._sum.amount ?? 0);
 }
 
+export async function getFinesDeducted(memberId: string): Promise<string> {
+  const settled = await prisma.contributionFine.aggregate({
+    where: { memberId, status: "SETTLED" },
+    _sum: { amount: true },
+  });
+  return toMoneyString(settled._sum.amount ?? 0);
+}
+
 export async function getMemberSavingsAccount(memberId: string) {
-  const [account, serviceFeesDeducted] = await Promise.all([
+  const [account, serviceFeesDeducted, finesDeducted] = await Promise.all([
     prisma.savingsAccount.findFirst({
       where: { memberId, isActive: true },
       orderBy: { openedAt: "asc" },
     }),
     getServiceFeesDeducted(memberId),
+    getFinesDeducted(memberId),
   ]);
 
   if (!account) return null;
@@ -157,6 +166,7 @@ export async function getMemberSavingsAccount(memberId: string) {
     totalInterest: account.totalInterest.toFixed(2),
     totalFees: account.totalFees.toFixed(2),
     serviceFeesDeducted,
+    finesDeducted,
     currency: account.currency,
     openedAt: account.openedAt,
     lastTransactionAt: account.lastTransactionAt,
