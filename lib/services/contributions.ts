@@ -14,6 +14,7 @@ import {
   buildTransactionReference,
   postSavingsTransaction,
   reverseSavingsTransactionWithin,
+  voidPlatformFeeCharge,
 } from "@/lib/services/ledger";
 import {
   getPolicy,
@@ -1064,7 +1065,29 @@ export async function chargeMemberFeeWithin(
     isExempt: false,
   });
 
-  if (standing.feeDaysOwed <= 0) return { status: "NOTHING_OWED" };
+  if (standing.feeDaysOwed <= 0) {
+    // Fees were previously charged for more days than are currently covered
+    // (e.g. a deposit was reversed, lowering totalDeposits). Void the excess
+    // charges so the member is not billed for days they did not pay for.
+    if (chargedThrough > standing.coveredDays) {
+      const excessCharges = await tx.platformFeeCharge.findMany({
+        where: {
+          memberId,
+          status: "CHARGED",
+          coveredThroughDay: { gt: standing.coveredDays },
+        },
+        orderBy: { coveredThroughDay: "asc" },
+      });
+      for (const charge of excessCharges) {
+        await voidPlatformFeeCharge(
+          tx,
+          charge.id,
+          "Fee charged for days no longer covered after deposit reversal",
+        );
+      }
+    }
+    return { status: "NOTHING_OWED" };
+  }
 
   // Checked here rather than left to the ledger's overdraft guard, whose
   // error would abort the caller's transaction — and with it the deposit.

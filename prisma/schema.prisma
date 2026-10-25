@@ -393,7 +393,7 @@ model Member {
   successorPhone             String?
   successorRelation          String?
   /// Imigabane: how many shares the member holds, 1–30 on the public form.
-  /// Each share saves the rulebook's daily amount (1,000 RWF by default), so
+  /// Each share saves the rulebook's daily amount (500 RWF by default), so
   /// the daily obligation is that times this — see computeStanding in
   /// lib/services/contributions.ts. Null counts as one share, which is what
   /// every member enrolled before shares were recorded was paying.
