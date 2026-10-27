@@ -309,6 +309,37 @@ function isRetryableTransactionError(error: unknown): boolean {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === "P2034") return true;
 
+    // P2002 on (savingsAccountId, sequence) means two concurrent writers claimed
+    // the same sequence slot. Retry the whole transaction in a fresh session —
+    // the row lock serializes them properly on the next attempt. P2002 on
+    // paymentId is not retried: it means the same payment is being posted twice.
+    // Prisma's pg adapter reports composite unique targets in varying shapes
+    // (bare names, quoted names, or constraint-name arrays), so we check both
+    // `meta.target` and `meta.driverAdapterError.cause.constraint.fields`.
+    if (error.code === "P2002") {
+      const target = error.meta?.target;
+      const fields = Array.isArray(target) ? target : typeof target === "string" ? [target] : [];
+      const normalise = (v: string) => v.replace(/["`\s]/g, "").toLowerCase();
+      const targetStrings = fields.map(String);
+
+      // Never retry a paymentId collision — the same payment is being posted twice.
+      const isPaymentId = targetStrings.some((f) => normalise(f) === "paymentid");
+
+      const adapterFields = (
+        error.meta as
+          | { driverAdapterError?: { cause?: { constraint?: { fields?: string[] } } } }
+          | undefined
+      )?.driverAdapterError?.cause?.constraint?.fields;
+      const allFields = [...targetStrings, ...(Array.isArray(adapterFields) ? adapterFields.map(String) : [])];
+
+      if (isPaymentId) return false;
+      if (allFields.some((f) => normalise(f) === "sequence")) return true;
+      // Any other P2002 on savings_transactions is treated as retryable: it is
+      // either a sequence conflict or a transient unique collision that a fresh
+      // transaction should resolve.
+      if (allFields.length > 0) return true;
+    }
+
     if (error.code === "P2010") {
       const adapterError = (
         error.meta as

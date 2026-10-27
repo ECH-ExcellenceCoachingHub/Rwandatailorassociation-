@@ -176,6 +176,11 @@ async function postWithin(
   // The guard lives in the WHERE clause rather than in application code, so
   // the check and the write are indivisible: there is no window between
   // "balance is sufficient" and "balance has been debited".
+  //
+  // NOTE: no statement-level retry here. Postgres aborts the whole transaction
+  // on any error, so retrying the UPDATE inside an aborted transaction yields
+  // 25P02. Sequence conflicts are retried by withFinancialTransaction, which
+  // re-runs the entire fn in a fresh transaction.
   // ---------------------------------------------------------------------
   const delta = input.direction === "CREDIT" ? amount : amount.negated();
   const totalsColumn = rollingTotalColumn(input.type);
@@ -231,93 +236,100 @@ async function postWithin(
   const sequence = account.sequence;
   const reference = buildReference(input.type);
 
-  const transaction = await tx.savingsTransaction.create({
-    data: {
-      associationId: account.associationId,
-      savingsAccountId: account.id,
-      memberId: account.memberId,
-      sequence,
-      reference,
-      type: input.type,
-      direction: input.direction,
-      status: "COMPLETED",
-      channel: input.channel ?? "INTERNAL_TRANSFER",
-      amount: toMoneyString(amount),
-      balanceBefore: toMoneyString(balanceBefore),
-      balanceAfter: toMoneyString(balanceAfter),
-      currency: account.currency,
-      description: input.description ?? null,
-      externalReference: input.externalReference ?? null,
-      paymentId: input.paymentId ?? null,
-      withdrawalId: input.withdrawalId ?? null,
-      loanId: input.loanId ?? null,
-      loanTransactionId: input.loanTransactionId ?? null,
-      postedById: input.postedById ?? null,
-      adjustmentReason: input.adjustmentReason ?? null,
-      valueDate: input.valueDate ?? new Date(),
-    },
-    select: {
-      id: true,
-      reference: true,
-      sequence: true,
-      createdAt: true,
-    },
-  });
-
-  ledgerLogger.info(
-    {
-      reference,
-      accountId: account.id,
-      memberId: account.memberId,
-      type: input.type,
-      direction: input.direction,
-      amount: toMoneyString(amount),
-      balanceAfter: toMoneyString(balanceAfter),
-      sequence,
-    },
-    "ledger entry posted"
-  );
-
-  // Audited inside the same transaction: if the posting rolls back, so does
-  // its audit trail, and the two can never disagree.
-  await recordAudit(
-    {
-      action: auditActionFor(input.type),
-      entityType: "SavingsTransaction",
-      entityId: transaction.id,
-      associationId: account.associationId,
-      newValue: {
+  try {
+    const transaction = await tx.savingsTransaction.create({
+      data: {
+        associationId: account.associationId,
+        savingsAccountId: account.id,
+        memberId: account.memberId,
+        sequence,
         reference,
         type: input.type,
         direction: input.direction,
+        status: "COMPLETED",
+        channel: input.channel ?? "INTERNAL_TRANSFER",
         amount: toMoneyString(amount),
         balanceBefore: toMoneyString(balanceBefore),
         balanceAfter: toMoneyString(balanceAfter),
+        currency: account.currency,
+        description: input.description ?? null,
+        externalReference: input.externalReference ?? null,
+        paymentId: input.paymentId ?? null,
+        withdrawalId: input.withdrawalId ?? null,
+        loanId: input.loanId ?? null,
+        loanTransactionId: input.loanTransactionId ?? null,
+        postedById: input.postedById ?? null,
+        adjustmentReason: input.adjustmentReason ?? null,
+        valueDate: input.valueDate ?? new Date(),
       },
-      reason: input.adjustmentReason ?? null,
-      metadata: {
-        memberId: account.memberId,
-        savingsAccountId: account.id,
-        paymentId: input.paymentId ?? undefined,
-        channel: input.channel ?? "INTERNAL_TRANSFER",
+      select: {
+        id: true,
+        reference: true,
+        sequence: true,
+        createdAt: true,
       },
-      severity: input.type === "ADJUSTMENT" ? "CRITICAL" : "INFO",
-    },
-    input.postedById ? { id: input.postedById } : null,
-    tx
-  );
+    });
 
-  return {
-    id: transaction.id,
-    reference: transaction.reference,
-    sequence: transaction.sequence,
-    amount: toMoneyString(amount),
-    balanceBefore: toMoneyString(balanceBefore),
-    balanceAfter: toMoneyString(balanceAfter),
-    type: input.type,
-    direction: input.direction,
-    createdAt: transaction.createdAt,
-  };
+    ledgerLogger.info(
+      {
+        reference,
+        accountId: account.id,
+        memberId: account.memberId,
+        type: input.type,
+        direction: input.direction,
+        amount: toMoneyString(amount),
+        balanceAfter: toMoneyString(balanceAfter),
+        sequence,
+      },
+      "ledger entry posted"
+    );
+
+    // Audited inside the same transaction: if the posting rolls back, so does
+    // its audit trail, and the two can never disagree.
+    await recordAudit(
+      {
+        action: auditActionFor(input.type),
+        entityType: "SavingsTransaction",
+        entityId: transaction.id,
+        associationId: account.associationId,
+        newValue: {
+          reference,
+          type: input.type,
+          direction: input.direction,
+          amount: toMoneyString(amount),
+          balanceBefore: toMoneyString(balanceBefore),
+          balanceAfter: toMoneyString(balanceAfter),
+        },
+        reason: input.adjustmentReason ?? null,
+        metadata: {
+          memberId: account.memberId,
+          savingsAccountId: account.id,
+          paymentId: input.paymentId ?? undefined,
+          channel: input.channel ?? "INTERNAL_TRANSFER",
+        },
+        severity: input.type === "ADJUSTMENT" ? "CRITICAL" : "INFO",
+      },
+      input.postedById ? { id: input.postedById } : null,
+      tx
+    );
+
+    return {
+      id: transaction.id,
+      reference: transaction.reference,
+      sequence: transaction.sequence,
+      amount: toMoneyString(amount),
+      balanceBefore: toMoneyString(balanceBefore),
+      balanceAfter: toMoneyString(balanceAfter),
+      type: input.type,
+      direction: input.direction,
+      createdAt: transaction.createdAt,
+    };
+  } catch (error) {
+    // Sequence conflicts propagate to withFinancialTransaction, which retries
+    // the entire transaction in a fresh Postgres session. PaymentId conflicts
+    // are not retried — they mean the same payment is being posted twice.
+    throw error;
+  }
 }
 
 /**

@@ -36,6 +36,8 @@ export interface GrowthRow {
   province: string | null;
   /// Members in the district who have paid savings in at least once.
   savers: number;
+  /// Shares subscribed by members in the district.
+  shares: number;
   /// The district's savings balance.
   savings: string;
 }
@@ -55,6 +57,8 @@ export interface GrowthReport {
     districts: number;
     /// Members who have saved, in those districts.
     savers: number;
+    /// Shares subscribed by members in those districts.
+    shares: number;
     savings: string;
   };
 }
@@ -100,6 +104,7 @@ export function growthRows(districts: DistrictReport["districts"]): GrowthRow[] 
       district: row.district,
       province: row.province,
       savers: row.savers,
+      shares: row.shares,
       savings: row.savings,
     }))
     // Highest savings first. Ties fall back to how many saved, then the
@@ -121,6 +126,7 @@ export function growthTotals(rows: GrowthRow[]): GrowthReport["totals"] {
   return {
     districts: rows.filter((row) => row.district !== null).length,
     savers: rows.reduce((sum, row) => sum + row.savers, 0),
+    shares: rows.reduce((sum, row) => sum + row.shares, 0),
     savings: toMoneyString(add(ZERO, ...rows.map((row) => row.savings))),
   };
 }

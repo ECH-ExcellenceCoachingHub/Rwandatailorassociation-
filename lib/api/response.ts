@@ -5,6 +5,7 @@ import { AuthorizationError } from "@/lib/auth/guards";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/jwt";
 import { apiLogger, serialiseError } from "@/lib/logger";
 import { Prisma } from "@/lib/db/prisma";
+import { LedgerError } from "@/lib/services/ledger";
 
 /**
  * Uniform API envelope and error handling.
@@ -159,6 +160,10 @@ export function translateError(error: unknown): Response {
       (details[path] ??= []).push(issue.message);
     }
     return apiBadRequest("Validation failed", details);
+  }
+
+  if (error instanceof LedgerError) {
+    return apiError(error.code, error.message, 409);
   }
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {

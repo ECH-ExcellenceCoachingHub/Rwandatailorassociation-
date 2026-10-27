@@ -96,6 +96,7 @@ describe("the district report", () => {
     expect(kicukiro.active).toBe(2);
     expect(kicukiro.savers).toBe(2);
     expect(kicukiro.nonSavers).toBe(1);
+    expect(kicukiro.shares).toBe(3);
     expect(kicukiro.savings).toBe("4000.00");
     expect(kicukiro.averageSavings).toBe("1333.33");
     expect(kicukiro.memberRows[0].balance).toBe("3000.00");
@@ -125,6 +126,7 @@ describe("the district report", () => {
     // The pending applicant in Gasabo is not on the register yet.
     expect(report.totals.members).toBe(6);
     expect(report.totals.active).toBe(5);
+    expect(report.totals.shares).toBe(6);
     expect(report.totals.savings).toBe("4800.00");
     expect(report.totals.averageSavings).toBe("800.00");
     expect(report.totals.districts).toBe(3);

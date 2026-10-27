@@ -84,6 +84,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
       active: row.active,
       savers: row.savers,
       nonSavers: row.nonSavers,
+      shares: row.shares,
       savings: row.savings,
       feesDeducted: row.feesDeducted,
       averageSavings: row.averageSavings,

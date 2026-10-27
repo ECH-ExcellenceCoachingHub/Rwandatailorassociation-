@@ -3,6 +3,7 @@
 import {
   ArrowDownRight,
   ArrowUpRight,
+  Coins,
   HandCoins,
   MapPinned,
   Scissors,
@@ -181,6 +182,23 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
               </p>
               <p className="mt-0.5 text-[11px] leading-snug text-white/80">
                 {fill(copy.saversHint, { districts: report.totals.districts })}
+              </p>
+            </div>
+          </div>
+
+          <div
+            className="flex items-center gap-3 rounded-2xl p-3.5 text-white shadow-sm ring-1 ring-white/25"
+            style={{ backgroundImage: `linear-gradient(135deg, ${GREEN}, ${GREEN_DARK})` }}
+          >
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm">
+              <Coins className="size-[18px]" style={{ color: GREEN_DARK }} aria-hidden="true" />
+            </span>
+            <div className="leading-tight">
+              <p className="font-heading text-[15px] font-bold tabular-nums">
+                {String(report.totals.shares)}
+              </p>
+              <p className="mt-0.5 text-[11px] leading-snug text-white/80">
+                {copy.statShares}
               </p>
             </div>
           </div>

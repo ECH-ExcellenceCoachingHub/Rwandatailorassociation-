@@ -74,6 +74,7 @@ function districtRow(overrides: Partial<DistrictRow>): DistrictRow {
     active: 0,
     savers: 0,
     nonSavers: 0,
+    shares: 0,
     savings: "0.00",
     feesDeducted: "0.00",
     averageSavings: "0.00",
@@ -152,6 +153,7 @@ describe("growthRows", () => {
       district: "Gasabo",
       province: "Kigali",
       savers: 6,
+      shares: 0,
       savings: "5000.00",
     });
   });
@@ -162,7 +164,7 @@ describe("growthRows", () => {
       districtRow({ district: "Rwamagana", province: "East", savers: 1, savings: "0.00" }),
     ]);
     expect(rows).toEqual([
-      { district: null, province: null, savers: 2, savings: "700.00" },
+      { district: null, province: null, savers: 2, shares: 0, savings: "700.00" },
     ]);
   });
 
@@ -183,21 +185,22 @@ describe("growthRows", () => {
 describe("growthTotals", () => {
   it("adds up the rows the card shows", () => {
     const totals = growthTotals([
-      { district: "Kicukiro", province: "Kigali", savers: 12, savings: "120000.00" },
-      { district: "Gasabo", province: "Kigali", savers: 6, savings: "50000.00" },
+      { district: "Kicukiro", province: "Kigali", savers: 12, shares: 24, savings: "120000.00" },
+      { district: "Gasabo", province: "Kigali", savers: 6, shares: 12, savings: "50000.00" },
     ]);
-    expect(totals).toEqual({ districts: 2, savers: 18, savings: "170000.00" });
+    expect(totals).toEqual({ districts: 2, savers: 18, shares: 36, savings: "170000.00" });
   });
 
   it("counts districts, not a row with no district on file", () => {
     const totals = growthTotals([
-      { district: null, province: null, savers: 2, savings: "700.00" },
-      { district: "Kicukiro", province: "Kigali", savers: 4, savings: "300.00" },
+      { district: null, province: null, savers: 2, shares: 1, savings: "700.00" },
+      { district: "Kicukiro", province: "Kigali", savers: 4, shares: 8, savings: "300.00" },
     ]);
     expect(totals.districts).toBe(1);
+    expect(totals.shares).toBe(9);
   });
 
   it("is all zeroes when nothing has been saved", () => {
-    expect(growthTotals([])).toEqual({ districts: 0, savers: 0, savings: "0.00" });
+    expect(growthTotals([])).toEqual({ districts: 0, savers: 0, shares: 0, savings: "0.00" });
   });
 });

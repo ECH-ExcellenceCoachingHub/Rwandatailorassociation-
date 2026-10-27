@@ -63,6 +63,9 @@ export interface DistrictRow {
   savers: number;
   /// Members on the register who have never paid anything in.
   nonSavers: number;
+  /// Shares subscribed by members in the district. A register entry with no
+  /// share count on file counts as one share.
+  shares: number;
   savings: string;
   feesDeducted: string;
   averageSavings: string;
@@ -80,6 +83,7 @@ export interface DistrictReport {
     active: number;
     savers: number;
     nonSavers: number;
+    shares: number;
     savings: string;
     feesDeducted: string;
     averageSavings: string;
@@ -120,6 +124,7 @@ export async function buildDistrictReport(
         district: true,
         province: true,
         user: { select: { firstName: true, lastName: true, phone: true } },
+        sharesSubscribed: true,
         savingsAccounts: { select: { balance: true, totalDeposits: true } },
       },
     }),
@@ -156,6 +161,7 @@ export async function buildDistrictReport(
           active: 0,
           savers: 0,
           nonSavers: 0,
+          shares: 0,
           savings: "0.00",
           feesDeducted: "0.00",
           averageSavings: "0.00",
@@ -184,6 +190,8 @@ export async function buildDistrictReport(
     if (paidIn) group.row.savers += 1;
     else group.row.nonSavers += 1;
     if (member.status === "ACTIVE") group.row.active += 1;
+    // A register entry with no share count on file counts as one share.
+    group.row.shares += Math.max(1, member.sharesSubscribed ?? 1);
 
     // An unrecognised district has no province of its own; take the one the
     // members recorded most often.
@@ -233,6 +241,7 @@ export async function buildDistrictReport(
       active: districts.reduce((sum, d) => sum + d.active, 0),
       savers: districts.reduce((sum, d) => sum + d.savers, 0),
       nonSavers: districts.reduce((sum, d) => sum + d.nonSavers, 0),
+      shares: districts.reduce((sum, d) => sum + d.shares, 0),
       savings: toMoneyString(savings),
       feesDeducted: toMoneyString(add(ZERO, ...districts.map((d) => d.feesDeducted))),
       averageSavings: toMoneyString(members.length > 0 ? divide(savings, members.length) : ZERO),

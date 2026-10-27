@@ -828,6 +828,7 @@ export interface AdminCopy {
       /// saved. The register's own totals live on the district table.
       statSavers: string;
       statDistricts: string;
+      statShares: string;
       statSavings: string;
       /// {count}
       membersPaid: string;
@@ -2243,6 +2244,7 @@ export const admin: Record<Locale, AdminCopy> = {
         colSavings: "Savings (RWF)",
         statSavers: "Members who have saved",
         statDistricts: "Districts",
+        statShares: "Total shares",
         statSavings: "Total savings",
         /// {count}
         membersPaid: "Members who have saved {count}",
@@ -3738,6 +3740,7 @@ export const admin: Record<Locale, AdminCopy> = {
         colSavings: "Amafaranga yazigamwe (RWF)",
         statSavers: "Abanyamuryango bazigamye",
         statDistricts: "Uturere",
+        statShares: "Imigabane yose",
         statSavings: "Amafaranga yose yazigamwe",
         membersPaid: "Abanyamuryango bazigamye {count}",
         saversHint: "mu turere {districts}",
