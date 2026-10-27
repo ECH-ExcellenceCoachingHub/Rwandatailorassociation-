@@ -66,19 +66,19 @@ export function renderKinyarwanda(
     case NOTIFICATION_EVENTS.MEMBER_REGISTERED:
       return {
         title: "Ubusabe bwawe bwakiriwe",
-        body: `Ubusabe bwawe bwo kuba umunyamuryango bwakiriwe kandi buri gusuzumwa. Nimero yawe y'ubwishyu ni ${context.paymentReference}.`,
-        sms: `${associationName}: Ubusabe bwawe bwakiriwe. Nimero yawe y'ubwishyu ni ${context.paymentReference}. Uyibike neza, uyikoreshe igihe cyose wishyura.`,
+        body: `Ubusabe bwawe bwo kuba umunyamuryango bwakiriwe kandi buri gusuzumwa.`,
+        sms: `${associationName}: Ubusabe bwawe bwakiriwe.`,
         emailSubject: `Ubusabe bwawe bwo kuba umunyamuryango wa ${associationName} bwakiriwe`,
-        emailText: `${dear}\n\nTwakiriye ubusabe bwawe bwo kuba umunyamuryango wa ${associationName}.\n\nNimero yawe y'ubwishyu ni ${context.paymentReference}. Uzajye uyikoresha igihe cyose wishyura, kuko ari yo ituma amafaranga yawe ashyirwa kuri konti yawe y'ubwizigame.\n\nTuzakumenyesha ubuyobozi nibumara gusuzuma ubusabe bwawe.${close}`,
+        emailText: `${dear}\n\nTwakiriye ubusabe bwawe bwo kuba umunyamuryango wa ${associationName}.\n\nTuzakumenyesha ubuyobozi nibumara gusuzuma ubusabe bwawe.${close}`,
       };
 
     case NOTIFICATION_EVENTS.MEMBER_APPROVED:
       return {
         title: "Wemerewe kuba umunyamuryango",
         body: `Murakaza neza muri ${associationName}. Konti yawe yatangiye gukora, ushobora gutangira kuzigama.`,
-        sms: `${associationName}: Wemerewe kuba umunyamuryango. Nimero yawe y'ubwishyu ni ${context.paymentReference}. Uyikoreshe igihe cyose wishyura.`,
+        sms: `${associationName}: Wemerewe kuba umunyamuryango.`,
         emailSubject: `Murakaza neza muri ${associationName}`,
-        emailText: `${dear}\n\nTunejejwe no kukumenyesha ko wemerewe kuba umunyamuryango wa ${associationName}, kandi konti yawe yatangiye gukora.\n\nNimero yawe y'ubwishyu ni ${context.paymentReference}. Uyikoreshe igihe cyose wishyura umusanzu.\n\nUbu ushobora kwinjira muri konti yawe ukareba ubwizigame bwawe, ugasaba inguzanyo, kandi ukabona raporo y'ibyakozwe kuri konti yawe.${close}`,
+        emailText: `${dear}\n\nTunejejwe no kukumenyesha ko wemerewe kuba umunyamuryango wa ${associationName}, kandi konti yawe yatangiye gukora.\n\nUbu ushobora kwinjira muri konti yawe ukareba ubwizigame bwawe, ugasaba inguzanyo, kandi ukabona raporo y'ibyakozwe kuri konti yawe.${close}`,
       };
 
     case NOTIFICATION_EVENTS.MEMBER_REJECTED:
@@ -110,9 +110,9 @@ export function renderKinyarwanda(
           ? "Ishyura uyu munsi wirinde ihazabu"
           : `Ufite ibirarane by'iminsi ${context.daysBehind} mu kuzigama`,
         body: `Ufite ibirarane by'iminsi ${context.daysBehind} mu kuzigama kwa buri munsi. Ishyura ${frw(context.clearingAmount)} ${when} kugira ngo wirinde ihazabu ya ${frw(context.fineAmount)}.`,
-        sms: `${associationName}: Ufite ibirarane by'iminsi ${context.daysBehind}. Ishyura ${frw(context.clearingAmount)} ${when} wirinde ihazabu ya ${frw(context.fineAmount)}. Nimero y'ubwishyu: ${context.paymentReference}.`,
+        sms: `${associationName}: Ufite ibirarane by'iminsi ${context.daysBehind}. Ishyura ${frw(context.clearingAmount)} ${when} wirinde ihazabu ya ${frw(context.fineAmount)}.`,
         emailSubject: `Icyitonderwa: ufite ibirarane by'iminsi ${context.daysBehind} mu kuzigama`,
-        emailText: `${dear}\n\nUfite ibirarane by'iminsi ${context.daysBehind} mu kuzigama kwa buri munsi.\n\nKugira ngo ube nta birarane ufite, ishyura ${frw(context.clearingAmount)} ukoresheje nimero yawe y'ubwishyu ${context.paymentReference}.\n\n${today ? "Niba utishyuye uyu munsi" : `Niba mu minsi ${context.daysUntilFine} uzaba ugifite ibirarane`}, uzahita ucibwa ihazabu ya ${frw(context.fineAmount)}. Kwishyura mbere y'icyo gihe bizakurinda iyo hazabu.\n\nNiba muri iki gihe udashobora kwishyura, ${contact}. Mushobora kumvikana ku gihe cy'ikiruhuko aho gucibwa ihazabu.${close}`,
+        emailText: `${dear}\n\nUfite ibirarane by'iminsi ${context.daysBehind} mu kuzigama kwa buri munsi.\n\nKugira ngo ube nta birarane ufite, ishyura ${frw(context.clearingAmount)}.\n\n${today ? "Niba utishyuye uyu munsi" : `Niba mu minsi ${context.daysUntilFine} uzaba ugifite ibirarane`}, uzahita ucibwa ihazabu ya ${frw(context.fineAmount)}. Kwishyura mbere y'icyo gihe bizakurinda iyo hazabu.\n\nNiba muri iki gihe udashobora kwishyura, ${contact}. Mushobora kumvikana ku gihe cy'ikiruhuko aho gucibwa ihazabu.${close}`,
       };
     }
 
@@ -120,9 +120,9 @@ export function renderKinyarwanda(
       return {
         title: "Waciwe ihazabu",
         body: `Kubera ko wari ufite ibirarane by'iminsi ${context.daysBehind} mu kuzigama, waciwe ihazabu ya ${frw(context.amount)}. Ishyura ${frw(context.clearingAmount)} kugira ngo wishyure byose.`,
-        sms: `${associationName}: Waciwe ihazabu ya ${frw(context.amount)} kubera ibirarane by'iminsi ${context.daysBehind}. Ayo wishyura yose ni ${frw(context.clearingAmount)}. Nimero y'ubwishyu: ${context.paymentReference}.`,
+        sms: `${associationName}: Waciwe ihazabu ya ${frw(context.amount)} kubera ibirarane by'iminsi ${context.daysBehind}. Ayo wishyura yose ni ${frw(context.clearingAmount)}.`,
         emailSubject: `Waciwe ihazabu ya ${frw(context.amount)}`,
-        emailText: `${dear}\n\nUmaze iminsi ${context.daysBehind} ufite ibirarane mu kuzigama kwa buri munsi. Hakurikijwe amategeko y'ishyirahamwe, waciwe ihazabu ya ${frw(context.finePerShare)} kuri buri mugabane ufite.\n\nIhazabu: ${frw(context.amount)} (imigabane ${context.fineShares} x ${frw(context.finePerShare)})\nNimero y'ihazabu: ${context.reference}\n\nKugira ngo wishyure ibirarane n'iyi hazabu icyarimwe, ishyura ${frw(context.clearingAmount)} ukoresheje nimero yawe y'ubwishyu ${context.paymentReference}.\n\nItegeko ryakurikijwe n'uko konti yawe ihagaze muri rusange ubisanga ku rupapuro rw'amategeko muri konti yawe. Niba ubona ko habayeho ikosa, cyangwa ukeneye igihe cyo kwishyura, ${contact}. Umuyobozi ashobora kugukuriraho ihazabu, akandika impamvu.${close}`,
+        emailText: `${dear}\n\nUmaze iminsi ${context.daysBehind} ufite ibirarane mu kuzigama kwa buri munsi. Hakurikijwe amategeko y'ishyirahamwe, waciwe ihazabu ya ${frw(context.finePerShare)} kuri buri mugabane ufite.\n\nIhazabu: ${frw(context.amount)} (imigabane ${context.fineShares} x ${frw(context.finePerShare)})\nNimero y'ihazabu: ${context.reference}\n\nKugira ngo wishyure ibirarane n'iyi hazabu icyarimwe, ishyura ${frw(context.clearingAmount)}.\n\nItegeko ryakurikijwe n'uko konti yawe ihagaze muri rusange ubisanga ku rupapuro rw'amategeko muri konti yawe. Niba ubona ko habayeho ikosa, cyangwa ukeneye igihe cyo kwishyura, ${contact}. Umuyobozi ashobora kugukuriraho ihazabu, akandika impamvu.${close}`,
       };
 
     case NOTIFICATION_EVENTS.CONTRIBUTION_BACK_ON_TRACK:
@@ -243,18 +243,18 @@ export function renderKinyarwanda(
       return {
         title: "Itariki yo kwishyura iregereje",
         body: `Ugomba kwishyura ${frw(context.amount)} ku nguzanyo bitarenze ku wa ${date(context.dueDate)}.`,
-        sms: `${associationName}: Turakwibutsa kwishyura ${frw(context.amount)} ku nguzanyo bitarenze ku wa ${date(context.dueDate)}. Nimero y'ubwishyu: ${context.paymentReference}.`,
+        sms: `${associationName}: Turakwibutsa kwishyura ${frw(context.amount)} ku nguzanyo bitarenze ku wa ${date(context.dueDate)}.`,
         emailSubject: `Kwibutsa: kwishyura inguzanyo bitarenze ku wa ${date(context.dueDate)}`,
-        emailText: `${dear}\n\nTurakwibutsa ko ugomba kwishyura ${frw(context.amount)} ku nguzanyo yawe bitarenze ku wa ${date(context.dueDate)}.\n\nMu gihe wishyura, koresha nimero yawe y'ubwishyu ${context.paymentReference}.${close}`,
+        emailText: `${dear}\n\nTurakwibutsa ko ugomba kwishyura ${frw(context.amount)} ku nguzanyo yawe bitarenze ku wa ${date(context.dueDate)}.${close}`,
       };
 
     case NOTIFICATION_EVENTS.LOAN_OVERDUE:
       return {
         title: "Ubwishyu bw'inguzanyo bwatinze",
         body: `Ubwishyu bwawe bw'inguzanyo bwa ${frw(context.amount)} bwatinze iminsi ${context.daysOverdue}. Ishyura vuba kugira ngo wirinde ihazabu.`,
-        sms: `${associationName}: Ubwishyu bw'inguzanyo bwa ${frw(context.amount)} bwatinze iminsi ${context.daysOverdue}. Ishyura vuba wirinde ihazabu. Nimero y'ubwishyu: ${context.paymentReference}.`,
+        sms: `${associationName}: Ubwishyu bw'inguzanyo bwa ${frw(context.amount)} bwatinze iminsi ${context.daysOverdue}. Ishyura vuba wirinde ihazabu.`,
         emailSubject: "Ubwishyu bw'inguzanyo yawe bwatinze",
-        emailText: `${dear}\n\nUbwishyu bw'inguzanyo yawe bwa ${frw(context.amount)} bumaze iminsi ${context.daysOverdue} butinze.\n\nIgihe cyose butarishyurwa, ushobora gucibwa ihazabu. Mu gihe wishyura, koresha nimero yawe y'ubwishyu ${context.paymentReference}.\n\nNiba ufite imbogamizi mu kwishyura, ${contact}.${close}`,
+        emailText: `${dear}\n\nUbwishyu bw'inguzanyo yawe bwa ${frw(context.amount)} bumaze iminsi ${context.daysOverdue} butinze.\n\nIgihe cyose butarishyurwa, ushobora gucibwa ihazabu.\n\nNiba ufite imbogamizi mu kwishyura, ${contact}.${close}`,
       };
 
     case NOTIFICATION_EVENTS.LOAN_COMPLETED:

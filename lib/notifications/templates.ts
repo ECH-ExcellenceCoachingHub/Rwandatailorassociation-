@@ -127,10 +127,10 @@ export function renderEnglish(
     case NOTIFICATION_EVENTS.MEMBER_REGISTERED:
       return {
         title: "Application received",
-        body: `Your membership application has been received and is awaiting approval. Your payment reference is ${context.paymentReference}.`,
-        sms: `${associationName}: application received. Your payment reference is ${context.paymentReference}. Keep it safe - quote it on every payment.`,
+        body: `Your membership application has been received and is awaiting approval.`,
+        sms: `${associationName}: application received.`,
         emailSubject: `Your ${associationName} membership application`,
-        emailText: `Dear ${firstName},\n\nWe have received your membership application.\n\nYour payment reference is ${context.paymentReference}. Please quote it on every payment you make to the association - it is how your contribution is matched to your savings account.\n\nYou will be notified once an administrator has reviewed your application.\n\n${associationName}`,
+        emailText: `Dear ${firstName},\n\nWe have received your membership application.\n\nYou will be notified once an administrator has reviewed your application.\n\n${associationName}`,
         severity: "INFO",
         actionUrl: "/dashboard",
       };
@@ -139,9 +139,9 @@ export function renderEnglish(
       return {
         title: "Membership approved",
         body: `Welcome to ${associationName}. Your account is now active and you can start saving.`,
-        sms: `${associationName}: your membership is approved. Payment reference ${context.paymentReference}. Quote it on every payment.`,
+        sms: `${associationName}: your membership is approved.`,
         emailSubject: `Welcome to ${associationName}`,
-        emailText: `Dear ${firstName},\n\nYour membership has been approved and your account is now active.\n\nYour payment reference is ${context.paymentReference}. Quote it on every contribution.\n\nYou can now sign in to view your savings, apply for loans and download statements.\n\n${associationName}`,
+        emailText: `Dear ${firstName},\n\nYour membership has been approved and your account is now active.\n\nYou can now sign in to view your savings, apply for loans and download statements.\n\n${associationName}`,
         severity: "SUCCESS",
         actionUrl: "/dashboard",
       };
@@ -189,9 +189,9 @@ export function renderEnglish(
             ? "today"
             : `within ${context.daysUntilFine} day(s)`
         } to stay clear of a fine of ${formatMoney(context.fineAmount)}.`,
-        sms: `${associationName}: you are ${context.daysBehind} days behind on saving. Pay ${smsMoney(context.clearingAmount)} within ${context.daysUntilFine} days to avoid a fine of ${smsMoney(context.fineAmount)}. Ref ${context.paymentReference}.`,
+        sms: `${associationName}: you are ${context.daysBehind} days behind on saving. Pay ${smsMoney(context.clearingAmount)} within ${context.daysUntilFine} days to avoid a fine of ${smsMoney(context.fineAmount)}.`,
         emailSubject: `Action needed: ${context.daysBehind} days behind on your saving`,
-        emailText: `Dear ${firstName},\n\nYou are ${context.daysBehind} day(s) behind on your daily saving.\n\nTo be fully up to date, pay ${formatMoney(context.clearingAmount)} quoting your reference ${context.paymentReference}.\n\nIf you are still behind in ${context.daysUntilFine} day(s), a fine of ${formatMoney(context.fineAmount)} is added automatically. Paying before then avoids it entirely.\n\nIf you cannot pay at the moment, speak to the association - a break can be agreed rather than a fine applied.\n\n${associationName}`,
+        emailText: `Dear ${firstName},\n\nYou are ${context.daysBehind} day(s) behind on your daily saving.\n\nTo be fully up to date, pay ${formatMoney(context.clearingAmount)}.\n\nIf you are still behind in ${context.daysUntilFine} day(s), a fine of ${formatMoney(context.fineAmount)} is added automatically. Paying before then avoids it entirely.\n\nIf you cannot pay at the moment, speak to the association - a break can be agreed rather than a fine applied.\n\n${associationName}`,
         severity: "WARNING",
         actionUrl: "/dashboard/savings/deposit",
       };
@@ -200,9 +200,9 @@ export function renderEnglish(
       return {
         title: "A fine has been added",
         body: `You were ${context.daysBehind} days behind on your saving, so a fine of ${formatMoney(context.amount)} has been added. Pay ${formatMoney(context.clearingAmount)} to clear everything.`,
-        sms: `${associationName}: fine of ${smsMoney(context.amount)} added after ${context.daysBehind} days behind. Total to clear ${smsMoney(context.clearingAmount)}. Ref ${context.paymentReference}.`,
+        sms: `${associationName}: fine of ${smsMoney(context.amount)} added after ${context.daysBehind} days behind. Total to clear ${smsMoney(context.clearingAmount)}.`,
         emailSubject: `A fine of ${formatMoney(context.amount)} has been added to your account`,
-        emailText: `Dear ${firstName},\n\nYou have been ${context.daysBehind} day(s) behind on your daily saving, and under the association's rules a fine of ${formatMoney(context.finePerShare)} for each share you hold now applies.\n\nFine: ${formatMoney(context.amount)} (${context.fineShares} share(s) x ${formatMoney(context.finePerShare)})\nReference: ${context.reference}\n\nTo clear your arrears and this fine together, pay ${formatMoney(context.clearingAmount)} quoting ${context.paymentReference}.\n\nYou can read the rule this was applied under, and your full standing, on the rules page of your dashboard. If you believe this is wrong, or you need a payment break, contact the association - a fine can be waived by an officer with a reason recorded.\n\n${associationName}`,
+        emailText: `Dear ${firstName},\n\nYou have been ${context.daysBehind} day(s) behind on your daily saving, and under the association's rules a fine of ${formatMoney(context.finePerShare)} for each share you hold now applies.\n\nFine: ${formatMoney(context.amount)} (${context.fineShares} share(s) x ${formatMoney(context.finePerShare)})\nReference: ${context.reference}\n\nTo clear your arrears and this fine together, pay ${formatMoney(context.clearingAmount)}.\n\nYou can read the rule this was applied under, and your full standing, on the rules page of your dashboard. If you believe this is wrong, or you need a payment break, contact the association - a fine can be waived by an officer with a reason recorded.\n\n${associationName}`,
         severity: "WARNING",
         actionUrl: "/dashboard/rules",
       };
@@ -356,9 +356,9 @@ export function renderEnglish(
       return {
         title: "Repayment due soon",
         body: `Your repayment of ${formatMoney(context.amount)} is due on ${shortDate(context.dueDate)}.`,
-        sms: `${associationName}: reminder, ${smsMoney(context.amount)} is due on ${shortDate(context.dueDate)}. Ref ${context.paymentReference}.`,
+        sms: `${associationName}: reminder, ${smsMoney(context.amount)} is due on ${shortDate(context.dueDate)}.`,
         emailSubject: `Repayment due ${shortDate(context.dueDate)}`,
-        emailText: `Dear ${firstName},\n\nThis is a reminder that your loan repayment of ${formatMoney(context.amount)} is due on ${shortDate(context.dueDate)}.\n\nPlease quote your payment reference ${context.paymentReference} when paying.\n\n${associationName}`,
+        emailText: `Dear ${firstName},\n\nThis is a reminder that your loan repayment of ${formatMoney(context.amount)} is due on ${shortDate(context.dueDate)}.\n\n${associationName}`,
         severity: "INFO",
         actionUrl: "/dashboard/loans/repayments",
       };
@@ -367,9 +367,9 @@ export function renderEnglish(
       return {
         title: "Repayment overdue",
         body: `Your repayment of ${formatMoney(context.amount)} is ${context.daysOverdue} day(s) overdue. Penalties may apply.`,
-        sms: `${associationName}: ${smsMoney(context.amount)} is ${context.daysOverdue} days overdue. Please pay to avoid penalties. Ref ${context.paymentReference}.`,
+        sms: `${associationName}: ${smsMoney(context.amount)} is ${context.daysOverdue} days overdue. Please pay to avoid penalties.`,
         emailSubject: "Your loan repayment is overdue",
-        emailText: `Dear ${firstName},\n\nYour loan repayment of ${formatMoney(context.amount)} is now ${context.daysOverdue} day(s) overdue.\n\nPenalties may be applied until it is settled. Please quote payment reference ${context.paymentReference} when paying.\n\nIf you are having difficulty, please contact the association.\n\n${associationName}`,
+        emailText: `Dear ${firstName},\n\nYour loan repayment of ${formatMoney(context.amount)} is now ${context.daysOverdue} day(s) overdue.\n\nPenalties may be applied until it is settled.\n\nIf you are having difficulty, please contact the association.\n\n${associationName}`,
         severity: "CRITICAL",
         actionUrl: "/dashboard/loans/repayments",
       };
