@@ -70,6 +70,9 @@ export const NOTIFICATION_EVENTS = {
   INTEREST_SHARE_CREDITED: "INTEREST_SHARE_CREDITED",
   /// A rule the member lives under was amended.
   RULE_CHANGED: "RULE_CHANGED",
+  /// Money was taken out of the members' pool and this member's savings went
+  /// down by their part of it. Always carries the reason.
+  POOL_DEDUCTION: "POOL_DEDUCTION",
 
   WITHDRAWAL_SUBMITTED: "WITHDRAWAL_SUBMITTED",
   WITHDRAWAL_APPROVED: "WITHDRAWAL_APPROVED",

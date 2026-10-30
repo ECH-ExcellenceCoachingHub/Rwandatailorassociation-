@@ -11,6 +11,7 @@ import type {
   UserRole,
   UserStatus,
 } from "@/lib/generated/prisma/enums";
+import { PLATFORM_NAME } from "@/lib/brand";
 
 /**
  * Association-scoped read queries shared by the admin and super-admin screens.
@@ -982,7 +983,7 @@ function deliveryCopyFor(notification: {
     try {
       rendered = renderNotification(notification.eventType as NotificationEvent, {
         firstName: notification.user.firstName,
-        associationName: notification.user.association?.name ?? "RTA",
+        associationName: notification.user.association?.name ?? PLATFORM_NAME,
         paymentReference: notification.user.member?.paymentReference,
         ...((notification.metadata as TemplateContext | null) ?? {}),
       });

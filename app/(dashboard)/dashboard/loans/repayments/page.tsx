@@ -31,7 +31,7 @@ import {
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.member.repayments.title} | RTA`,
+    title: d.member.repayments.title,
   };
 }
 

@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.account.qrInvalid.title} | RTA Savings & Loans`,
+    title: d.account.qrInvalid.title,
     robots: { index: false, follow: false },
   };
 }

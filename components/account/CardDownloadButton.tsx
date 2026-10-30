@@ -41,7 +41,7 @@ export function CardDownloadButton({
         variant="outline"
         size="sm"
         disabled={busy}
-        onClick={() => void download(`/api/account/card?side=${side}`, `rta-card-${side}.pdf`)}
+        onClick={() => void download(`/api/account/card?side=${side}`, `card-${side}.pdf`)}
       >
         {busy ? (
           <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />

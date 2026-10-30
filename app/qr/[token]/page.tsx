@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { BadgeCheck, ShieldCheck } from "lucide-react";
@@ -8,6 +7,8 @@ import { lookupQrToken } from "@/lib/auth/qr-access";
 import { prisma } from "@/lib/db/prisma";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { LanguageToggle } from "@/components/ui/language-toggle";
+import { BrandMark } from "@/components/brand/BrandMark";
+import { PLATFORM_BRAND, associationBrand } from "@/lib/brand";
 import {
   RATE_LIMITS,
   checkRateLimit,
@@ -37,7 +38,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.auth.login.title} | STGT`,
+    title: d.auth.login.title,
     robots: { index: false, follow: false },
   };
 }
@@ -69,13 +70,20 @@ export default async function QrSignInPage({
   // scanned, so showing it reveals nothing the card does not. Inlined rather
   // than served from a route: a public image URL keyed by user would need its
   // own guard, and this page has already checked the card.
-  const [{ d }, avatar] = await Promise.all([
+  const [{ d, locale }, avatar, owner] = await Promise.all([
     getDashboardCopy(),
     prisma.userAvatar.findUnique({
       where: { userId: code.userId },
       select: { data: true, mimeType: true },
     }),
+    // The card belongs to an association, and the page carries its brand —
+    // STGT for RTA's cards, as it always has.
+    prisma.user.findUnique({
+      where: { id: code.userId },
+      select: { association: { select: { code: true, name: true, logoUrl: true } } },
+    }),
   ]);
+  const brand = owner?.association ? associationBrand(owner.association) : PLATFORM_BRAND;
   const copy = d.auth.login;
   const photoSrc = avatar
     ? `data:${avatar.mimeType};base64,${Buffer.from(avatar.data).toString("base64")}`
@@ -129,19 +137,17 @@ export default async function QrSignInPage({
 
           {/* Brand lockup, above the sheet. */}
           <div className="mb-7 flex flex-col items-center text-center">
-            <Image
-              src="/images/rtalogo.jpg"
-              alt=""
-              width={88}
-              height={88}
+            <BrandMark
+              brand={brand}
+              size={88}
               priority
-              className="size-[76px] rounded-full object-cover shadow-xl shadow-black/30 ring-4 ring-white/15 sm:size-[88px]"
+              className="size-[76px] shadow-xl shadow-black/30 ring-4 ring-white/15 sm:size-[88px]"
             />
             <span className="mt-4 block font-heading text-[30px] font-bold leading-none tracking-[0.08em] text-white">
-              STGT
+              {brand.mark}
             </span>
             <span className="mt-2 block font-heading text-[11px] font-semibold uppercase tracking-[0.16em] text-primary-light">
-              {d.auth.layout.brandTagline}
+              {brand.tagline[locale]}
             </span>
           </div>
 
@@ -192,7 +198,7 @@ export default async function QrSignInPage({
           </section>
 
           <p className="mt-8 text-center text-xs text-white/45">
-            © {new Date().getFullYear()} Rwanda Tailors Association
+            © {new Date().getFullYear()} {brand.name}
           </p>
         </div>
       </div>

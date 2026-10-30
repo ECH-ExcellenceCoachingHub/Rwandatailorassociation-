@@ -22,6 +22,7 @@ import { PhotoField } from "@/components/ui/photo-field";
 import { RwandaLocationFields } from "@/components/ui/rwanda-location-fields";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill } from "@/lib/i18n/fill";
+import { PLATFORM_NAME } from "@/lib/brand";
 import { add, formatMoney, multiply } from "@/lib/money";
 import { isValidRwandanPhone } from "@/lib/phone";
 import {
@@ -108,12 +109,22 @@ const SHARE_OPTIONS = Array.from({ length: MAX_APPLICATION_SHARES }, (_, i) => i
 export default function RegisterForm({
   sharePrice,
   dailyFee,
+  association,
+  homeHref = "/",
+  loginHref = "/login",
   onSuccess,
 }: {
   /// The rulebook's daily saving — the price of one share, per day.
   sharePrice: string;
   /// The platform's service fee, per share per day.
   dailyFee: string;
+  /// The association being joined, from the link's ?association= code. Null
+  /// when it names none that is open; the endpoint then refuses the submission.
+  association: { code: string; name: string } | null;
+  /// The association's own home and sign-in, so an applicant is never sent to
+  /// another site's pages: /rta and /rta/login for RTA, /abc… for ABC.
+  homeHref?: string;
+  loginHref?: string;
   /// Lets the page drop its "become a member" heading once there is nothing
   /// left to apply for.
   onSuccess?: () => void;
@@ -328,7 +339,10 @@ export default function RegisterForm({
     setSubmitting(true);
 
     try {
-      const response = await fetch("/api/auth/register", {
+      const query = association
+        ? `?association=${encodeURIComponent(association.code)}`
+        : "";
+      const response = await fetch(`/api/auth/register${query}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...values, acceptedTerms }),
@@ -383,10 +397,10 @@ export default function RegisterForm({
           </p>
 
           <Button asChild className="mt-8 w-full">
-            <Link href="/login">{copy.goToSignIn}</Link>
+            <Link href={loginHref}>{copy.goToSignIn}</Link>
           </Button>
           <Link
-            href="/"
+            href={homeHref}
             className="mt-4 inline-block text-sm font-medium text-ink-muted transition-colors hover:text-ink"
           >
             {copy.backHome}
@@ -820,7 +834,7 @@ export default function RegisterForm({
               className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-border accent-[var(--color-primary)]"
             />
             <span className="text-sm leading-relaxed text-ink-muted">
-              {copy.terms}
+              {fill(copy.terms, { association: association?.name ?? PLATFORM_NAME })}
             </span>
           </label>
 
@@ -849,7 +863,7 @@ export default function RegisterForm({
       <p className="mt-5 text-center text-sm text-ink-muted">
         {copy.alreadyMember}{" "}
         <Link
-          href="/login"
+          href={loginHref}
           className="font-semibold text-primary underline-offset-4 hover:underline"
         >
           {copy.signIn}

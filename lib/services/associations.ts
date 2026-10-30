@@ -2,6 +2,15 @@ import "server-only";
 import { prisma, Prisma } from "@/lib/db/prisma";
 import { add, toMoneyString } from "@/lib/money";
 import type { AssociationStatus } from "@/lib/generated/prisma/enums";
+import { DEFAULT_ASSOCIATION_CODE } from "@/lib/brand";
+import { recordAudit, AUDIT_ACTIONS } from "@/lib/audit";
+import { hashPassword } from "@/lib/auth/password";
+import type { AuthContext } from "@/lib/auth/session";
+import { logger } from "@/lib/logger";
+import { SAVINGS_RULE_DEFAULTS, STANDARD_LOAN_PRODUCT } from "@/lib/rules/association-defaults";
+import { generateTemporaryPassword } from "@/lib/services/members";
+import { ensureRulebook } from "@/lib/services/rulebook";
+import type { CreateAssociationInput } from "@/lib/validation/associations";
 
 /**
  * Tenant directory for the super admin.
@@ -249,4 +258,233 @@ export async function listAssociations(
       unmatchedPayments: rows.reduce((sum, row) => sum + row.unmatchedPayments, 0),
     },
   };
+}
+
+/**
+ * The association a public registration enrols into.
+ *
+ * Each association shares its own join link, /register?association=CODE; a
+ * bare /register — every link handed out while RTA was the only tenant — means
+ * DEFAULT_ASSOCIATION_CODE. Only an ACTIVE association can be joined, so a
+ * pending or suspended tenant's code resolves to null and registration is
+ * refused rather than quietly enrolling the applicant somewhere else.
+ *
+ * The code is public — it is printed in every member's payment reference — and
+ * naming it grants nothing: the applicant still lands as PENDING_VERIFICATION
+ * until that association's own administrator approves them.
+ */
+export async function findRegistrationAssociation(
+  code: string | null | undefined
+): Promise<{ id: string; code: string; name: string } | null> {
+  const wanted = code?.trim().toUpperCase() || DEFAULT_ASSOCIATION_CODE;
+
+  return prisma.association.findFirst({
+    where: { code: wanted, status: "ACTIVE" },
+    select: { id: true, code: true, name: true },
+  });
+}
+
+// Onboarding ------------------------------------------------------------------
+
+export interface CreatedAssociation {
+  associationId: string;
+  code: string;
+  name: string;
+  admin: {
+    userId: string;
+    phone: string;
+    email: string | null;
+    /// Shown to the super admin ONCE to hand over. Only its hash is stored, and
+    /// the administrator must replace it at first sign-in.
+    temporaryPassword: string;
+  };
+}
+
+/**
+ * Creates an association ready to use, with its first administrator.
+ *
+ * Everything an association needs to run is created in one transaction — the
+ * association, its savings rule and standard loan product (on the same terms
+ * RTA was seeded with; see lib/rules/association-defaults.ts) and the admin
+ * account — so a half-created tenant can never exist. The rulebook follows
+ * straight after: `ensureRulebook` writes through its own client, and a miss
+ * there heals itself, because `getPolicyEnsured` re-seeds any rule it finds
+ * missing on first read.
+ *
+ * Created ACTIVE: the super admin onboarding it has already decided it should
+ * exist, and an association nobody can register into or sign in to is no use
+ * to anyone.
+ */
+export async function createAssociation(
+  input: CreateAssociationInput,
+  actor: AuthContext
+): Promise<{ ok: true; created: CreatedAssociation } | { ok: false; field: string; message: string }> {
+  // Checked first for a usable message; the unique constraints enforce it again.
+  const [existingCode, existingPhone, existingEmail] = await Promise.all([
+    prisma.association.findUnique({ where: { code: input.code }, select: { id: true } }),
+    prisma.user.findUnique({ where: { phone: input.adminPhone }, select: { id: true } }),
+    input.adminEmail
+      ? prisma.user.findUnique({ where: { email: input.adminEmail }, select: { id: true } })
+      : Promise.resolve(null),
+  ]);
+
+  if (existingCode) {
+    return { ok: false, field: "code", message: "Another association already uses this code" };
+  }
+  if (existingPhone) {
+    return {
+      ok: false,
+      field: "adminPhone",
+      message: "An account with this phone number already exists",
+    };
+  }
+  if (existingEmail) {
+    return {
+      ok: false,
+      field: "adminEmail",
+      message: "An account with this email address already exists",
+    };
+  }
+
+  const temporaryPassword = generateTemporaryPassword();
+  const passwordHash = await hashPassword(temporaryPassword);
+
+  const created = await prisma.$transaction(async (tx) => {
+    const association = await tx.association.create({
+      data: {
+        code: input.code,
+        name: input.name,
+        legalName: input.legalName ?? input.name,
+        status: "ACTIVE",
+        email: input.email ?? null,
+        phone: input.phone ?? null,
+        city: input.city ?? null,
+        district: input.district ?? null,
+        savingsRule: { create: SAVINGS_RULE_DEFAULTS },
+        loanProducts: { create: STANDARD_LOAN_PRODUCT },
+      },
+      select: { id: true, code: true, name: true },
+    });
+
+    const admin = await tx.user.create({
+      data: {
+        associationId: association.id,
+        firstName: input.adminFirstName,
+        lastName: input.adminLastName,
+        phone: input.adminPhone,
+        email: input.adminEmail ?? null,
+        passwordHash,
+        role: "ADMIN",
+        status: "ACTIVE",
+        mustChangePassword: true,
+        createdById: actor.user.id,
+      },
+      select: { id: true },
+    });
+
+    await recordAudit(
+      {
+        action: AUDIT_ACTIONS.ASSOCIATION_CREATED,
+        entityType: "Association",
+        entityId: association.id,
+        associationId: association.id,
+        newValue: { code: association.code, name: association.name },
+        severity: "CRITICAL",
+      },
+      actor,
+      tx
+    );
+    await recordAudit(
+      {
+        action: AUDIT_ACTIONS.SUPER_ADMIN_CREATED_ADMIN,
+        entityType: "User",
+        entityId: admin.id,
+        associationId: association.id,
+        newValue: { role: "ADMIN", phone: input.adminPhone, email: input.adminEmail ?? null },
+        severity: "CRITICAL",
+      },
+      actor,
+      tx
+    );
+
+    return { association, adminId: admin.id };
+  });
+
+  try {
+    await ensureRulebook(created.association.id, actor.user.id);
+  } catch (error) {
+    logger.warn(
+      { err: error, associationId: created.association.id },
+      "Rulebook not seeded at onboarding; it will be on first read"
+    );
+  }
+
+  return {
+    ok: true,
+    created: {
+      associationId: created.association.id,
+      code: created.association.code,
+      name: created.association.name,
+      admin: {
+        userId: created.adminId,
+        phone: input.adminPhone,
+        email: input.adminEmail ?? null,
+        temporaryPassword,
+      },
+    },
+  };
+}
+
+/**
+ * The association whose site /abc is, or null for a 404.
+ *
+ * Only an ACTIVE association has a public site: a pending one is not open yet
+ * and a suspended one should not be taking applications. The format is checked
+ * before the database is asked, because every unmatched top-level path lands
+ * here — a scanner probing /wp-admin should not cost a query.
+ */
+export async function findSiteAssociation(slug: string) {
+  if (!/^[a-z]{2,8}$/i.test(slug)) return null;
+
+  return prisma.association.findFirst({
+    where: { code: slug.toUpperCase(), status: "ACTIVE" },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      logoUrl: true,
+      email: true,
+      phone: true,
+      website: true,
+      city: true,
+      district: true,
+      currency: true,
+    },
+  });
+}
+
+/**
+ * The public directory on the platform's home page: every association that is
+ * open, with just enough to link to its site. No figures — those are for the
+ * super admin's directory above, behind sign-in.
+ */
+export async function listPublicAssociations() {
+  return prisma.association.findMany({
+    where: { status: "ACTIVE" },
+    orderBy: { name: "asc" },
+    select: { code: true, name: true, logoUrl: true, city: true, district: true },
+  });
+}
+
+/**
+ * The counts in the platform home page's stats band: open associations, and
+ * the active members of those associations. Counts only — no money figure is
+ * ever shown publicly.
+ */
+export async function getPlatformStats(): Promise<{ associations: number; members: number }> {
+  const [associations, members] = await Promise.all([
+    prisma.association.count({ where: { status: "ACTIVE" } }),
+    prisma.member.count({ where: { status: "ACTIVE", association: { status: "ACTIVE" } } }),
+  ]);
+  return { associations, members };
 }

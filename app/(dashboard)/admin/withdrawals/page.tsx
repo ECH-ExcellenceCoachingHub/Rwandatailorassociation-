@@ -16,7 +16,7 @@ import { WithdrawalReviewTable } from "@/components/dashboard/WithdrawalReviewTa
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.admin.withdrawals.title} | RTA`,
+    title: d.admin.withdrawals.title,
   };
 }
 

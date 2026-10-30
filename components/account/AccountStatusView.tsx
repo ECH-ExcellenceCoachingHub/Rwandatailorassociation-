@@ -5,6 +5,7 @@ import {
   CalendarCheck,
   Gavel,
   Landmark,
+  PiggyBank,
   Phone,
   TriangleAlert,
   UserRound,
@@ -100,6 +101,9 @@ export function AccountStatusView({
             <DailyList {...shared} delay={offset + STAGGER * 2} locale={locale} />
             <LoanList {...shared} delay={offset + STAGGER * 3} />
             <PenaltiesList {...shared} delay={offset + STAGGER * 4} />
+            {summary.poolDeductions.length > 0 && (
+              <DeductionsList {...shared} delay={offset + STAGGER * 5} locale={locale} />
+            )}
           </>
         )}
       </div>
@@ -351,6 +355,50 @@ function PenaltiesList(props: ListProps) {
         strong
       />
       <Item label={copy.finesPaid} value={money(fines.settledAmount)} />
+    </List>
+  );
+}
+
+/**
+ * Money taken out of every member's savings at once — a loan to someone, a
+ * purchase for the association. Shown only when there has been any, each with
+ * the reason the association gave, because a balance that went down with no
+ * explanation on the member's own screen is exactly what this page must not
+ * leave unanswered.
+ */
+function DeductionsList(props: ListProps & { locale: Locale }) {
+  const { summary, copy, money, locale } = props;
+
+  return (
+    <List
+      icon={PiggyBank}
+      title={copy.deductionsTitle}
+      description={copy.deductionsHint}
+      delay={props.delay}
+      footer={
+        !props.preview && (
+          <Link
+            href="/dashboard/association"
+            className="inline-flex items-center gap-1 text-sm font-semibold text-primary-light underline-offset-4 hover:text-white hover:underline"
+          >
+            {copy.deductionsSeeAll}
+            <ArrowRight className="size-3.5" aria-hidden="true" />
+          </Link>
+        )
+      }
+    >
+      {summary.poolDeductions.map((deduction) => (
+        <Item
+          key={deduction.id}
+          label={deduction.title}
+          hint={`${deduction.reason} — ${fill(copy.deductionPartOf, {
+            total: money(deduction.totalAmount),
+            date: formatDate(deduction.createdAt, locale),
+          })}`}
+          value={`-${money(deduction.yourShare)}`}
+          tone="danger"
+        />
+      ))}
     </List>
   );
 }

@@ -52,7 +52,7 @@ export default function About() {
           </ul>
 
           <Button asChild className="mt-8">
-            <Link href="/#contact">{t.about.readMore}</Link>
+            <Link href="/rta#contact">{t.about.readMore}</Link>
           </Button>
         </FadeIn>
       </div>

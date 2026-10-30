@@ -34,7 +34,7 @@ import { Alert } from "@/components/ui/alert";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
-  return { title: `${d.rules.admin.title} | RTA` };
+  return { title: d.rules.admin.title };
 }
 
 export const dynamic = "force-dynamic";

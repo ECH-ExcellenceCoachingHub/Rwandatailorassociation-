@@ -18,7 +18,7 @@ import { ROLE_HOME } from "@/lib/auth/permissions";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.auth.pendingApproval.title} | RTA Savings & Loans`,
+    title: d.auth.pendingApproval.title,
     robots: { index: false, follow: false },
   };
 }

@@ -35,7 +35,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
 
   const headers = {
     "Content-Type": "application/pdf",
-    "Content-Disposition": `attachment; filename="rta-card-${side}-${slug}.pdf"`,
+    "Content-Disposition": `attachment; filename="card-${side}-${slug}.pdf"`,
     // The front carries a scannable credential, so no shared cache may hold a
     // copy. The back is impersonal, but it travels the same route and is not
     // worth a second caching policy.

@@ -82,9 +82,13 @@ export async function buildImportPreview(
 
   const existing = await prisma.payment.findMany({
     where: { externalTransactionId: { in: externalIds } },
-    select: { externalTransactionId: true },
+    select: { externalTransactionId: true, savingsTransaction: { select: { id: true } } },
   });
-  const existingIds = new Set(existing.map((p) => p.externalTransactionId));
+  const existingIds = new Set(
+    existing
+      .filter((p) => p.savingsTransaction !== null)
+      .map((p) => p.externalTransactionId)
+  );
 
   // Rows are matched several at a time: each match is a couple of database
   // round trips, and doing hundreds of them one after another is what made a
@@ -292,6 +296,30 @@ export async function commitStatementImport(params: {
     } catch (error) {
       // Re-uploading a statement lands here. Expected, not an error.
       if (isUniqueConstraintError(error, "externalTransactionId")) {
+        // If the existing payment was never credited to the ledger (no linked
+        // savingsTransaction), re-process it instead of silently skipping.
+        const existing = await prisma.payment.findUnique({
+          where: { provider_externalTransactionId: { provider: "STATEMENT_IMPORT", externalTransactionId } },
+          select: { id: true, savingsTransaction: { select: { id: true } } },
+        });
+
+        if (existing && !existing.savingsTransaction) {
+          try {
+            const outcome = await matchAndCredit(existing.id, params.association);
+            if (outcome === "PROCESSED") result.credited++;
+            else if (outcome === "UNMATCHED") result.unmatched++;
+            continue;
+          } catch (reprocessError) {
+            result.failed++;
+            result.errors.push(
+              `${row.date.toISOString().slice(0, 10)} ${row.amount}: ${
+                reprocessError instanceof Error ? reprocessError.message : "could not be re-processed"
+              }`
+            );
+            continue;
+          }
+        }
+
         result.skipped++;
         continue;
       }

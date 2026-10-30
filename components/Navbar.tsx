@@ -96,13 +96,13 @@ export default function Navbar() {
               existing members arrive here to reach their savings, and hunting
               for the way in is the first thing they should not have to do. */}
           <Button asChild size="sm" variant="outline">
-            <Link href="/login">
+            <Link href="/rta/login">
               <LogIn className="size-3.5" aria-hidden="true" />
               {t.navbar.signIn}
             </Link>
           </Button>
           <Button asChild size="sm">
-            <Link href="/register">{t.navbar.becomeMember}</Link>
+            <Link href="/rta/register">{t.navbar.becomeMember}</Link>
           </Button>
         </div>
 
@@ -157,14 +157,14 @@ export default function Navbar() {
               </div>
 
               <Button asChild variant="outline" className="mt-4 w-full">
-                <Link href="/login" onClick={() => setOpen(false)}>
+                <Link href="/rta/login" onClick={() => setOpen(false)}>
                   <LogIn className="size-4" aria-hidden="true" />
                   {t.navbar.signIn}
                 </Link>
               </Button>
 
               <Button asChild className="mt-2 w-full">
-                <Link href="/register" onClick={() => setOpen(false)}>
+                <Link href="/rta/register" onClick={() => setOpen(false)}>
                   {t.navbar.becomeMember}
                 </Link>
               </Button>

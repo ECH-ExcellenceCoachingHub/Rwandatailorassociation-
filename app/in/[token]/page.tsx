@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import LoginForm from "@/components/auth/LoginForm";
 import { toLocalPhone } from "@/lib/phone";
 import { phoneFromSignInLinkToken } from "@/lib/auth/sign-in-link";
 import { getDashboardCopy } from "@/lib/i18n/server";
+import { prisma } from "@/lib/db/prisma";
+import { BrandMark } from "@/components/brand/BrandMark";
+import { PLATFORM_BRAND, associationBrand } from "@/lib/brand";
 
 /**
  * /in/:token — the sign-in link an admin copies from the member register.
  *
  * Deliberately bare: outside the (auth) layout, so there is no brand panel,
- * no navigation and no language switch — just the STGT mark, so the member
+ * no navigation and no language switch — just their association's mark, so the member
  * knows where they are, and a box for their password. Their number is filled
  * in behind the scenes. The number is encrypted in the
  * token (lib/auth/sign-in-link.ts); the password is still required.
@@ -19,7 +21,7 @@ import { getDashboardCopy } from "@/lib/i18n/server";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.auth.login.title} | STGT`,
+    title: d.auth.login.title,
     robots: { index: false, follow: false },
   };
 }
@@ -33,7 +35,16 @@ export default async function PhoneSignInPage({
   const phone = phoneFromSignInLinkToken(token);
   if (!phone) redirect("/login");
 
-  const { d } = await getDashboardCopy();
+  // The link belongs to one member, so the page carries their association's
+  // brand — STGT for RTA's members, as it always has.
+  const [{ d, locale }, owner] = await Promise.all([
+    getDashboardCopy(),
+    prisma.user.findUnique({
+      where: { phone },
+      select: { association: { select: { code: true, name: true, logoUrl: true } } },
+    }),
+  ]);
+  const brand = owner?.association ? associationBrand(owner.association) : PLATFORM_BRAND;
 
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-12">
@@ -42,19 +53,13 @@ export default async function PhoneSignInPage({
 
         {/* The same lockup as the sign-in page on a phone. */}
         <div className="mb-10 flex items-center gap-4">
-          <Image
-            src="/images/rtalogo.jpg"
-            alt=""
-            width={80}
-            height={80}
-            className="size-20 shrink-0 rounded-full object-cover"
-          />
+          <BrandMark brand={brand} size={80} className="size-20" />
           <span className="leading-tight">
             <span className="block font-heading text-[32px] font-bold tracking-[0.06em] text-ink">
-              STGT
+              {brand.mark}
             </span>
             <span className="mt-1 block font-heading text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
-              {d.auth.layout.brandTagline}
+              {brand.tagline[locale]}
             </span>
           </span>
         </div>

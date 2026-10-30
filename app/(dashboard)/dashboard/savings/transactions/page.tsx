@@ -29,7 +29,7 @@ import type { TransactionType } from "@/lib/generated/prisma/enums";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.member.transactions.title} | RTA`,
+    title: d.member.transactions.title,
   };
 }
 
@@ -128,7 +128,7 @@ export default async function MemberTransactionsPage({
                     )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-sm text-ink-muted">
-                    {formatDate(t.createdAt, locale)}
+                    {formatDate(t.valueDate ?? t.createdAt, locale)}
                   </TableCell>
                   <TableCell className="max-w-xs text-sm">
                     {t.description ?? "—"}

@@ -35,7 +35,7 @@ import {
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.admin.notifications.title} | RTA`,
+    title: d.admin.notifications.title,
   };
 }
 

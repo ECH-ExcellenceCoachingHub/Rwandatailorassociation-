@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.member.profile.title} | RTA`,
+    title: d.member.profile.title,
   };
 }
 

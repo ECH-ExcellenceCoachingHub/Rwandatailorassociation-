@@ -29,7 +29,7 @@ import { ProfileForm } from "@/components/account/ProfileForm";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.account.edit.title} | RTA`,
+    title: d.account.edit.title,
     robots: { index: false, follow: false },
   };
 }

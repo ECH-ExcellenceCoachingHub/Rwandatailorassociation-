@@ -362,3 +362,224 @@
     display: none !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Platform home (/)
+   ---------------------------------------------------------------------------
+   The hero's product composite drifts at three depths, its content rises in
+   one block after another, and the saving-record bars fill from the left.
+   Everything stops for anyone who asked their system for less motion.
+--------------------------------------------------------------------------- */
+@keyframes platform-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes platform-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, var(--platform-float-y, -10px), 0);
+  }
+}
+@keyframes platform-glow {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(36px, -28px, 0) scale(1.12);
+  }
+}
+@keyframes platform-fill {
+  from {
+    transform: scaleY(0.15);
+    opacity: 0.2;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes platform-ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  80%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@layer utilities {
+  .platform-rise {
+    animation: platform-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--platform-delay, 0ms);
+  }
+  .platform-float {
+    animation: platform-float var(--platform-float-duration, 8s) ease-in-out infinite;
+    animation-delay: var(--platform-float-delay, 0s);
+  }
+  .platform-glow {
+    animation: platform-glow 18s ease-in-out infinite alternate;
+  }
+  .platform-fill {
+    transform-origin: bottom;
+    animation: platform-fill 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(700ms + var(--platform-i, 0) * 22ms);
+  }
+  .platform-ping {
+    animation: platform-ping 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+  .platform-lift {
+    transition:
+      transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.3s ease,
+      border-color 0.3s ease;
+  }
+  .platform-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lift);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-safe-platform,
+  .motion-safe-platform * {
+    animation: none !important;
+    transition: none !important;
+  }
+  .motion-safe-platform .platform-lift:hover {
+    transform: none;
+  }
+}
+
+/* Platform home: glass surfaces and the second layer of motion — breathing
+   orbs, slowly turning contour rings, a shimmer across the primary calls to
+   action, a counting figure and a sweep of light across the saving record. */
+@property --platform-count {
+  syntax: "<integer>";
+  initial-value: 0;
+  inherits: false;
+}
+@keyframes platform-count {
+  from {
+    --platform-count: 0;
+  }
+}
+@keyframes platform-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 1;
+  }
+}
+@keyframes platform-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes platform-shimmer {
+  0%,
+  55% {
+    transform: translateX(-130%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(330%) skewX(-20deg);
+  }
+}
+@keyframes platform-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@layer utilities {
+  .platform-glass {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.04));
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 20px 50px -24px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+  }
+  .platform-breathe {
+    animation: platform-breathe 11s ease-in-out infinite;
+  }
+  .platform-spin {
+    animation: platform-spin 140s linear infinite;
+  }
+  .platform-shimmer {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .platform-shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    width: 40%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+    transform: translateX(-130%) skewX(-20deg);
+    animation: platform-shimmer 4.5s ease-in-out 1.6s infinite;
+    pointer-events: none;
+  }
+  /* The figure is the element's own --platform-count; the animation only
+     supplies the starting 0, so with motion off it simply shows the figure. */
+  .platform-count {
+    counter-reset: platform-count var(--platform-count);
+    animation: platform-count 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.7s both;
+  }
+  .platform-count::after {
+    content: counter(platform-count);
+  }
+  .platform-sweep {
+    overflow: hidden;
+  }
+  .platform-sweep::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    width: 30%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    transform: translateX(-130%) skewX(-20deg);
+    animation: platform-shimmer 5s ease-in-out 2.4s infinite;
+    pointer-events: none;
+  }
+  .platform-progress {
+    animation: platform-progress 2.4s cubic-bezier(0.22, 1, 0.36, 1) 1s both;
+  }
+  .platform-lift:hover {
+    box-shadow:
+      var(--shadow-lift),
+      0 0 0 1px rgba(141, 180, 227, 0.35),
+      0 22px 60px -24px rgba(31, 74, 136, 0.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion-safe-platform *::after {
+    animation: none !important;
+  }
+  .motion-safe-platform .platform-shimmer::after,
+  .motion-safe-platform .platform-sweep::after {
+    display: none;
+  }
+}

@@ -45,7 +45,7 @@ import {
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.admin.overview.title} | RTA Savings & Loans`,
+    title: d.admin.overview.title,
   };
 }
 

@@ -16,7 +16,7 @@ export default function Events() {
           {t.events.title}
         </h3>
         <Link
-          href="/#news"
+          href="/rta#news"
           className="text-xs font-semibold text-primary hover:text-primary-hover"
         >
           {t.events.viewAll}

@@ -149,6 +149,26 @@ export function renderKinyarwanda(
         emailText: `${dear}\n\nIshyirahamwe ryavuguruye rimwe mu mategeko yaryo.\n\nItegeko: ${context.ruleTitle}\nImpamvu: ${context.reason ?? NOT_STATED}\n\nUshobora gusoma iri tegeko ryose n'amavugurura yarikozweho ku rupapuro rw'amategeko muri konti yawe.${close}`,
       };
 
+    case NOTIFICATION_EVENTS.POOL_DEDUCTION:
+      return {
+        title: "Amafaranga yavanywe mu bwizigame bw'abanyamuryango",
+        body: `${context.deductionTitle}: hakoreshejwe ${frw(context.totalAmount)} yavuye mu bwizigame bw'abanyamuryango. Uruhare rwawe ni ${frw(context.amount)}. Impamvu: ${context.reason ?? NOT_STATED}. Ubwizigame bwawe ubu ni ${frw(context.balance)}.`,
+        sms: `${associationName}: Havanywe ${frw(context.amount)} ku bwizigame bwawe, uruhare rwawe kuri ${frw(context.totalAmount)} ya: ${context.deductionTitle}. Ubwizigame: ${frw(context.balance)}. Nimero: ${context.reference}.`,
+        emailSubject: `${associationName}: havanywe ${frw(context.amount)} ku bwizigame bwawe`,
+        emailText: `${dear}
+
+Ishyirahamwe ryavanye amafaranga mu bwizigame bw'abanyamuryango, kandi ubwizigame bwa buri munyamuryango bwagabanutseho uruhare rwe.
+
+Icyo yakoreshejwe: ${context.deductionTitle}
+Impamvu: ${context.reason ?? NOT_STATED}
+Amafaranga yose yavanywemo: ${frw(context.totalAmount)}
+Uruhare rwawe: ${frw(context.amount)}
+Nimero y'igikorwa: ${context.reference}
+Ubwizigame bwawe ubu ni: ${frw(context.balance)}
+
+Ushobora kubibona ku rupapuro rw'imiterere ya konti yawe. Niba ufite ibibazo, ${contact}.${close}`,
+      };
+
     case NOTIFICATION_EVENTS.WITHDRAWAL_SUBMITTED:
       return {
         title: "Ubusabe bwo kubikuza bwakiriwe",

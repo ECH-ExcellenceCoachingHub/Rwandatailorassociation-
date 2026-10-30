@@ -50,7 +50,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
 
   const headers = {
     "Content-Type": "application/pdf",
-    "Content-Disposition": `attachment; filename="rta-cards-${side}-${first}-${last}.pdf"`,
+    "Content-Disposition": `attachment; filename="cards-${side}-${first}-${last}.pdf"`,
     "Cache-Control": "no-store, private",
   };
 

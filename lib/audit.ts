@@ -147,6 +147,7 @@ export const AUDIT_ACTIONS = {
   INVESTMENT_RECORDED: "INVESTMENT_RECORDED",
   INVESTMENT_UPDATED: "INVESTMENT_UPDATED",
   INVESTMENT_VISIBILITY_CHANGED: "INVESTMENT_VISIBILITY_CHANGED",
+  POOL_DEDUCTION_POSTED: "POOL_DEDUCTION_POSTED",
 
   // The warehouse
   /// Association property moving in a form that is not cash. Stock leaving the
@@ -247,6 +248,7 @@ interface Actor {
 
 /** Actions that must never be recorded without a written justification. */
 const REASON_REQUIRED: ReadonlySet<string> = new Set<string>([
+  AUDIT_ACTIONS.POOL_DEDUCTION_POSTED,
   AUDIT_ACTIONS.BALANCE_ADJUSTED,
   AUDIT_ACTIONS.SAVINGS_TRANSACTION_REVERSED,
   AUDIT_ACTIONS.LOAN_WRITTEN_OFF,
@@ -281,6 +283,7 @@ const REASON_REQUIRED: ReadonlySet<string> = new Set<string>([
 
 /** Actions serious enough to stand out when scanning the log. */
 const CRITICAL_ACTIONS: ReadonlySet<string> = new Set<string>([
+  AUDIT_ACTIONS.POOL_DEDUCTION_POSTED,
   AUDIT_ACTIONS.BALANCE_ADJUSTED,
   AUDIT_ACTIONS.SAVINGS_TRANSACTION_REVERSED,
   AUDIT_ACTIONS.LOAN_WRITTEN_OFF,

@@ -13,7 +13,7 @@ import { getDashboardCopy } from "@/lib/i18n/server";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.auth.reset.title} | RTA Savings & Loans`,
+    title: d.auth.reset.title,
     robots: { index: false, follow: false },
   };
 }

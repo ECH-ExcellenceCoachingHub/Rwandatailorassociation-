@@ -392,6 +392,15 @@ const ADMIN_NAV: NavSection[] = [
         permission: PERMISSIONS.INVESTMENTS_VIEW,
         exact: true,
       },
+      // Money taken out of every member's savings at once. Beside investments
+      // because it is usually how an investment, or a loan, gets paid for.
+      {
+        labelKey: "poolDeductions",
+        href: "/admin/pool-deductions",
+        icon: HandCoins,
+        permission: PERMISSIONS.POOL_DEDUCTIONS_VIEW,
+        exact: true,
+      },
       // Association property held in a form that is not cash. It sits beside
       // borrowings and investments rather than under savings because that is
       // what it is: another place the members' money currently lives.
@@ -556,6 +565,7 @@ export const BREADCRUMB_LABELS: Record<string, string> = {
   association: "Our association",
   borrowings: "Bank borrowing",
   investments: "Investments",
+  "pool-deductions": "Taken from savings",
   warehouse: "Warehouse",
   fines: "Fines",
   compliance: "Contribution standing",

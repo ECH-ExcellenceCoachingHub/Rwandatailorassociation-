@@ -15,7 +15,7 @@ import { parsePaymentStatus, parsePage } from "@/lib/validation/filters";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.admin.payments.title} | RTA`,
+    title: d.admin.payments.title,
   };
 }
 

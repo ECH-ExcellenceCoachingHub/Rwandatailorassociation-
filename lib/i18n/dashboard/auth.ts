@@ -15,13 +15,6 @@ export interface AuthCopy {
   /// The two-panel shell around every auth page.
   layout: {
     headline: string;
-    homeLabel: string;
-    /// The brand this side of the sign-in belongs to. The public website is
-    /// the association; everything behind this door is STGT, its savings
-    /// programme, and a member arriving at a sign-in link has to be told which
-    /// of the two they are looking at.
-    brandTagline: string;
-    brandProgramme: string;
   };
   login: {
     title: string;
@@ -175,9 +168,6 @@ export const auth: Record<Locale, AuthCopy> = {
   en: {
     layout: {
       headline: "Your savings and loans, in one place.",
-      homeLabel: "Rwanda Tailors Association — home",
-      brandTagline: "Save today, grow tomorrow",
-      brandProgramme: "The savings programme of the Rwanda Tailors Association",
     },
     login: {
       title: "Welcome back",
@@ -267,11 +257,11 @@ export const auth: Record<Locale, AuthCopy> = {
       backToWebsite: "Back to the website",
     },
     install: {
-      title: "Install the STGT app",
-      subtitle: "Add STGT to your home screen. No app store needed.",
+      title: "Install the SSPSG app",
+      subtitle: "Add SSPSG to your home screen. No app store needed.",
       installButton: "Install app",
       installing: "Installing…",
-      installed: "Installed. Look for the STGT icon on your home screen.",
+      installed: "Installed. Look for the SSPSG icon on your home screen.",
       openApp: "Go to sign-in",
       iosTitle: "On iPhone or iPad",
       iosStep1: "Tap Share in Safari.",
@@ -283,7 +273,7 @@ export const auth: Record<Locale, AuthCopy> = {
       androidStep2: "Tap “Install app”.",
       desktopTitle: "On a computer",
       desktopStep1: "Tap the install icon in the address bar.",
-      desktopStep2: "Or open the browser menu (⋮) and choose “Install STGT”.",
+      desktopStep2: "Or open the browser menu (⋮) and choose “Install SSPSG”.",
       inAppTitle: "Open in your browser",
       inAppBody:
         "WhatsApp, Facebook and Instagram can’t install apps. Open this page in Chrome or Safari.",
@@ -303,7 +293,7 @@ export const auth: Record<Locale, AuthCopy> = {
       preparingMenu: "Can’t wait? Tap the menu (⋮), then “Install app”.",
       readyNow: "Ready, tap to install",
       alreadyInstalledBody: "Open it from your home screen.",
-      bannerTitle: "Get the STGT app",
+      bannerTitle: "Get the SSPSG app",
       bannerBody: "Quick access to your savings from your home screen",
       bannerInstall: "Install",
       bannerDismiss: "Close",
@@ -324,9 +314,6 @@ export const auth: Record<Locale, AuthCopy> = {
   rw: {
     layout: {
       headline: "Ubuzigame n'inguzanyo byawe, ahantu hamwe.",
-      homeLabel: "Ihuriro ry'Abadozi mu Rwanda — ahabanza",
-      brandTagline: "Zigama uyu munsi, ukure ejo",
-      brandProgramme: "Gahunda yo kuzigama y'Ihuriro ry'Abadozi mu Rwanda",
     },
     login: {
       title: "Murakaza neza",
@@ -419,12 +406,12 @@ export const auth: Record<Locale, AuthCopy> = {
       backToWebsite: "Subira ku rubuga",
     },
     install: {
-      title: "Shyira STGT kuri telefone",
+      title: "Shyira SSPSG kuri telefone",
       subtitle:
-        "Shyira STGT kuri telefone yawe. Nta Play Store cyangwa App Store ikenewe.",
+        "Shyira SSPSG kuri telefone yawe. Nta Play Store cyangwa App Store ikenewe.",
       installButton: "Shyiramo porogaramu",
       installing: "Birimo gushyirwamo…",
-      installed: "Byarangiye. Shaka ikirango cya STGT kuri telefone yawe.",
+      installed: "Byarangiye. Shaka ikirango cya SSPSG kuri telefone yawe.",
       openApp: "Jya ahinjirirwa",
       iosTitle: "Kuri iPhone cyangwa iPad",
       iosStep1: "Kanda Share muri Safari.",
@@ -436,7 +423,7 @@ export const auth: Record<Locale, AuthCopy> = {
       androidStep2: "Kanda “Install app”.",
       desktopTitle: "Kuri mudasobwa",
       desktopStep1: "Kanda ikirango cyo gushyiramo mu murongo w'adiresi.",
-      desktopStep2: "Cyangwa fungura menu (⋮), uhitemo “Install STGT”.",
+      desktopStep2: "Cyangwa fungura menu (⋮), uhitemo “Install SSPSG”.",
       inAppTitle: "Fungura muri mushakisha",
       inAppBody:
         "WhatsApp, Facebook na Instagram ntishobora gushyiramo porogaramu. Fungura iyi paji muri Chrome cyangwa Safari.",
@@ -454,7 +441,7 @@ export const auth: Record<Locale, AuthCopy> = {
       preparingMenu: "Ntushaka gutegereza? Kanda menu (⋮), hanyuma “Install app”.",
       readyNow: "Byateguwe, kanda ushyiremo",
       alreadyInstalledBody: "Ifungure kuri telefone yawe.",
-      bannerTitle: "Porogaramu ya STGT",
+      bannerTitle: "Porogaramu ya SSPSG",
       bannerBody: "Gera ku buzigame bwawe vuba uhereye kuri telefone",
       bannerInstall: "Shyiramo",
       bannerDismiss: "Funga",

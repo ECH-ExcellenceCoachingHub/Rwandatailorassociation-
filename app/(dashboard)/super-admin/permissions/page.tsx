@@ -30,7 +30,7 @@ import type { UserRole } from "@/lib/generated/prisma/enums";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.platform.permissions.title} | RTA`,
+    title: d.platform.permissions.title,
   };
 }
 

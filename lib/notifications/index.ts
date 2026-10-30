@@ -5,6 +5,7 @@ import { getEmailProvider, getSmsProvider } from "@/lib/notifications/providers"
 import { renderNotification, type TemplateContext } from "@/lib/notifications/templates";
 import { NOTIFICATION_EVENTS, type NotificationEvent } from "@/lib/notifications/types";
 import type { NotificationChannel } from "@/lib/generated/prisma/enums";
+import { PLATFORM_NAME } from "@/lib/brand";
 
 export * from "@/lib/notifications/types";
 export { renderNotification } from "@/lib/notifications/templates";
@@ -64,7 +65,7 @@ export async function notify(params: NotifyParams): Promise<{ notificationId: st
 
     const templateContext: TemplateContext = {
       firstName: user.firstName,
-      associationName: user.association?.name ?? "RTA",
+      associationName: user.association?.name ?? PLATFORM_NAME,
       paymentReference: user.member?.paymentReference,
       ...params.context,
     };
@@ -159,7 +160,7 @@ export async function dispatchDeliveries(notificationId: string): Promise<void> 
 
   const rendered = renderNotification(notification.eventType as NotificationEvent, {
     firstName: notification.user.firstName,
-    associationName: notification.user.association?.name ?? "RTA",
+    associationName: notification.user.association?.name ?? PLATFORM_NAME,
     paymentReference: notification.user.member?.paymentReference,
     ...((notification.metadata as TemplateContext | null) ?? {}),
   });

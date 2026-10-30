@@ -33,7 +33,7 @@ import { Button } from "@/components/ui/button";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
-  return { title: `${d.rules.fines.memberTitle} | RTA` };
+  return { title: d.rules.fines.memberTitle };
 }
 
 export const dynamic = "force-dynamic";

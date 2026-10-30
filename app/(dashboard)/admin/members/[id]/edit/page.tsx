@@ -25,8 +25,8 @@ export async function generateMetadata({
   const member = await getMemberProfile(id);
   return {
     title: member
-      ? `Edit ${member.user.firstName} ${member.user.lastName} | RTA`
-      : "Edit member | RTA",
+      ? `Edit ${member.user.firstName} ${member.user.lastName}`
+      : `Edit member`,
   };
 }
 

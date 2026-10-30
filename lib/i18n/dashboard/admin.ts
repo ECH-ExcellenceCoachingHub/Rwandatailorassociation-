@@ -1001,6 +1001,46 @@ export interface AdminCopy {
     externalReference: string;
     repaymentSaved: string;
   };
+  poolDeductions: {
+    title: string;
+    description: string;
+    newDeduction: string;
+    noneTitle: string;
+    noneBody: string;
+    totalTaken: string;
+    deductionsCount: string;
+    memberViewNote: string;
+    purposeLabel: string;
+    purposes: Record<"MEMBER_LOAN" | "ASSOCIATION_PROJECT" | "ASSOCIATION_EXPENSE" | "OTHER", string>;
+    allocationLabel: string;
+    allocations: Record<"BY_BALANCE" | "BY_SHARES" | "EQUAL", string>;
+    allocationHints: Record<"BY_BALANCE" | "BY_SHARES" | "EQUAL", string>;
+    titleLabel: string;
+    titleHint: string;
+    reasonLabel: string;
+    reasonHint: string;
+    amountLabel: string;
+    beneficiaryLabel: string;
+    beneficiaryNone: string;
+    formTitle: string;
+    formIntro: string;
+    previewButton: string;
+    previewSummary: string;
+    colMember: string;
+    colShares: string;
+    colBalance: string;
+    colPart: string;
+    colAfter: string;
+    shortfallWarning: string;
+    confirmLabel: string;
+    postButton: string;
+    posted: string;
+    membersAffected: string;
+    recordedBy: string;
+    forMember: string;
+    reason: string;
+    splitBy: string;
+  };
   investments: {
     title: string;
     description: string;
@@ -2423,6 +2463,67 @@ export const admin: Record<Locale, AdminCopy> = {
       note: "Note",
       externalReference: "Bank reference",
       repaymentSaved: "Repayment recorded.",
+    },
+    poolDeductions: {
+      title: "Taken from members' savings",
+      description:
+        "Money the association took out of the members' pool. Every member's balance went down by their part, and each of them was told why.",
+      newDeduction: "Take money from the pool",
+      noneTitle: "Nothing taken from the pool",
+      noneBody:
+        "When the association lends, spends or invests money that is held as members' savings, record it here. Every member's balance goes down by their part and every member is notified with the reason.",
+      totalTaken: "Taken in total",
+      deductionsCount: "Deductions",
+      memberViewNote:
+        "Members see every deduction on their account status page and on the association's page, with the reason you give. Write it for them.",
+      purposeLabel: "What the money was for",
+      purposes: {
+        MEMBER_LOAN: "A loan to a member",
+        ASSOCIATION_PROJECT: "An association project",
+        ASSOCIATION_EXPENSE: "An association expense",
+        OTHER: "Other",
+      },
+      allocationLabel: "How to split it between members",
+      allocations: {
+        BY_BALANCE: "By savings balance",
+        BY_SHARES: "By shares held",
+        EQUAL: "Equally",
+      },
+      allocationHints: {
+        BY_BALANCE:
+          "Each member gives the same percentage of what they have saved. Nobody can be taken below zero.",
+        BY_SHARES: "Each member gives in proportion to the shares (imigabane) they hold.",
+        EQUAL: "Every member gives the same amount.",
+      },
+      titleLabel: "Short title",
+      titleHint: "Shown as the heading members see, e.g. \"Loan to Jean for a sewing machine\".",
+      reasonLabel: "Reason",
+      reasonHint:
+        "Sent to every member whose balance goes down. Say what was decided, by whom, and why.",
+      amountLabel: "Total amount to take",
+      beneficiaryLabel: "Member who received it (optional)",
+      beneficiaryNone: "Nobody in particular",
+      formTitle: "Take money from the members' pool",
+      formIntro:
+        "Work out the split first. Nothing moves until you confirm, and then every member's balance moves at once.",
+      previewButton: "Work out each member's part",
+      previewSummary: "{count} members will each give their part of {amount}. Members' savings today: {pool}.",
+      colMember: "Member",
+      colShares: "Shares",
+      colBalance: "Balance",
+      colPart: "Their part",
+      colAfter: "After",
+      shortfallWarning:
+        "{count} member(s) do not have enough savings for their part. Split by savings balance, or reduce the amount.",
+      confirmLabel:
+        "I understand this reduces every listed member's savings and sends each of them a notification.",
+      postButton: "Take {amount} and notify members",
+      posted: "Done. {count} members' balances were reduced and each of them was notified.",
+      membersAffected: "{count} member|{count} members",
+      recordedBy: "Recorded by {name}",
+      forMember: "For {name}",
+      reason: "Reason",
+      splitBy: "Split",
     },
     investments: {
       title: "What our money did",
@@ -3917,6 +4018,67 @@ export const admin: Record<Locale, AdminCopy> = {
       note: "Icyitonderwa",
       externalReference: "Nomero ya banki",
       repaymentSaved: "Ubwishyu bwanditswe.",
+    },
+    poolDeductions: {
+      title: "Ibyavanywe mu bwizigame bw'abanyamuryango",
+      description:
+        "Amafaranga ishyirahamwe ryavanye mu bwizigame bw'abanyamuryango. Ubwizigame bwa buri munyamuryango bwagabanutseho uruhare rwe, kandi buri wese yamenyeshejwe impamvu.",
+      newDeduction: "Kuvana amafaranga mu bwizigame",
+      noneTitle: "Nta mafaranga yavanywe mu bwizigame",
+      noneBody:
+        "Iyo ishyirahamwe rigurije, rikoresheje cyangwa rishoye amafaranga y'ubwizigame bw'abanyamuryango, byandike hano. Ubwizigame bwa buri munyamuryango bugabanukaho uruhare rwe, kandi buri wese amenyeshwa impamvu.",
+      totalTaken: "Byose hamwe",
+      deductionsCount: "Inshuro",
+      memberViewNote:
+        "Abanyamuryango babona buri gikorwa nk'iki ku rupapuro rw'imiterere ya konti yabo no ku rupapuro rw'ishyirahamwe, hamwe n'impamvu mutanze. Muyandike mubatekereza.",
+      purposeLabel: "Icyo amafaranga yakoreshejwe",
+      purposes: {
+        MEMBER_LOAN: "Inguzanyo ku munyamuryango",
+        ASSOCIATION_PROJECT: "Umushinga w'ishyirahamwe",
+        ASSOCIATION_EXPENSE: "Ikiguzi cy'ishyirahamwe",
+        OTHER: "Ibindi",
+      },
+      allocationLabel: "Uko bigabanywa abanyamuryango",
+      allocations: {
+        BY_BALANCE: "Hakurikijwe ubwizigame",
+        BY_SHARES: "Hakurikijwe imigabane",
+        EQUAL: "Kimwe kuri bose",
+      },
+      allocationHints: {
+        BY_BALANCE:
+          "Buri munyamuryango atanga ijanisha rimwe ry'ibyo yizigamiye. Nta n'umwe ujya munsi ya zeru.",
+        BY_SHARES: "Buri munyamuryango atanga hakurikijwe imigabane afite.",
+        EQUAL: "Buri munyamuryango atanga amafaranga angana.",
+      },
+      titleLabel: "Umutwe mugufi",
+      titleHint: "Ni wo abanyamuryango babona, urugero: \"Inguzanyo ya Jean yo kugura imashini idoda\".",
+      reasonLabel: "Impamvu",
+      reasonHint:
+        "Yoherezwa buri munyamuryango ubwizigame bwe bugabanuka. Vuga icyemezo cyafashwe, n'uwagifashe, n'impamvu.",
+      amountLabel: "Amafaranga yose avanwamo",
+      beneficiaryLabel: "Umunyamuryango wayahawe (si ngombwa)",
+      beneficiaryNone: "Nta muntu wihariye",
+      formTitle: "Kuvana amafaranga mu bwizigame bw'abanyamuryango",
+      formIntro:
+        "Banza urebe uko bigabanywa. Nta kintu gihinduka utaremeza, hanyuma ubwizigame bwa bose buhinduke icyarimwe.",
+      previewButton: "Reba uruhare rwa buri munyamuryango",
+      previewSummary: "Abanyamuryango {count} bazatanga uruhare rwabo kuri {amount}. Ubwizigame bwose uyu munsi: {pool}.",
+      colMember: "Umunyamuryango",
+      colShares: "Imigabane",
+      colBalance: "Ubwizigame",
+      colPart: "Uruhare",
+      colAfter: "Nyuma",
+      shortfallWarning:
+        "Abanyamuryango {count} ntibafite ubwizigame buhagije ku ruhare rwabo. Gabanya hakurikijwe ubwizigame, cyangwa ugabanye amafaranga.",
+      confirmLabel:
+        "Ndumva ko ibi bigabanya ubwizigame bwa buri munyamuryango uri ku rutonde kandi buri wese akabimenyeshwa.",
+      postButton: "Kuvanamo {amount} no kumenyesha abanyamuryango",
+      posted: "Byakozwe. Ubwizigame bw'abanyamuryango {count} bwagabanutse kandi buri wese yabimenyeshejwe.",
+      membersAffected: "Umunyamuryango {count}|Abanyamuryango {count}",
+      recordedBy: "Byanditswe na {name}",
+      forMember: "Byahawe {name}",
+      reason: "Impamvu",
+      splitBy: "Uko byagabanyijwe",
     },
     investments: {
       title: "Icyo amafaranga yacu yakoze",

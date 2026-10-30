@@ -21,7 +21,7 @@ import { SettingsTable } from "@/components/dashboard/SettingsTable";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.platform.settings.title} | RTA`,
+    title: d.platform.settings.title,
   };
 }
 

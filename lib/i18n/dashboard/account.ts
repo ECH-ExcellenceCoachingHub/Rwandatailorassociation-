@@ -59,6 +59,10 @@ export interface AccountCopy {
     applyForLoan: string;
     none: string;
     finesPaid: string;
+    deductionsTitle: string;
+    deductionsHint: string;
+    deductionPartOf: string;
+    deductionsSeeAll: string;
 
     // Who the association thinks you are ------------------------------------
     yourDetails: string;
@@ -358,6 +362,11 @@ export const account: Record<Locale, AccountCopy> = {
       applyForLoan: "Apply for a loan",
       none: "None",
       finesPaid: "Fines paid",
+      deductionsTitle: "Taken from the association's savings",
+      deductionsHint:
+        "Money the association took out of every member's savings. Your part came off your balance.",
+      deductionPartOf: "Your part of {total} · {date}",
+      deductionsSeeAll: "See all on the association page",
 
       yourDetails: "Your details",
       fullName: "Full name",
@@ -674,6 +683,11 @@ export const account: Record<Locale, AccountCopy> = {
       applyForLoan: "Saba inguzanyo",
       none: "Ntayo",
       finesPaid: "Amahazabu wishyuye",
+      deductionsTitle: "Ibyavanywe mu bwizigame bw'ishyirahamwe",
+      deductionsHint:
+        "Amafaranga ishyirahamwe ryavanye mu bwizigame bwa buri munyamuryango. Uruhare rwawe rwavanywe ku bwizigame bwawe.",
+      deductionPartOf: "Uruhare rwawe kuri {total} · {date}",
+      deductionsSeeAll: "Reba byose ku rupapuro rw'ishyirahamwe",
 
       yourDetails: "Amakuru yawe",
       fullName: "Amazina",

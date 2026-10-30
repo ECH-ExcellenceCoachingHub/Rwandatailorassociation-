@@ -48,6 +48,9 @@ const PROTECTED_PREFIXES: { prefix: string; roles: string[] }[] = [
 /** Auth pages a signed-in user should be bounced away from. */
 const AUTH_ROUTES = ["/login", "/forgot-password", "/reset-password", "/in/", "/qr/"];
 
+/** Each association's own sign-in: /rta/login, /abc/login. */
+const SITE_LOGIN = /^\/[a-z]{2,8}\/login$/i;
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -74,7 +77,10 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (claims && AUTH_ROUTES.some((route) => pathname.startsWith(route))) {
+  if (
+    claims &&
+    (AUTH_ROUTES.some((route) => pathname.startsWith(route)) || SITE_LOGIN.test(pathname))
+  ) {
     // Already signed in, so treat it as arriving: the same place login sends them.
     return relativeRedirect(ROLE_LANDING[claims.role]);
   }

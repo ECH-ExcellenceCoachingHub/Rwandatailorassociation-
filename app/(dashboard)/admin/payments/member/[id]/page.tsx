@@ -34,7 +34,7 @@ import {
 
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
-  return { title: `${d.admin.payments.title} | RTA` };
+  return { title: d.admin.payments.title };
 }
 
 export const dynamic = "force-dynamic";

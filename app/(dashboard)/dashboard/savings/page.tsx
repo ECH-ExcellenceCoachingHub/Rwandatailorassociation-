@@ -44,7 +44,7 @@ import {
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.member.savings.title} | RTA`,
+    title: d.member.savings.title,
   };
 }
 
@@ -217,7 +217,7 @@ export default async function MemberSavingsPage() {
                       {t.reference}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm text-ink-muted">
-                      {formatDate(t.createdAt, locale)}
+                      {formatDate(t.valueDate ?? t.createdAt, locale)}
                     </TableCell>
                     <TableCell className="max-w-xs truncate text-sm">
                       {t.description ?? "—"}

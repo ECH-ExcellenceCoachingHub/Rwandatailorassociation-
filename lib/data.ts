@@ -65,14 +65,14 @@ export const SOCIAL_LINKS: SocialLink[] = [
 ];
 
 export const NAV_LINKS: NavLink[] = [
-  { label: { en: "Home", rw: "Ahabanza" }, href: "/#home" },
-  { label: { en: "About", rw: "Abo Turi Bo" }, href: "/#about" },
-  { label: { en: "Services", rw: "Serivisi" }, href: "/#services" },
-  { label: { en: "Membership", rw: "Ubunyamuryango" }, href: "/#why-join" },
-  { label: { en: "Events", rw: "Ibikorwa" }, href: "/#events" },
-  { label: { en: "News", rw: "Amakuru" }, href: "/news" },
-  { label: { en: "Gallery", rw: "Amafoto" }, href: "/#gallery" },
-  { label: { en: "Contact", rw: "Twandikire" }, href: "/#contact" },
+  { label: { en: "Home", rw: "Ahabanza" }, href: "/rta#home" },
+  { label: { en: "About", rw: "Abo Turi Bo" }, href: "/rta#about" },
+  { label: { en: "Services", rw: "Serivisi" }, href: "/rta#services" },
+  { label: { en: "Membership", rw: "Ubunyamuryango" }, href: "/rta#why-join" },
+  { label: { en: "Events", rw: "Ibikorwa" }, href: "/rta#events" },
+  { label: { en: "News", rw: "Amakuru" }, href: "/rta/news" },
+  { label: { en: "Gallery", rw: "Amafoto" }, href: "/rta#gallery" },
+  { label: { en: "Contact", rw: "Twandikire" }, href: "/rta#contact" },
 ];
 
 export const STATS: StatItem[] = [
@@ -424,29 +424,29 @@ export const FOOTER_LINKS: FooterLinkGroup[] = [
   {
     title: { en: "Quick Links", rw: "Amahuza Yihuse" },
     links: [
-      { label: { en: "Home", rw: "Ahabanza" }, href: "/#home" },
-      { label: { en: "About Us", rw: "Abo Turi Bo" }, href: "/#about" },
-      { label: { en: "Services", rw: "Serivisi" }, href: "/#services" },
-      { label: { en: "Membership", rw: "Ubunyamuryango" }, href: "/#why-join" },
-      { label: { en: "News", rw: "Amakuru" }, href: "/news" },
-      { label: { en: "Contact", rw: "Twandikire" }, href: "/#contact" },
+      { label: { en: "Home", rw: "Ahabanza" }, href: "/rta#home" },
+      { label: { en: "About Us", rw: "Abo Turi Bo" }, href: "/rta#about" },
+      { label: { en: "Services", rw: "Serivisi" }, href: "/rta#services" },
+      { label: { en: "Membership", rw: "Ubunyamuryango" }, href: "/rta#why-join" },
+      { label: { en: "News", rw: "Amakuru" }, href: "/rta/news" },
+      { label: { en: "Contact", rw: "Twandikire" }, href: "/rta#contact" },
     ],
   },
   {
     title: { en: "Services", rw: "Serivisi" },
     links: [
-      { label: { en: "Business Development", rw: "Iterambere ry'Ubucuruzi" }, href: "/#services" },
-      { label: { en: "Capacity Building", rw: "Kongera Ubushobozi" }, href: "/#services" },
-      { label: { en: "Access to Finance", rw: "Kubona Inguzanyo" }, href: "/#services" },
-      { label: { en: "Marketing Support", rw: "Ubufasha mu Kwamamaza" }, href: "/#services" },
-      { label: { en: "Market Access", rw: "Kwinjira ku Isoko" }, href: "/#services" },
-      { label: { en: "Networking", rw: "Guhuza Abadozi" }, href: "/#services" },
+      { label: { en: "Business Development", rw: "Iterambere ry'Ubucuruzi" }, href: "/rta#services" },
+      { label: { en: "Capacity Building", rw: "Kongera Ubushobozi" }, href: "/rta#services" },
+      { label: { en: "Access to Finance", rw: "Kubona Inguzanyo" }, href: "/rta#services" },
+      { label: { en: "Marketing Support", rw: "Ubufasha mu Kwamamaza" }, href: "/rta#services" },
+      { label: { en: "Market Access", rw: "Kwinjira ku Isoko" }, href: "/rta#services" },
+      { label: { en: "Networking", rw: "Guhuza Abadozi" }, href: "/rta#services" },
     ],
   },
   {
     title: { en: "Resources", rw: "Ibikoresho" },
     links: [
-      { label: { en: "Training Programs", rw: "Amahugurwa" }, href: "/#services" },
+      { label: { en: "Training Programs", rw: "Amahugurwa" }, href: "/rta#services" },
       { label: { en: "Guidelines", rw: "Amabwiriza" }, href: "#" },
       { label: { en: "Forms & Documents", rw: "Impapuro n'Inyandiko" }, href: "#" },
       { label: { en: "Opportunities", rw: "Amahirwe" }, href: "#" },

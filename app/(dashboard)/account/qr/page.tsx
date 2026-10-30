@@ -5,6 +5,7 @@ import { renderQrSvg } from "@/lib/qr";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { PageHeader } from "@/components/dashboard/DashboardShell";
 import { QrCodeCard } from "@/components/account/QrCodeCard";
+import { PLATFORM_NAME } from "@/lib/brand";
 
 /**
  * The sign-in QR page, for every role.
@@ -20,7 +21,7 @@ import { QrCodeCard } from "@/components/account/QrCodeCard";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.account.qr.title} | RTA Savings & Loans`,
+    title: d.account.qr.title,
     robots: { index: false, follow: false },
   };
 }
@@ -56,7 +57,7 @@ export default async function AccountQrPage() {
         useCount={code?.useCount ?? 0}
         holderName={context.user.fullName}
         holderReference={holderReference}
-        associationName={context.association?.name ?? "RTA"}
+        associationName={context.association?.name ?? PLATFORM_NAME}
       />
     </div>
   );

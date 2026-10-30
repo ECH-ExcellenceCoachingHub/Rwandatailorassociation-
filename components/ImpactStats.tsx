@@ -18,7 +18,7 @@ export default function ImpactStats() {
           {t.impactStats.title}
         </h3>
         <Link
-          href="/#about"
+          href="/rta#about"
           className="text-xs font-semibold text-white/85 hover:text-white"
         >
           {t.impactStats.viewAll}

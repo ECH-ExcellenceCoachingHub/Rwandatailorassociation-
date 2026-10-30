@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { SidebarContent, type BadgeCounts } from "@/components/dashboard/Sidebar";
+import type { Brand } from "@/lib/brand";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import { useLanguage } from "@/components/LanguageProvider";
 import { BREADCRUMB_LABELS, visibleNavigation } from "@/lib/navigation";
@@ -43,6 +44,7 @@ export function DashboardShell({
   user,
   permissions,
   associationName,
+  brand,
   badges,
   unreadNotifications = 0,
   children,
@@ -54,6 +56,8 @@ export function DashboardShell({
   /// and this list, and the tree is built here on the client.
   permissions: string[];
   associationName: string;
+  /// Whose mark tops the sidebar; see dashboardBrand in the layout.
+  brand: Brand;
   badges?: BadgeCounts;
   unreadNotifications?: number;
   children: React.ReactNode;
@@ -132,6 +136,7 @@ export function DashboardShell({
           sections={sections}
           role={user.role}
           associationName={associationName}
+          brand={brand}
           badges={badges}
         />
       </aside>
@@ -150,6 +155,7 @@ export function DashboardShell({
               sections={sections}
               role={user.role}
               associationName={associationName}
+              brand={brand}
               badges={badges}
               onNavigate={() => setMobileOpen(false)}
             />

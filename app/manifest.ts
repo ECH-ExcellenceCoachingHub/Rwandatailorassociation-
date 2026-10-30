@@ -1,8 +1,12 @@
 import type { MetadataRoute } from "next";
+import { PLATFORM_NAME, PLATFORM_TITLE } from "@/lib/brand";
 
 /**
  * Web app manifest, served at /manifest.webmanifest and linked from every page
- * by Next. It is what makes the site installable as the STGT app.
+ * by Next. It is what makes the site installable as the SSPSG app — one app
+ * for every association, since the session decides whose dashboard opens.
+ * `id` stays "/" so phones that installed it as RTA's STGT app update in place
+ * rather than ending up with two icons.
  *
  * `start_url` is the sign-in page: the installed app is for members, not the
  * marketing site. A member who is already signed in is bounced from /login to
@@ -11,9 +15,9 @@ import type { MetadataRoute } from "next";
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: "/",
-    name: "STGT — Rwanda Tailors Association",
-    short_name: "STGT",
-    description: "Savings and loans for members of the Rwanda Tailors Association.",
+    name: PLATFORM_TITLE,
+    short_name: PLATFORM_NAME,
+    description: "Savings and loans for members of private-sector associations.",
     start_url: "/login",
     scope: "/",
     display: "standalone",

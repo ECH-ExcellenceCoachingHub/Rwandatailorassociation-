@@ -60,8 +60,8 @@ export async function generateMetadata({
   const member = await getMemberProfile(id);
   return {
     title: member
-      ? `${member.user.firstName} ${member.user.lastName} | RTA`
-      : "Member | RTA",
+      ? `${member.user.firstName} ${member.user.lastName}`
+      : `Member`,
   };
 }
 
@@ -481,7 +481,7 @@ export default async function AdminMemberDetailPage({
                       {t.reference}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm text-ink-muted">
-                      {date(t.createdAt)}
+                      {date(t.valueDate ?? t.createdAt)}
                     </TableCell>
                     <TableCell className="max-w-xs text-sm">
                       {t.description ?? "—"}

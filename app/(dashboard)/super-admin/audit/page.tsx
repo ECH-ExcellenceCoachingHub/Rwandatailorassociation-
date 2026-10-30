@@ -12,7 +12,7 @@ import { AuditLogTable } from "@/components/dashboard/AuditLogTable";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.platform.audit.title} | RTA`,
+    title: d.platform.audit.title,
   };
 }
 

@@ -40,7 +40,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
-  return { title: `${d.rules.member.title} | RTA` };
+  return { title: d.rules.member.title };
 }
 
 export const dynamic = "force-dynamic";

@@ -12,7 +12,7 @@ export default function NewsPage() {
   return (
     <section className="section-pad bg-background">
       <div className="container-page">
-        <BackButton href="/" />
+        <BackButton href="/rta" />
 
         <SectionHeading
           className="mt-8"

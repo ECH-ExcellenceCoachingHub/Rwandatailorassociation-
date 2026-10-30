@@ -424,6 +424,11 @@ export interface MemberCopy {
     fundedProjects: string;
     overdueWarning: string;
 
+    deductionsTitle: string;
+    deductionsHint: string;
+    noDeductionsBody: string;
+    deductionYourPart: string;
+    deductionTotal: string;
     investmentsTitle: string;
     investmentsHint: string;
     noInvestmentsTitle: string;
@@ -1018,6 +1023,12 @@ export const member: Record<Locale, MemberCopy> = {
       fundedProjects: "This paid for",
       overdueWarning: "This facility is {days} day late.|This facility is {days} days late.",
 
+      deductionsTitle: "Taken from our savings",
+      deductionsHint:
+        "Every time the association took money out of the members' savings, why it did, and how much of it was yours.",
+      noDeductionsBody: "Nothing has been taken out of the members' savings.",
+      deductionYourPart: "Your part",
+      deductionTotal: "Taken from all members",
       investmentsTitle: "What our money did",
       investmentsHint:
         "What the association put money into, and what members got out of it.",
@@ -1627,6 +1638,12 @@ export const member: Record<Locale, MemberCopy> = {
       overdueWarning:
         "Iyi nguzanyo yatinze umunsi {days}.|Iyi nguzanyo yatinze iminsi {days}.",
 
+      deductionsTitle: "Ibyavanywe mu bwizigame bwacu",
+      deductionsHint:
+        "Buri gihe ishyirahamwe ryavanye amafaranga mu bwizigame bw'abanyamuryango, impamvu, n'uruhare rwawe.",
+      noDeductionsBody: "Nta mafaranga yavanywe mu bwizigame bw'abanyamuryango.",
+      deductionYourPart: "Uruhare rwawe",
+      deductionTotal: "Yavanywe ku banyamuryango bose",
       investmentsTitle: "Icyo amafaranga yacu yakoze",
       investmentsHint:
         "Ibyo ihuriro rishoyemo amafaranga, n'ibyo abanyamuryango babikuyemo.",

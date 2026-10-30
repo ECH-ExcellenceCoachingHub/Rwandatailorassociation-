@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import { BrandMark } from "@/components/brand/BrandMark";
+import type { Brand } from "@/lib/brand";
 import { usePathname } from "next/navigation";
 import { isNavItemActive, type NavSection } from "@/lib/navigation";
 import { useLanguage } from "@/components/LanguageProvider";
@@ -29,12 +30,14 @@ export function SidebarContent({
   sections,
   role,
   associationName,
+  brand,
   badges = {},
   onNavigate,
 }: {
   sections: NavSection[];
   role: UserRole;
   associationName: string;
+  brand: Brand;
   badges?: BadgeCounts;
   onNavigate?: () => void;
 }) {
@@ -45,13 +48,7 @@ export function SidebarContent({
     <div className="flex h-full flex-col bg-footer">
       {/* Brand */}
       <div className="flex items-center gap-3 border-b border-white/10 px-5 py-5">
-        <Image
-          src="/images/rtalogo.jpg"
-          alt=""
-          width={40}
-          height={40}
-          className="size-10 shrink-0 rounded-full object-cover"
-        />
+        <BrandMark brand={brand} size={40} className="size-10" />
         <div className="min-w-0">
           <p className="truncate font-heading text-sm font-bold leading-tight text-white">
             {associationName}

@@ -18,7 +18,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.admin.products.title} | RTA`,
+    title: d.admin.products.title,
   };
 }
 

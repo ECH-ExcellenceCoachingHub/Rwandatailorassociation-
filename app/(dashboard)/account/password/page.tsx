@@ -20,7 +20,7 @@ import { getActiveQrCode } from "@/lib/auth/qr-access";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.member.security.title} | RTA`,
+    title: d.member.security.title,
     robots: { index: false, follow: false },
   };
 }

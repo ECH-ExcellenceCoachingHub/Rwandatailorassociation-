@@ -4,6 +4,7 @@ import { LanguageProvider } from "@/components/LanguageProvider";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { EARLY_INSTALL_SCRIPT } from "@/lib/pwa/install";
+import { PLATFORM_FULL_NAME, PLATFORM_NAME, PLATFORM_TITLE } from "@/lib/brand";
 import "./globals.css";
 
 /**
@@ -33,22 +34,24 @@ const manrope = Manrope({
   display: "swap",
 });
 
+// The root is the platform's (lib/brand.ts): a page titled "Sign in" reads
+// "Sign in | SSPSG". RTA (/rta), each /abc site and the dashboard set their
+// own, restating the share entries whole because Next replaces rather than
+// merges them.
+const description =
+  "A savings and loans platform for private-sector associations, each on its own site under its own rules.";
+
 export const metadata: Metadata = {
-  title: "Rwanda Tailors Association | Empowering Tailors, Building Rwanda",
-  description:
-    "The official association representing tailors across Rwanda. Together we promote quality, innovation, business growth and a stronger tailoring industry.",
+  title: {
+    default: PLATFORM_TITLE,
+    template: `%s | ${PLATFORM_NAME}`,
+  },
+  description,
   metadataBase: new URL(process.env.APP_URL || "http://localhost:10000"),
-  keywords: [
-    "Rwanda Tailors Association",
-    "RTA",
-    "Rwanda fashion industry",
-    "tailoring Rwanda",
-    "Made in Rwanda",
-  ],
+  keywords: [PLATFORM_NAME, PLATFORM_FULL_NAME, "savings", "loans", "associations", "Rwanda"],
   openGraph: {
-    title: "Rwanda Tailors Association",
-    description:
-      "Empowering Tailors. Building Rwanda. The official association representing tailors across Rwanda.",
+    title: PLATFORM_TITLE,
+    description,
     locale: "rw_RW",
     alternateLocale: "en_RW",
     type: "website",
@@ -56,7 +59,7 @@ export const metadata: Metadata = {
   // Installed-app behaviour on iPhone, which ignores most of the manifest.
   appleWebApp: {
     capable: true,
-    title: "STGT",
+    title: PLATFORM_NAME,
     statusBarStyle: "black-translucent",
   },
   icons: {

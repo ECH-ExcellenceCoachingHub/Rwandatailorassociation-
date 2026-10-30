@@ -28,6 +28,7 @@ import {
   type CardSide,
 } from "@/lib/cards/geometry";
 import type { UserRole } from "@/lib/generated/prisma/enums";
+import { PLATFORM_NAME } from "@/lib/brand";
 
 /**
  * Membership cards, as printable PDFs.
@@ -478,10 +479,10 @@ export async function renderCardFronts(
   const doc = await PDFDocument.create();
   doc.setTitle(
     cards.length === 1
-      ? `RTA membership card — ${cards[0].displayName}`
-      : `RTA membership cards — ${cards.length} fronts`
+      ? `Membership card — ${cards[0].displayName}`
+      : `Membership cards — ${cards.length} fronts`
   );
-  doc.setProducer("RTA Savings & Loans");
+  doc.setProducer(PLATFORM_NAME);
 
   const markBytes = await loadLogo();
   const assets: FrontAssets = {
@@ -617,9 +618,9 @@ export async function renderCardBacks(count: number): Promise<Uint8Array> {
 
   const doc = await PDFDocument.create();
   doc.setTitle(
-    pages === 1 ? "RTA membership card — back" : `RTA membership cards — ${pages} backs`
+    pages === 1 ? "Membership card — back" : `Membership cards — ${pages} backs`
   );
-  doc.setProducer("RTA Savings & Loans");
+  doc.setProducer(PLATFORM_NAME);
 
   const ground = await embedGround(doc, "back");
   for (let i = 0; i < pages; i++) {

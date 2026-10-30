@@ -36,7 +36,7 @@ export async function getMemberTransactions(
     ...(filters.type ? { type: filters.type } : {}),
     ...(filters.from || filters.to
       ? {
-          createdAt: {
+          valueDate: {
             ...(filters.from ? { gte: filters.from } : {}),
             ...(filters.to ? { lte: filters.to } : {}),
           },

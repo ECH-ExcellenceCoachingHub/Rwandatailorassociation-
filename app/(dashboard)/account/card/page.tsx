@@ -28,7 +28,7 @@ import { CardFrontPreview, CardBackPreview } from "@/components/account/CardPrev
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.account.card.title} | RTA Savings & Loans`,
+    title: d.account.card.title,
     robots: { index: false, follow: false },
   };
 }

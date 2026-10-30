@@ -15,7 +15,7 @@ import { parseTransactionType } from "@/lib/validation/filters";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.admin.transactions.title} | RTA`,
+    title: d.admin.transactions.title,
   };
 }
 

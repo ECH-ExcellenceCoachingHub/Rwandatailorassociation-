@@ -32,7 +32,7 @@ import { AccountStatusView } from "@/components/account/AccountStatusView";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.account.status.title} | RTA Savings & Loans`,
+    title: d.account.status.title,
     robots: { index: false, follow: false },
   };
 }

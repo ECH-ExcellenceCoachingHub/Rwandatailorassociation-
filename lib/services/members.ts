@@ -188,7 +188,7 @@ export interface CreatedMember {
  * Ambiguous characters are excluded because this gets read aloud or copied off
  * a screen onto paper.
  */
-function generateTemporaryPassword(): string {
+export function generateTemporaryPassword(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
   const bytes = randomBytes(16);
   let password = "";

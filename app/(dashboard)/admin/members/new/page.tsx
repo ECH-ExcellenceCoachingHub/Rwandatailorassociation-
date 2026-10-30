@@ -18,7 +18,7 @@ import { MemberForm } from "@/components/dashboard/MemberForm";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.admin.members.title} | RTA`,
+    title: d.admin.members.title,
   };
 }
 

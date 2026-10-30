@@ -12,7 +12,7 @@ import { getDashboardCopy } from "@/lib/i18n/server";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.auth.login.title} | RTA Savings & Loans`,
+    title: d.auth.login.title,
     description: d.auth.login.subtitle,
     robots: { index: false, follow: false },
   };
@@ -33,8 +33,10 @@ export default async function LoginPage() {
 
       <p className="mt-8 text-center text-sm text-ink-muted">
         {copy.notAMember}{" "}
+        {/* Joining means joining an association, so the platform's sign-in
+            sends people to the directory to choose theirs. */}
         <Link
-          href="/register"
+          href="/#associations"
           className="font-semibold text-primary underline-offset-4 hover:underline"
         >
           {copy.applyToJoin}

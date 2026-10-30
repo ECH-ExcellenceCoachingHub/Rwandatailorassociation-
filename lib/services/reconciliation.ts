@@ -503,6 +503,7 @@ export async function matchAndCredit(
     strategy: match.strategy,
     confidence: match.confidence,
     evidence: match.evidence,
+    transactionDate: payment.transactionDate,
   });
 
   return "PROCESSED";
@@ -527,6 +528,7 @@ async function creditMember(params: {
   strategy: string;
   confidence: number;
   evidence: string;
+  transactionDate: Date;
 }): Promise<void> {
   let creditedReference = "";
   let balanceAfter = "0.00";
@@ -543,6 +545,7 @@ async function creditMember(params: {
         description: params.description,
         externalReference: params.externalReference,
         paymentId: params.paymentId,
+        valueDate: params.transactionDate,
       },
       tx
     );
@@ -896,6 +899,7 @@ export async function manuallyMatchPayment(params: {
       status: true,
       narration: true,
       externalTransactionId: true,
+      transactionDate: true,
       savingsTransaction: { select: { id: true, reference: true } },
     },
   });
@@ -957,6 +961,7 @@ export async function manuallyMatchPayment(params: {
         externalReference: payment.externalTransactionId,
         paymentId: payment.id,
         postedById: params.adminUserId,
+        valueDate: payment.transactionDate,
       },
       tx
     );

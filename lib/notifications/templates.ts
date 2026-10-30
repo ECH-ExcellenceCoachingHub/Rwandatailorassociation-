@@ -54,6 +54,10 @@ export interface TemplateContext {
   /// The other member in a guarantee: the borrower when telling a guarantor,
   /// the guarantor when telling a borrower.
   counterpartyName?: string;
+  /// A pool deduction: its one-line title and the whole amount taken from the
+  /// pool, beside `amount`, which is this member's part of it.
+  deductionTitle?: string;
+  totalAmount?: string;
 }
 
 export interface RenderedNotification {
@@ -240,6 +244,30 @@ export function renderEnglish(
         emailText: `Dear ${firstName},\n\nThe association has amended one of its rules.\n\nRule: ${context.ruleTitle}\nReason given: ${context.reason ?? "Not stated"}\n\nYou can read the rule in full, and its history, on the rules page of your dashboard.\n\n${associationName}`,
         severity: "INFO",
         actionUrl: "/dashboard/rules",
+      };
+
+    case NOTIFICATION_EVENTS.POOL_DEDUCTION:
+      return {
+        title: "Money taken from the association's savings",
+        body: `${context.deductionTitle}: ${formatMoney(context.totalAmount)} was taken from the members' savings. Your part was ${formatMoney(context.amount)}. Reason: ${context.reason ?? "Not stated"}. Your balance is now ${formatMoney(context.balance)}.`,
+        sms: `${associationName}: ${smsMoney(context.amount)} taken from your savings, your part of ${smsMoney(context.totalAmount)} for: ${context.deductionTitle}. Balance ${smsMoney(context.balance)}. Ref ${context.reference}.`,
+        emailSubject: `${associationName}: ${formatMoney(context.amount)} taken from your savings`,
+        emailText: `Dear ${firstName},
+
+The association has taken money out of the members' savings, and every member's balance has gone down by their part of it.
+
+What for: ${context.deductionTitle}
+Reason given: ${context.reason ?? "Not stated"}
+Total taken from the pool: ${formatMoney(context.totalAmount)}
+Your part: ${formatMoney(context.amount)}
+Reference: ${context.reference}
+Your savings balance is now ${formatMoney(context.balance)}.
+
+You can see this on your account status page. If you have questions, contact the association's officers.
+
+${associationName}`,
+        severity: "WARNING",
+        actionUrl: "/account/status",
       };
 
     case NOTIFICATION_EVENTS.WITHDRAWAL_SUBMITTED:

@@ -4,6 +4,23 @@ import { getAuthContext } from "@/lib/auth/session";
 import { signInRedirectPath } from "@/lib/auth/guards";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { getSidebarBadges, getUnreadNotificationCount } from "@/lib/services/dashboard-badges";
+import type { Metadata } from "next";
+import { PLATFORM_BRAND, associationBrand, type Brand } from "@/lib/brand";
+
+/**
+ * Whose dashboard this is: the signed-in user's association, or the platform
+ * for a super admin, who belongs to none. It ends every tab title and puts its
+ * mark at the top of the sidebar.
+ */
+async function dashboardBrand(): Promise<Brand> {
+  const context = await getAuthContext();
+  return context?.association ? associationBrand(context.association) : PLATFORM_BRAND;
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await dashboardBrand();
+  return { title: { template: `%s | ${brand.titleSuffix}`, default: brand.titleSuffix } };
+}
 
 /**
  * Shared shell for all three dashboards.
@@ -50,7 +67,8 @@ export default async function DashboardLayout({
         memberNumber: context.member?.memberNumber ?? null,
       }}
       permissions={[...context.permissions]}
-      associationName={context.association?.name ?? "RTA Platform"}
+      associationName={context.association?.name ?? PLATFORM_BRAND.mark}
+      brand={await dashboardBrand()}
       badges={badges}
       unreadNotifications={unreadNotifications}
     >

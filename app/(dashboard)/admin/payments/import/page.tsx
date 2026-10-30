@@ -15,7 +15,7 @@ import { StatementImport } from "@/components/dashboard/StatementImport";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.admin.import.title} | RTA`,
+    title: d.admin.import.title,
   };
 }
 

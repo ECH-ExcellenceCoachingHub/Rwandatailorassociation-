@@ -50,7 +50,7 @@ import {
 
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
-  return { title: `${d.rules.compliance.title} | RTA` };
+  return { title: d.rules.compliance.title };
 }
 
 export const dynamic = "force-dynamic";

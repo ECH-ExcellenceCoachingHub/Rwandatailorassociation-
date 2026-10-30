@@ -1,5 +1,5 @@
 import { type NextRequest } from "next/server";
-import { prisma } from "@/lib/db/prisma";
+import { findRegistrationAssociation } from "@/lib/services/associations";
 import { registerSchema } from "@/lib/validation/auth";
 import { registerMember } from "@/lib/auth/service";
 import { assessPasswordStrength } from "@/lib/auth/password.shared";
@@ -25,9 +25,10 @@ import {
  * number, payment reference and savings account in one transaction, all in a
  * pending state — an administrator approves before the account can be used.
  *
- * The association is resolved server-side, never taken from the request body.
- * Accepting a client-supplied associationId here would let anyone enrol
- * themselves into any association on the platform.
+ * The association is resolved server-side from its public code, never from an
+ * id in the request body, and only an ACTIVE association can be joined. Naming
+ * one grants nothing by itself: the applicant is pending until that
+ * association's own administrator approves them.
  */
 export const POST = withErrorHandling(async (request: NextRequest) => {
   const ip = await getClientIp();
@@ -61,13 +62,12 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     });
   }
 
-  // Single-tenant registration for now: the public form enrols into RTA. When
-  // more associations onboard, this resolves from the request host or an
-  // invitation token — still server-side, never from the request body.
-  const association = await prisma.association.findFirst({
-    where: { code: "RTA", status: "ACTIVE" },
-    select: { id: true },
-  });
+  // The join link names the association by its public code; the form passes
+  // it through on the query string. No code means the default association, so
+  // a bare /register keeps enrolling into RTA exactly as it always has.
+  const association = await findRegistrationAssociation(
+    request.nextUrl.searchParams.get("association")
+  );
 
   if (!association) {
     return apiError(

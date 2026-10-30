@@ -14,7 +14,7 @@ import { parseLoanStatus, parsePage } from "@/lib/validation/filters";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.platform.loans.title} | RTA`,
+    title: d.platform.loans.title,
   };
 }
 

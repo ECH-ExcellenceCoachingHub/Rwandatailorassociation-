@@ -48,7 +48,7 @@ export default function NewsGrid({
                 {item.excerpt[locale]}
               </p>
               <Link
-                href={`/news/${item.slug}`}
+                href={`/rta/news/${item.slug}`}
                 className="mt-3 inline-block text-xs font-semibold text-primary hover:text-primary-hover"
               >
                 {t.news.readMore} &rarr;

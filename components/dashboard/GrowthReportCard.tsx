@@ -17,6 +17,7 @@ import { formatLongDate } from "@/lib/i18n/dates";
 import { formatMoney, isNegative, subtract } from "@/lib/money";
 import { provinceShortLabel } from "@/lib/rwanda";
 import type { GrowthReport } from "@/lib/services/growth-report";
+import { PLATFORM_BRAND, PLATFORM_NAME, associationBrand } from "@/lib/brand";
 
 /**
  * The growth summary card: the report the association shares after a meeting.
@@ -76,6 +77,13 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
   comparedFrom.setDate(comparedFrom.getDate() - 1);
   const since = formatLongDate(comparedFrom, locale);
   const associationName = report.association?.name ?? d.admin.reports.districtAllAssociations;
+  // RTA's report reads "RTA · STGT" as it always has; a hosted association's
+  // says whose platform it runs on; the platform-wide report is SSPSG's own.
+  const brand = report.association ? associationBrand(report.association) : PLATFORM_BRAND;
+  const signature =
+    brand.kind === "platform"
+      ? PLATFORM_NAME
+      : `${brand.key} · ${brand.poweredBy ? PLATFORM_NAME : brand.mark}`;
 
   return (
     <div
@@ -85,14 +93,20 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
       <div className="h-2" style={{ backgroundColor: GREEN }} />
 
       <header className="flex items-center gap-6 border-b border-[#eef0f3] px-9 pb-6 pt-7">
-        {/* eslint-disable-next-line @next/next/no-img-element -- the export captures the resolved src, not the optimiser's set */}
-        <img
-          src="/images/rtalogo.jpg"
-          alt=""
-          width={80}
-          height={80}
-          className="size-20 shrink-0 rounded-full object-cover ring-2 ring-[#5aa73a]/40"
-        />
+        {brand.logo ? (
+          // eslint-disable-next-line @next/next/no-img-element -- the export captures the resolved src, not the optimiser's set
+          <img
+            src={brand.logo}
+            alt=""
+            width={80}
+            height={80}
+            className="size-20 shrink-0 rounded-full object-cover ring-2 ring-[#5aa73a]/40"
+          />
+        ) : (
+          <span className="flex size-20 shrink-0 items-center justify-center rounded-full bg-[#0b1b33] font-heading text-2xl font-bold text-white ring-2 ring-[#5aa73a]/40">
+            {brand.mark.slice(0, 2)}
+          </span>
+        )}
         <div>
           <p className="font-heading text-[30px] font-extrabold uppercase leading-[1.05] tracking-tight text-[#0b1b33]">
             {associationName}
@@ -387,7 +401,7 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
           <Scissors className="size-7 shrink-0" style={{ color: GREEN_LIGHT }} aria-hidden="true" />
           <p className="font-heading text-[17px] font-bold text-white">{copy.footer}</p>
           <span className="ml-auto text-[11px] font-semibold uppercase tracking-[0.2em] text-white/60">
-            RTA · STGT
+            {signature}
           </span>
         </div>
       </footer>

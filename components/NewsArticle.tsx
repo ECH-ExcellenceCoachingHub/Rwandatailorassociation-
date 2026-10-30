@@ -17,7 +17,7 @@ export default function NewsArticle({ item }: { item: NewsItem }) {
     <article className="section-pad bg-background">
       <div className="container-page max-w-3xl">
         <FadeIn>
-          <BackButton href="/news" />
+          <BackButton href="/rta/news" />
         </FadeIn>
 
         <FadeIn
@@ -56,7 +56,7 @@ export default function NewsArticle({ item }: { item: NewsItem }) {
           </div>
 
           <Button asChild className="mt-8 w-fit">
-            <Link href="/#contact">{t.news.getInTouch}</Link>
+            <Link href="/rta#contact">{t.news.getInTouch}</Link>
           </Button>
         </FadeIn>
       </div>

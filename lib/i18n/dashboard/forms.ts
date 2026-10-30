@@ -299,7 +299,7 @@ export const forms: Record<Locale, FormsCopy> = {
       showPassword: "Show password",
       hidePassword: "Hide password",
       terms:
-        "I confirm the details above are correct and I accept the Rwanda Tailors Association savings and loan rules.",
+        "I confirm the details above are correct and I accept the {association} savings and loan rules.",
       submit: "Submit membership application",
       submitting: "Submitting application…",
       failed: "Could not submit your application.",
@@ -505,7 +505,7 @@ export const forms: Record<Locale, FormsCopy> = {
       showPassword: "Erekana ijambobanga",
       hidePassword: "Hisha ijambobanga",
       terms:
-        "Nemeza ko amakuru yavuzwe haruguru ari ukuri, kandi nemera amabwiriza y'ihuriro ry'Abadozi mu Rwanda agenga kuzigama no kuguriza.",
+        "Nemeza ko amakuru yavuzwe haruguru ari ukuri, kandi nemera amabwiriza ya {association} agenga kuzigama no kuguriza.",
       submit: "Ohereza ubusabe bwo kwinjira mu ihuriro",
       submitting: "Turohereza ubusabe…",
       failed: "Ntitwashoboye kohereza ubusabe bwawe.",

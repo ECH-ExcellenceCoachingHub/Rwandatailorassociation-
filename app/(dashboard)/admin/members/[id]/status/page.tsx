@@ -18,7 +18,7 @@ import { AccountStatusView } from "@/components/account/AccountStatusView";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
-  return { title: `${d.admin.members.viewStatus} | RTA` };
+  return { title: d.admin.members.viewStatus };
 }
 
 // The point of the page is to show the member's figures as they stand now.

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { PLATFORM_NAME } from "@/lib/brand";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -43,7 +44,7 @@ type View =
  * /install, the whole page.
  *
  * One centred card and nothing else. The page used to open with the navy brand
- * panel — the STGT lockup, a headline, a tagline, a paragraph and a copyright
+ * panel — the SSPSG lockup, a headline, a tagline, a paragraph and a copyright
  * beside the steps — which is a lot to read before the single thing the visitor
  * arrived to do. Now the app icon, one line of copy and the install button
  * carry the screen; the brand survives as a small mark in the corner, and the
@@ -226,7 +227,7 @@ export default function InstallApp({
             className="size-9 rounded-xl object-contain ring-1 ring-border"
           />
           <span className="font-heading text-sm font-extrabold tracking-[0.2em] text-ink">
-            STGT
+            {PLATFORM_NAME}
           </span>
         </div>
 
@@ -256,7 +257,7 @@ export default function InstallApp({
               <div className="install-float relative rounded-[28px] bg-surface p-3 shadow-lift ring-1 ring-border">
                 <Image
                   src="/icons/icon-192.png"
-                  alt="STGT app icon"
+                  alt={`${PLATFORM_NAME} app icon`}
                   width={80}
                   height={80}
                   priority

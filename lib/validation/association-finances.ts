@@ -228,3 +228,39 @@ export type UpdateInvestmentInput = z.infer<typeof updateInvestmentSchema>;
 
 /** Exposed so a form can cap its own decimal input to the storage scale. */
 export const AMOUNT_STEP = `0.${"0".repeat(MONEY_SCALE - 1)}1`;
+
+export const poolDeductionPurposeSchema = z.enum([
+  "MEMBER_LOAN",
+  "ASSOCIATION_PROJECT",
+  "ASSOCIATION_EXPENSE",
+  "OTHER",
+]);
+
+export const poolDeductionAllocationSchema = z.enum(["BY_BALANCE", "BY_SHARES", "EQUAL"]);
+
+/** Working out the split, before anything is posted. */
+export const previewPoolDeductionSchema = z.object({
+  totalAmount: money(),
+  allocation: poolDeductionAllocationSchema,
+});
+
+/**
+ * Taking money out of the members' pool. The reason has a real minimum: it is
+ * sent to every member whose balance goes down, and "expense" tells none of
+ * them anything.
+ */
+export const postPoolDeductionSchema = previewPoolDeductionSchema.extend({
+  purpose: poolDeductionPurposeSchema,
+  title: z.string().trim().min(3, "Say in a few words what the money was for").max(120),
+  reason: z
+    .string()
+    .trim()
+    .min(15, "Explain to members why the money was taken — at least 15 characters")
+    .max(1000),
+  beneficiaryMemberId: z
+    .string()
+    .trim()
+    .optional()
+    .nullable()
+    .transform((value) => value || null),
+});

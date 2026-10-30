@@ -21,7 +21,7 @@ import { BkEventsView } from "@/components/dashboard/BkEventsView";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.admin.bk.title} | RTA`,
+    title: d.admin.bk.title,
   };
 }
 

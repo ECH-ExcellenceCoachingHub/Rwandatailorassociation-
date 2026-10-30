@@ -83,7 +83,7 @@ export default function ContactUs() {
                 size="lg"
                 className="w-full bg-white text-primary-hover hover:bg-white/90"
               >
-                <Link href="/register">
+                <Link href="/rta/register">
                   {t.contact.registerButton}
                   <ArrowRight className="size-4" aria-hidden="true" />
                 </Link>

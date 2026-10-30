@@ -35,7 +35,7 @@ export default function Hero() {
               size="lg"
               className="h-11 flex-1 px-3 text-[13px] sm:h-14 sm:flex-none sm:px-8 sm:text-base"
             >
-              <Link href="/register">{t.hero.ctaMember}</Link>
+              <Link href="/rta/register">{t.hero.ctaMember}</Link>
             </Button>
             <Button
               asChild
@@ -43,7 +43,7 @@ export default function Hero() {
               size="lg"
               className="h-11 flex-1 px-3 text-[13px] sm:h-14 sm:flex-none sm:px-8 sm:text-base"
             >
-              <Link href="/#services">{t.hero.ctaServices}</Link>
+              <Link href="/rta#services">{t.hero.ctaServices}</Link>
             </Button>
           </div>
         </FadeIn>

@@ -132,6 +132,45 @@ export interface PlatformCopy {
     pendingSuffix: string;
     overdueSuffix: string;
   };
+  /// Onboarding a new association and its first administrator.
+  newAssociation: {
+    createButton: string;
+    title: string;
+    description: string;
+    sectionAssociation: string;
+    sectionAssociationHint: string;
+    code: string;
+    codeHint: string;
+    name: string;
+    legalName: string;
+    email: string;
+    phone: string;
+    city: string;
+    district: string;
+    sectionAdmin: string;
+    sectionAdminHint: string;
+    adminFirstName: string;
+    adminLastName: string;
+    adminPhone: string;
+    adminEmail: string;
+    submit: string;
+    submitting: string;
+    failed: string;
+    createdTitle: string;
+    createdBody: string;
+    giveToAdmin: string;
+    signInWith: string;
+    temporaryPassword: string;
+    temporaryPasswordHint: string;
+    website: string;
+    websiteHint: string;
+    joinLink: string;
+    joinLinkHint: string;
+    copyDetails: string;
+    passwordWarning: string;
+    createAnother: string;
+    backToList: string;
+  };
   admins: {
     title: string;
     description: string;
@@ -490,6 +529,50 @@ export const platform: Record<Locale, PlatformCopy> = {
       colCreated: "Created",
       pendingSuffix: "{count} pending",
       overdueSuffix: "{count} overdue",
+    },
+    newAssociation: {
+      createButton: "New association",
+      title: "New association",
+      description:
+        "Onboard an association onto the platform. It is ready the moment you save: its own savings rules, loan product, rulebook and administrator.",
+      sectionAssociation: "Association",
+      sectionAssociationHint:
+        "Who the association is. Everything here except the code can be changed later.",
+      code: "Code",
+      codeHint:
+        "2 to 8 letters, e.g. ABC. It begins every member number (ABC-M000001) and payment reference, and it can never be changed.",
+      name: "Name",
+      legalName: "Registered name",
+      email: "Email",
+      phone: "Phone",
+      city: "City",
+      district: "District",
+      sectionAdmin: "First administrator",
+      sectionAdminHint:
+        "The person who will run this association. They sign in with this phone number and must choose their own password the first time.",
+      adminFirstName: "First name",
+      adminLastName: "Last name",
+      adminPhone: "Phone",
+      adminEmail: "Email",
+      submit: "Create association",
+      submitting: "Creating…",
+      failed: "Could not create the association.",
+      createdTitle: "Association created",
+      createdBody: "{name} ({code}) is active and ready for its first members.",
+      giveToAdmin: "Give these to the administrator",
+      signInWith: "Signs in with",
+      temporaryPassword: "Temporary password",
+      temporaryPasswordHint: "They will be asked to replace it the first time they sign in.",
+      website: "Website",
+      websiteHint: "Its own home page and sign-in, live now.",
+      joinLink: "Members register at",
+      joinLinkHint:
+        "Share this link with the association; applications wait for its administrator to approve them.",
+      copyDetails: "Copy details",
+      passwordWarning:
+        "This password is shown only once. If it is lost, the administrator can reset it from the sign-in page.",
+      createAnother: "Create another",
+      backToList: "Back to associations",
     },
     admins: {
       title: "Administrators",
@@ -876,6 +959,50 @@ export const platform: Record<Locale, PlatformCopy> = {
       colCreated: "Ryashyizweho",
       pendingSuffix: "{count} bategereje",
       overdueSuffix: "{count} zarengeje igihe",
+    },
+    newAssociation: {
+      createButton: "Ishyirahamwe rishya",
+      title: "Ishyirahamwe rishya",
+      description:
+        "Injiza ishyirahamwe rishya ku rubuga. Rihita ritangira gukora: amabwiriza yaryo yo kuzigama, inguzanyo, amategeko n'umuyobozi waryo.",
+      sectionAssociation: "Ishyirahamwe",
+      sectionAssociationHint:
+        "Amakuru y'ishyirahamwe. Byose usibye kode bishobora guhindurwa nyuma.",
+      code: "Kode",
+      codeHint:
+        "Inyuguti 2 kugeza ku 8, urugero ABC. Itangira nomero ya buri munyamuryango (ABC-M000001) n'iy'ubwishyu, kandi ntishobora guhindurwa.",
+      name: "Izina",
+      legalName: "Izina ryanditswe",
+      email: "Imeyili",
+      phone: "Telefone",
+      city: "Umujyi",
+      district: "Akarere",
+      sectionAdmin: "Umuyobozi wa mbere",
+      sectionAdminHint:
+        "Umuntu uzayobora iri shyirahamwe. Yinjira akoresheje iyi telefone kandi agomba guhitamo ijambobanga rye bwa mbere yinjiye.",
+      adminFirstName: "Izina",
+      adminLastName: "Irindi zina",
+      adminPhone: "Telefone",
+      adminEmail: "Imeyili",
+      submit: "Rema ishyirahamwe",
+      submitting: "Birimo kuremwa…",
+      failed: "Ntibyashobotse kurema ishyirahamwe.",
+      createdTitle: "Ishyirahamwe ryaremwe",
+      createdBody: "{name} ({code}) rirakora kandi ryiteguye kwakira abanyamuryango.",
+      giveToAdmin: "Ha umuyobozi aya makuru",
+      signInWith: "Yinjira akoresheje",
+      temporaryPassword: "Ijambobanga ry'agateganyo",
+      temporaryPasswordHint: "Azasabwa kurihindura bwa mbere yinjiye.",
+      website: "Urubuga",
+      websiteHint: "Urubuga rwaryo n'aho kwinjirira, byatangiye gukora.",
+      joinLink: "Abanyamuryango biyandikisha kuri",
+      joinLinkHint:
+        "Sangiza iri shyirahamwe uyu muyoboro; ubusabe butegereza ko umuyobozi waryo abwemeza.",
+      copyDetails: "Koporora amakuru",
+      passwordWarning:
+        "Iri jambobanga rigaragara rimwe gusa. Niriramuka ritakaye, umuyobozi arishobora kurihindura anyuze ku rupapuro rwo kwinjira.",
+      createAnother: "Rema irindi",
+      backToList: "Subira ku mashyirahamwe",
     },
     admins: {
       title: "Abayobozi",

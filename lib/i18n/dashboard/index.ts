@@ -11,6 +11,7 @@ import { admin, type AdminCopy } from "./admin";
 import { platform, type PlatformCopy } from "./platform";
 import { views, type ViewsCopy } from "./views";
 import { rules, type RulesCopy } from "./rules";
+import { sites, type SitesCopy } from "./sites";
 
 /**
  * Dashboard translations.
@@ -51,6 +52,8 @@ export interface DashboardDictionary {
   /// The rulebook: read by both the member and the committee, so it is one
   /// section rather than a copy on each side. See ./rules.ts.
   rules: RulesCopy;
+  /// The platform's home (/) and the hosted association sites (/abc).
+  sites: SitesCopy;
 }
 
 const dashboardDictionary: Record<Locale, DashboardDictionary> = {
@@ -67,6 +70,7 @@ const dashboardDictionary: Record<Locale, DashboardDictionary> = {
     platform: platform.en,
     views: views.en,
     rules: rules.en,
+    sites: sites.en,
   },
   rw: {
     nav: nav.rw,
@@ -81,6 +85,7 @@ const dashboardDictionary: Record<Locale, DashboardDictionary> = {
     platform: platform.rw,
     views: views.rw,
     rules: rules.rw,
+    sites: sites.rw,
   },
 };
 

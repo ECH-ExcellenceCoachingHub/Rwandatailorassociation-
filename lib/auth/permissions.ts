@@ -95,6 +95,10 @@ export const PERMISSIONS = {
   BORROWINGS_MANAGE: "borrowings.manage",
   INVESTMENTS_VIEW: "investments.view",
   INVESTMENTS_MANAGE: "investments.manage",
+  /// Taking money out of the members' pool: every member's balance goes down
+  /// by their part, and every one of them is told why.
+  POOL_DEDUCTIONS_VIEW: "pool_deductions.view",
+  POOL_DEDUCTIONS_POST: "pool_deductions.post",
 
   // The warehouse ----------------------------------------------------------
   // Association property held in a form that is not cash. Split four ways
@@ -223,6 +227,8 @@ export const PERMISSION_METADATA: Record<
   [PERMISSIONS.BORROWINGS_MANAGE]: { name: "Manage borrowings", category: "Association finances", description: "Record a new bank facility, its repayments, and what members are told about it" },
   [PERMISSIONS.INVESTMENTS_VIEW]: { name: "View investments", category: "Association finances", description: "See everything the association has put money into, including unpublished entries" },
   [PERMISSIONS.INVESTMENTS_MANAGE]: { name: "Manage investments", category: "Association finances", description: "Record what the association invested in, what it returned, and the benefit to members" },
+  [PERMISSIONS.POOL_DEDUCTIONS_VIEW]: { name: "View pool deductions", category: "Association finances", description: "See money taken out of the members' pool and how it was split" },
+  [PERMISSIONS.POOL_DEDUCTIONS_POST]: { name: "Post pool deductions", category: "Association finances", description: "Take money out of the members' pool, reducing every member's balance by their part — requires a written reason and notifies every member" },
 
   [PERMISSIONS.WAREHOUSE_VIEW]: { name: "View the warehouse", category: "Warehouse", description: "See what stock the association holds, what it is worth, and what members have taken" },
   [PERMISSIONS.WAREHOUSE_MANAGE]: { name: "Manage stock", category: "Warehouse", description: "Add items to the catalogue, change their price, and record deliveries coming in" },
@@ -337,6 +343,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, PermissionCode[]> = {
     PERMISSIONS.BORROWINGS_MANAGE,
     PERMISSIONS.INVESTMENTS_VIEW,
     PERMISSIONS.INVESTMENTS_MANAGE,
+    PERMISSIONS.POOL_DEDUCTIONS_VIEW,
+    PERMISSIONS.POOL_DEDUCTIONS_POST,
 
     PERMISSIONS.WAREHOUSE_VIEW,
     PERMISSIONS.WAREHOUSE_MANAGE,

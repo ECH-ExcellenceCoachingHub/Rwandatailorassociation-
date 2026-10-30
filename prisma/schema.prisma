@@ -45,6 +45,7 @@ model Association {
   updatedAt               DateTime                     @updatedAt
   archivedAt              DateTime?
   investments             AssociationInvestment[]
+  poolDeductions          AssociationDeduction[]
   rules                   AssociationRule[]
   auditLogs               AuditLog[]
   bkPaymentClaims         BkPaymentClaim[]
@@ -118,6 +119,7 @@ model User {
   title                        String?
   accessQrCodes                AccessQrCode[]
   recordedInvestments          AssociationInvestment[]       @relation("InvestmentRecordedBy")
+  recordedPoolDeductions       AssociationDeduction[]        @relation("PoolDeductionRecordedBy")
   ruleRevisions                AssociationRuleRevision[]     @relation("RuleRevisionChangedBy")
   createdRules                 AssociationRule[]             @relation("RuleCreatedBy")
   updatedRules                 AssociationRule[]             @relation("RuleUpdatedBy")
@@ -430,6 +432,9 @@ model Member {
   cardDeliveredById          String?
   bkPaymentClaims            BkPaymentClaim[]
   bkTransactions             BkTransaction[]
+  /// Pool deductions made for this member's benefit — e.g. a loan to them
+  /// paid out of everybody's savings.
+  poolDeductionsFor          AssociationDeduction[]      @relation("PoolDeductionBeneficiary")
   contributionFines          ContributionFine[]
   documents                  Document[]
   guarantorFor               Guarantor[]
@@ -587,6 +592,9 @@ model SavingsTransaction {
   /// Mandatory justification for manual ADJUSTMENT rows — enforced in the
   /// service layer, which refuses to post an adjustment without one.
   adjustmentReason       String?
+  /// Set when this row is one member's share of an association-wide
+  /// deduction (see AssociationDeduction).
+  poolDeductionId        String?
   valueDate              DateTime                @default(now())
   createdAt              DateTime                @default(now())
   contributionFine       ContributionFine?
@@ -597,6 +605,7 @@ model SavingsTransaction {
   loanTransaction        LoanTransaction?        @relation(fields: [loanTransactionId], references: [id])
   member                 Member                  @relation(fields: [memberId], references: [id])
   payment                Payment?                @relation(fields: [paymentId], references: [id])
+  poolDeduction          AssociationDeduction?   @relation(fields: [poolDeductionId], references: [id])
   postedBy               User?                   @relation("TransactionPostedBy", fields: [postedById], references: [id])
   reversalOf             SavingsTransaction?     @relation("TransactionReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
   reversedBy             SavingsTransaction?     @relation("TransactionReversal")
@@ -612,6 +621,7 @@ model SavingsTransaction {
   @@index([savingsAccountId, createdAt])
   @@index([memberId, createdAt])
   @@index([externalReference])
+  @@index([poolDeductionId])
   @@map("savings_transactions")
 }
 
@@ -1271,6 +1281,41 @@ model AssociationInvestment {
   @@index([associationId, isPublic])
   @@index([fundedByLoanId])
   @@map("association_investments")
+}
+
+/// MONEY TAKEN OUT OF THE MEMBERS' POOL.
+///
+/// When the association spends or lends out money that is held as members'
+/// savings — a loan to one member paid for by everybody, a purchase for the
+/// association, an expense — every member's balance goes down by their part
+/// of it. This row is the decision; the per-member debits are ordinary
+/// ADJUSTMENT rows on each savings ledger, linked back here by
+/// `poolDeductionId`, so a member reading their statement can follow any one
+/// of them to the reason it was taken.
+model AssociationDeduction {
+  id                  String                  @id @default(cuid())
+  associationId       String
+  /// e.g. "DED-2610-K7M2QRXT4W", printed on every member's ledger row.
+  reference           String                  @unique
+  purpose             PoolDeductionPurpose
+  /// One line, shown as the heading wherever a member sees this.
+  title               String
+  /// Why the money was taken. Every affected member is sent this text.
+  reason              String
+  totalAmount         Decimal                 @db.Decimal(18, 2)
+  allocation          PoolDeductionAllocation
+  membersAffected     Int
+  /// The member the money went to, when it went to one (a loan, support).
+  beneficiaryMemberId String?
+  recordedById        String
+  createdAt           DateTime                @default(now())
+  association         Association             @relation(fields: [associationId], references: [id])
+  beneficiary         Member?                 @relation("PoolDeductionBeneficiary", fields: [beneficiaryMemberId], references: [id])
+  recordedBy          User                    @relation("PoolDeductionRecordedBy", fields: [recordedById], references: [id])
+  transactions        SavingsTransaction[]
+
+  @@index([associationId, createdAt])
+  @@map("association_deductions")
 }
 
 model Notification {
@@ -2635,6 +2680,24 @@ enum InvestmentStatus {
   COMPLETED
   PAUSED
   CANCELLED
+}
+
+/// Why money left the members' pool.
+enum PoolDeductionPurpose {
+  MEMBER_LOAN
+  ASSOCIATION_PROJECT
+  ASSOCIATION_EXPENSE
+  OTHER
+}
+
+/// How a pool deduction is divided between members.
+enum PoolDeductionAllocation {
+  /// In proportion to each member's balance. Never overdraws anyone.
+  BY_BALANCE
+  /// In proportion to shares (imigabane) held.
+  BY_SHARES
+  /// The same amount from every member.
+  EQUAL
 }
 
 enum NotificationChannel {

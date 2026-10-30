@@ -13,7 +13,7 @@ import { StatementDownload } from "@/components/dashboard/StatementDownload";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.member.statements.title} | RTA`,
+    title: d.member.statements.title,
   };
 }
 

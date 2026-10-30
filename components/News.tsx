@@ -16,7 +16,7 @@ export default function News() {
           {t.news.title}
         </h3>
         <Link
-          href="/news"
+          href="/rta/news"
           className="text-sm font-semibold text-primary hover:text-primary-hover"
         >
           {t.news.viewAll}

@@ -50,7 +50,7 @@ import { Alert } from "@/components/ui/alert";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.admin.memberCards.title} | RTA`,
+    title: d.admin.memberCards.title,
     robots: { index: false, follow: false },
   };
 }
@@ -276,13 +276,13 @@ export default async function AdminMemberCardsPage({
                     <CardPdfButton
                       href={batchHref("front", batch)}
                       label={copy.fronts}
-                      fallbackName={`rta-cards-front-${from}-${to}.pdf`}
+                      fallbackName={`cards-front-${from}-${to}.pdf`}
                       variant="primary"
                     />
                     <CardPdfButton
                       href={batchHref("back", batch)}
                       label={copy.backs}
-                      fallbackName={`rta-cards-back-${from}-${to}.pdf`}
+                      fallbackName={`cards-back-${from}-${to}.pdf`}
                     />
                   </div>
                 </li>
@@ -369,12 +369,12 @@ export default async function AdminMemberCardsPage({
                     <CardPdfButton
                       href={`${memberUrl}/card?side=front`}
                       label={copy.front}
-                      fallbackName={`rta-card-front-${card.memberNumber}.pdf`}
+                      fallbackName={`card-front-${card.memberNumber}.pdf`}
                     />
                     <CardPdfButton
                       href={`${memberUrl}/card?side=back`}
                       label={copy.back}
-                      fallbackName={`rta-card-back-${card.memberNumber}.pdf`}
+                      fallbackName={`card-back-${card.memberNumber}.pdf`}
                     />
                   </div>
                 </li>

@@ -24,7 +24,7 @@ import type { MemberStatus, UserStatus } from "@/lib/generated/prisma/enums";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.admin.members.title} | RTA`,
+    title: d.admin.members.title,
   };
 }
 

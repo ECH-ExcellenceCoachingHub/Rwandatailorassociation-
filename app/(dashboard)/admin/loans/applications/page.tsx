@@ -18,7 +18,7 @@ import { approvalCeiling } from "@/lib/services/loans";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.admin.applications.title} | RTA`,
+    title: d.admin.applications.title,
   };
 }
 

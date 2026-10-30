@@ -19,6 +19,10 @@ import {
 } from "@/lib/services/warehouse";
 import { listMemberFines, type MemberFines } from "@/lib/services/fines";
 import { getMemberGuarantees, type MemberGuarantees } from "@/lib/services/guarantors";
+import {
+  listMemberPoolDeductions,
+  type PoolDeductionSummary,
+} from "@/lib/services/pool-deductions";
 import type {
   MemberStatus,
   KycStatus,
@@ -239,6 +243,10 @@ export interface AccountStatusSummary {
   /// page that asks the reader to decide something, and it is answered here.
   guarantees: MemberGuarantees;
 
+  /// Money the association took out of every member's savings, with the
+  /// reason and this member's part. Newest first, capped.
+  poolDeductions: PoolDeductionSummary[];
+
   /// Every movement on the member's ledger, newest first, capped. The page
   /// links onward to the full statement rather than paginating here.
   transactions: AccountTransactionRow[];
@@ -330,6 +338,7 @@ export async function getAccountStatusSummary(
     openLoanCount,
     guarantees,
     serviceFees,
+    poolDeductions,
   ] = await Promise.all([
       prisma.loan.findFirst({
         where: { memberId, status: { in: LIVE_LOAN_STATUSES } },
@@ -404,6 +413,8 @@ export async function getAccountStatusSummary(
         where: { memberId, status: "CHARGED" },
         _sum: { amount: true },
       }),
+
+      listMemberPoolDeductions(memberId),
     ]);
 
   const account = member.savingsAccounts[0] ?? null;
@@ -474,6 +485,7 @@ export async function getAccountStatusSummary(
     warehouse,
     fines,
     guarantees,
+    poolDeductions,
 
     transactions: transactions.map((transaction) => ({
       id: transaction.id,

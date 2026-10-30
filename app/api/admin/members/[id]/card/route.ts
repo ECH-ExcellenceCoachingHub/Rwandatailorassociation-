@@ -51,7 +51,7 @@ export const GET = withErrorHandling(
 
     const headers = {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="rta-card-${side}-${member.memberNumber}.pdf"`,
+      "Content-Disposition": `attachment; filename="card-${side}-${member.memberNumber}.pdf"`,
       "Cache-Control": "no-store, private",
     };
 

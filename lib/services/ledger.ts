@@ -70,6 +70,8 @@ export interface PostTransactionInput {
   postedById?: string | null;
   /// Mandatory for ADJUSTMENT. Enforced below, not merely documented.
   adjustmentReason?: string | null;
+  /// Links the row to the association-wide deduction it is a share of.
+  poolDeductionId?: string | null;
 
   valueDate?: Date;
   /// Permit the balance to go negative. Only fee/penalty postings should.
@@ -260,6 +262,7 @@ async function postWithin(
         loanTransactionId: input.loanTransactionId ?? null,
         postedById: input.postedById ?? null,
         adjustmentReason: input.adjustmentReason ?? null,
+        poolDeductionId: input.poolDeductionId ?? null,
         valueDate: input.valueDate ?? new Date(),
       },
       select: {
@@ -380,6 +383,13 @@ export async function reverseSavingsTransactionWithin(
     throw new LedgerError("A reversal requires a written reason", "REASON_REQUIRED");
   }
 
+  // Lock the original row so two concurrent reversals of the same transaction
+  // cannot both pass the not-yet-reversed check. The first transaction to hold
+  // the lock marks it REVERSED; the second blocks, then sees REVERSED and throws.
+  await tx.$executeRaw`
+    SELECT 1 FROM "savings_transactions" WHERE id = ${transactionId} FOR UPDATE
+  `;
+
   const original = await tx.savingsTransaction.findUnique({
     where: { id: transactionId },
     select: {
@@ -391,6 +401,8 @@ export async function reverseSavingsTransactionWithin(
       direction: true,
       amount: true,
       status: true,
+      valueDate: true,
+      createdAt: true,
       reversedBy: { select: { id: true } },
       platformFeeCharge: { select: { id: true, status: true, remittedAt: true } },
     },
@@ -423,6 +435,10 @@ export async function reverseSavingsTransactionWithin(
     description: params.description ?? `Reversal of ${original.reference}: ${reason}`,
     postedById: reversedById,
     adjustmentReason: reason,
+    // Show the reversal on the same day as the original transaction, not on
+    // the day it happens to be processed — otherwise a reversed fee looks like
+    // it landed on a different date from the fee itself.
+    valueDate: original.valueDate ?? original.createdAt,
     // A reversal must always be postable, even if it takes the balance
     // negative — refusing to undo an erroneous credit because the member has
     // since spent it would leave the books wrong permanently.

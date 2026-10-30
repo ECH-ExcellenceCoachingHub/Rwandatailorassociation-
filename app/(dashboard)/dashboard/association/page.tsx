@@ -27,6 +27,8 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Alert } from "@/components/ui/alert";
 import { FundsAllocationBar } from "@/components/dashboard/FundsAllocationBar";
+import { PoolDeductionCard } from "@/components/dashboard/PoolDeductionCard";
+import { listPoolDeductions } from "@/lib/services/pool-deductions";
 
 /**
  * THE MEMBERS' VIEW OF THE ASSOCIATION'S BOOKS.
@@ -43,7 +45,7 @@ import { FundsAllocationBar } from "@/components/dashboard/FundsAllocationBar";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
-  return { title: `${d.member.association.title} | RTA Savings & Loans` };
+  return { title: d.member.association.title };
 }
 
 // Never cached: a member reading this the morning after a general meeting must
@@ -57,9 +59,12 @@ export default async function AssociationFinancesPage() {
 
   const associationId = context.user.associationId;
 
-  const data = associationId
-    ? await getAssociationFinances(associationId, { memberId: context.member!.id })
-    : null;
+  const [data, deductions] = associationId
+    ? await Promise.all([
+        getAssociationFinances(associationId, { memberId: context.member!.id }),
+        listPoolDeductions(associationId, { memberId: context.member!.id }),
+      ])
+    : [null, []];
 
   // Defensive only: a MEMBER-role account always belongs to an association, so
   // reaching here means the account is broken rather than that the association
@@ -461,7 +466,36 @@ export default async function AssociationFinancesPage() {
         )}
       </section>
 
-      {/* 6. What did it buy? */}
+      {/* 6. What was taken out of everybody's savings, and why? Shown even
+          when empty, so a member can see for themselves that nothing was. */}
+      <section>
+        <div className="mb-4">
+          <h2 className="font-heading text-lg font-semibold text-ink">
+            {copy.deductionsTitle}
+          </h2>
+          <p className="mt-0.5 text-sm text-ink-muted">{copy.deductionsHint}</p>
+        </div>
+
+        {deductions.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-border px-5 py-4 text-sm text-ink-muted">
+            {copy.noDeductionsBody}
+          </p>
+        ) : (
+          <div className="grid gap-4 xl:grid-cols-2">
+            {deductions.map((deduction) => (
+              <PoolDeductionCard
+                key={deduction.id}
+                deduction={deduction}
+                d={d}
+                locale={locale}
+                currency={currency}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 7. What did it buy? */}
       <section>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>

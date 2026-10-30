@@ -31,7 +31,7 @@ import {
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.platform.jobs.title} | RTA`,
+    title: d.platform.jobs.title,
   };
 }
 

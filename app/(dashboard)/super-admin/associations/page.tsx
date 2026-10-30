@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
-import { AlertTriangle, Building2, HandCoins, PiggyBank, Users } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, Building2, HandCoins, PiggyBank, Plus, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { listAssociations } from "@/lib/services/associations";
 import { formatMoney } from "@/lib/money";
@@ -30,7 +32,7 @@ import type { AssociationStatus } from "@/lib/generated/prisma/enums";
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
   return {
-    title: `${d.platform.associations.title} | RTA`,
+    title: d.platform.associations.title,
   };
 }
 
@@ -77,7 +79,18 @@ export default async function SuperAdminAssociationsPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader title={copy.title} description={copy.description} />
+      <PageHeader
+        title={copy.title}
+        description={copy.description}
+        actions={
+          <Button asChild size="sm">
+            <Link href="/super-admin/associations/new">
+              <Plus className="size-4" aria-hidden="true" />
+              {d.platform.newAssociation.createButton}
+            </Link>
+          </Button>
+        }
+      />
 
       <StatGrid columns={4}>
         <StatCard

@@ -39,7 +39,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
     context.member?.memberNumber ??
     context.user.fullName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") ??
     "account";
-  const filename = `rta-signin-qr-${slug}.${format}`;
+  const filename = `signin-qr-${slug}.${format}`;
 
   const headers = {
     "Content-Disposition": `attachment; filename="${filename}"`,

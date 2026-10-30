@@ -59,7 +59,7 @@ import {
 
 export async function generateMetadata(): Promise<Metadata> {
   const { d } = await getDashboardCopy();
-  return { title: `${d.member.warehouse.title} | RTA` };
+  return { title: d.member.warehouse.title };
 }
 
 export const dynamic = "force-dynamic";
