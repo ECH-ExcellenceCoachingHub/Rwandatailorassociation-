@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { PLATFORM_BRAND, PLATFORM_TITLE } from "@/lib/brand";
 import { getPlatformStats, listPublicAssociations } from "@/lib/services/associations";
 import { getDashboardCopy } from "@/lib/i18n/server";
@@ -10,6 +11,9 @@ import { AssociationDirectory } from "@/components/sites/AssociationDirectory";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
+  if (process.env.SITE_ASSOCIATION) {
+    return { title: "RTA — Rwanda Tailors Association" };
+  }
   const { d } = await getDashboardCopy();
   return { title: { absolute: PLATFORM_TITLE }, description: d.sites.platform.description };
 }
@@ -26,6 +30,10 @@ export async function generateMetadata(): Promise<Metadata> {
  * numbers on the page are the stats band's counts, and never money.
  */
 export default async function PlatformHomePage() {
+  if (process.env.SITE_ASSOCIATION) {
+    redirect(`/${process.env.SITE_ASSOCIATION.toLowerCase()}`);
+  }
+
   const [{ d, locale }, associations, stats] = await Promise.all([
     getDashboardCopy(),
     listPublicAssociations(),

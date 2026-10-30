@@ -134,6 +134,13 @@ const schema = z
     LOAN_REMINDER_CRON: z.string().default("0 8 * * *"),
     OVERDUE_CHECK_CRON: z.string().default("0 1 * * *"),
 
+    // Site association -------------------------------------------------------
+    // When set, the root path "/" shows this association's site instead of the
+    // SSPSG platform page. Used for per-association deployments (each
+    // association gets its own Render service + database). Leave unset for the
+    // shared SSPSG platform deployment.
+    SITE_ASSOCIATION: z.string().optional(),
+
     // Bank of Kigali OpenAPI -----------------------------------------------
     BK_MODE: z.enum(["sandbox", "live"]).default("sandbox"),
     BK_API_BASE_URL: z.string().url().default("https://sandbox.bk.rw"),
