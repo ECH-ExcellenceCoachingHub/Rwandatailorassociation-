@@ -17,9 +17,11 @@ import type { DistrictReport } from "./district-report";
  * since, plus everything debited since. Completed ledger rows are the only
  * record of every movement, so the arithmetic closes exactly.
  *
- * The period is a day: yesterday's closing balance against what is held now,
- * which is the comparison the association already makes when it reads the
- * figures out at a meeting.
+ * The period is chosen by the reader. By default it opens on the last day
+ * deposits were posted — the day the latest statement or payments went in — so
+ * the uplift shows what that batch added, however many quiet days have passed
+ * since. Yesterday, the start of the month, or any earlier day's close can be
+ * picked instead.
  *
  * THE CARD IS COUNTED DIFFERENTLY FROM EVERYTHING ELSE ON THE PAGE. It is the
  * one report that leaves the building — it is captured as a picture and shared
@@ -45,9 +47,13 @@ export interface GrowthRow {
 export interface GrowthReport {
   association: { name: string; code: string } | null;
   asOf: Date;
-  /// The day the comparison period opened — midnight today, so the balance it
-  /// derives is yesterday's closing figure.
+  /// The moment the comparison period opened — always a midnight, so the
+  /// balance it derives is the previous day's closing figure.
   since: Date;
+  /// What the reader chose to compare against.
+  comparison: GrowthComparison;
+  /// When deposits were last posted, or null if none ever have been.
+  lastDepositAt: Date | null;
   /// Savings held when the period opened, derived from the ledger.
   previousSavings: string;
   /// Districts ranked by savings, highest first — the card's table order.
@@ -63,9 +69,90 @@ export interface GrowthReport {
   };
 }
 
+/** Midnight at the start of the day in hand. */
+export function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
+}
+
 /** Midnight today: the line between yesterday and now. */
 export function startOfToday(now: Date): Date {
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  return startOfDay(now);
+}
+
+/**
+ * What the growth figure is measured against:
+ * - "last-deposit": the close of the day before deposits were last posted;
+ * - "yesterday": yesterday's close;
+ * - "month": the close of last month;
+ * - "date": the close of a day the reader picked (`date`, YYYY-MM-DD).
+ */
+export const COMPARISON_MODES = ["last-deposit", "yesterday", "month", "date"] as const;
+export type ComparisonMode = (typeof COMPARISON_MODES)[number];
+
+export interface GrowthComparison {
+  mode: ComparisonMode;
+  /// The picked day as YYYY-MM-DD; null unless mode is "date".
+  date: string | null;
+}
+
+export const DEFAULT_COMPARISON: GrowthComparison = { mode: "last-deposit", date: null };
+
+/** A YYYY-MM-DD string as local midnight, or null if it is not a real day. */
+export function parseDay(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const [year, month, day] = [Number(match[1]), Number(match[2]) - 1, Number(match[3])];
+  const date = new Date(year, month, day);
+  // 2026-02-31 would otherwise roll quietly into March.
+  return date.getFullYear() === year && date.getMonth() === month && date.getDate() === day
+    ? date
+    : null;
+}
+
+/** Local YYYY-MM-DD, the shape a date input reads and writes. */
+export function formatDay(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/**
+ * The comparison named in the page's query string. Anything unrecognised — and
+ * a picked day that is today or later, whose close has not happened yet —
+ * falls back to the default rather than failing the page.
+ */
+export function parseComparison(raw: string | undefined, now: Date): GrowthComparison {
+  if (raw === "yesterday" || raw === "month" || raw === "last-deposit") {
+    return { mode: raw, date: null };
+  }
+  const day = raw ? parseDay(raw) : null;
+  if (raw && day && day < startOfToday(now)) return { mode: "date", date: raw };
+  return DEFAULT_COMPARISON;
+}
+
+/**
+ * Where the ledger window opens for a comparison. The window always opens at
+ * a midnight, and the balance before it is the previous day's close — so a
+ * picked day's close means opening the window the morning after.
+ */
+export function comparisonStart(
+  comparison: GrowthComparison,
+  now: Date,
+  lastDepositAt: Date | null
+): Date {
+  switch (comparison.mode) {
+    case "yesterday":
+      return startOfToday(now);
+    case "month":
+      return new Date(now.getFullYear(), now.getMonth(), 1);
+    case "date": {
+      const day = comparison.date ? parseDay(comparison.date) : null;
+      if (!day) return startOfToday(now);
+      return new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1);
+    }
+    case "last-deposit":
+      // Nothing deposited yet: there is no batch to measure, so yesterday it is.
+      return lastDepositAt ? startOfDay(lastDepositAt) : startOfToday(now);
+  }
 }
 
 /**
@@ -134,11 +221,22 @@ export function growthTotals(rows: GrowthRow[]): GrowthReport["totals"] {
 export async function buildGrowthReport(
   associationId: string | null,
   districtReport: DistrictReport,
-  since: Date = startOfToday(districtReport.asOf)
+  comparison: GrowthComparison = DEFAULT_COMPARISON
 ): Promise<GrowthReport> {
   // null means platform-wide (super admin). Prisma needs the filter omitted
   // entirely rather than set to null.
   const scope = associationId ? { associationId } : {};
+
+  // Posting time, not value date: "the last day we added deposits" is the day
+  // a statement was imported, whatever dates the bank put on its lines. Fee
+  // runs and other debits post nightly, so only deposits mark a batch.
+  const lastDeposit = await prisma.savingsTransaction.findFirst({
+    where: { ...scope, status: "COMPLETED", type: "DEPOSIT", direction: "CREDIT" },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  const lastDepositAt = lastDeposit?.createdAt ?? null;
+  const since = comparisonStart(comparison, districtReport.asOf, lastDepositAt);
 
   const [credits, debits] = await Promise.all([
     prisma.savingsTransaction.aggregate({
@@ -158,6 +256,8 @@ export async function buildGrowthReport(
     association: districtReport.association,
     asOf: districtReport.asOf,
     since,
+    comparison,
+    lastDepositAt,
     // A district with no savings adds nothing to this total, so it is the whole
     // register's figure however the rows are cut — and it is the same total the
     // card's table adds up to.

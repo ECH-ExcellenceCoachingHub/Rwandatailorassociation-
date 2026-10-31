@@ -71,8 +71,8 @@ export function GrowthReportCard({ report }: { report: GrowthReport }) {
   const maxSavings = Math.max(0, ...report.rows.map((row) => Number(row.savings)));
 
   const asOf = formatLongDate(report.asOf, locale);
-  // The ledger window opens at midnight today, so the balance it derives is
-  // yesterday's — that is the date the sentence names.
+  // The ledger window opens at a midnight, so the balance it derives is the
+  // previous day's close — that is the date the sentence names.
   const comparedFrom = new Date(report.since);
   comparedFrom.setDate(comparedFrom.getDate() - 1);
   const since = formatLongDate(comparedFrom, locale);

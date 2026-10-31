@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  comparisonStart,
   districtsWithSavings,
+  parseComparison,
   growthRows,
   growthTotals,
   previousBalance,
@@ -54,6 +56,63 @@ describe("startOfToday", () => {
     const start = startOfToday(new Date(2026, 0, 1, 23, 59));
     expect(start.getDate()).toBe(1);
     expect(start.getHours()).toBe(0);
+  });
+});
+
+/**
+ * What the growth figure is measured against. The window always opens at a
+ * midnight, and the balance before it is the previous day's close.
+ */
+
+const NOW = new Date(2026, 9, 31, 14, 30);
+
+describe("parseComparison", () => {
+  it("defaults to the last deposits when nothing is asked for", () => {
+    expect(parseComparison(undefined, NOW)).toEqual({ mode: "last-deposit", date: null });
+  });
+
+  it("reads the named modes", () => {
+    expect(parseComparison("yesterday", NOW).mode).toBe("yesterday");
+    expect(parseComparison("month", NOW).mode).toBe("month");
+  });
+
+  it("takes a picked day before today", () => {
+    expect(parseComparison("2026-10-27", NOW)).toEqual({ mode: "date", date: "2026-10-27" });
+  });
+
+  it("refuses today, the future and days that do not exist", () => {
+    for (const raw of ["2026-10-31", "2026-11-05", "2026-02-31", "date", "nonsense"]) {
+      expect(parseComparison(raw, NOW).mode).toBe("last-deposit");
+    }
+  });
+});
+
+describe("comparisonStart", () => {
+  it("opens on the day deposits were last posted", () => {
+    const start = comparisonStart(
+      { mode: "last-deposit", date: null },
+      NOW,
+      new Date(2026, 9, 27, 16, 5)
+    );
+    expect(start).toEqual(new Date(2026, 9, 27));
+  });
+
+  it("falls back to yesterday when nothing has been deposited", () => {
+    expect(comparisonStart({ mode: "last-deposit", date: null }, NOW, null)).toEqual(
+      new Date(2026, 9, 31)
+    );
+  });
+
+  it("opens the morning after a picked day, so that day's close is the baseline", () => {
+    expect(comparisonStart({ mode: "date", date: "2026-10-27" }, NOW, null)).toEqual(
+      new Date(2026, 9, 28)
+    );
+  });
+
+  it("opens on the first of the month for the month view", () => {
+    expect(comparisonStart({ mode: "month", date: null }, NOW, null)).toEqual(
+      new Date(2026, 9, 1)
+    );
   });
 });
 

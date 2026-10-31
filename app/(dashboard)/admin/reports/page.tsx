@@ -13,7 +13,13 @@ import { ReportsView } from "@/components/dashboard/ReportsView";
 import { DistrictReportPanel } from "@/components/dashboard/DistrictReportPanel";
 import { GrowthReportCard } from "@/components/dashboard/GrowthReportCard";
 import { buildDistrictReport } from "@/lib/services/district-report";
-import { buildGrowthReport } from "@/lib/services/growth-report";
+import { GrowthComparePicker } from "@/components/dashboard/GrowthComparePicker";
+import {
+  buildGrowthReport,
+  formatDay,
+  parseComparison,
+  startOfToday,
+} from "@/lib/services/growth-report";
 import {
   AlertTriangle,
   Clock,
@@ -39,7 +45,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminReportsPage() {
+export default async function AdminReportsPage({
+  searchParams,
+}: {
+  /// compare: what the growth card measures against — see parseComparison.
+  searchParams: Promise<{ compare?: string }>;
+}) {
   const context = await requirePermission(
     PERMISSIONS.REPORTS_VIEW_ASSOCIATION,
     "/admin/reports"
@@ -60,7 +71,14 @@ export default async function AdminReportsPage() {
     context.permissions.has(PERMISSIONS.REPORTS_EXPORT) &&
     context.permissions.has(PERMISSIONS.SAVINGS_VIEW_ALL);
   // Reuses the district rows already loaded — the register is scanned once.
-  const growth = districts ? await buildGrowthReport(associationId, districts) : null;
+  const { compare } = await searchParams;
+  const now = districts?.asOf ?? new Date();
+  const growth = districts
+    ? await buildGrowthReport(associationId, districts, parseComparison(compare, now))
+    : null;
+  // The latest day whose close has happened: yesterday.
+  const yesterday = startOfToday(now);
+  yesterday.setDate(yesterday.getDate() - 1);
 
   return (
     <div className="space-y-7">
@@ -148,8 +166,15 @@ export default async function AdminReportsPage() {
       {growth && (
         // The card is a fixed-width sheet, so a narrow screen scrolls it
         // rather than squeezing the design the PNG is captured from.
-        <div className="-mx-1 overflow-x-auto px-1 pb-1">
-          <GrowthReportCard report={growth} />
+        <div className="space-y-3">
+          <GrowthComparePicker
+            comparison={growth.comparison}
+            lastDepositAt={growth.lastDepositAt}
+            maxDate={formatDay(yesterday)}
+          />
+          <div className="-mx-1 overflow-x-auto px-1 pb-1">
+            <GrowthReportCard report={growth} />
+          </div>
         </div>
       )}
 

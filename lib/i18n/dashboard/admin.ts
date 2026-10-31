@@ -844,6 +844,16 @@ export interface AdminCopy {
       downloadImage: string;
       imageReady: string;
       imageFailed: string;
+      /// The comparison picker above the card — never part of the image.
+      compareLabel: string;
+      compareLastDeposit: string;
+      compareYesterday: string;
+      compareMonth: string;
+      compareDate: string;
+      compareDateLabel: string;
+      /// {date} — the day deposits were last posted.
+      compareLastDepositHint: string;
+      compareNoDeposits: string;
     };
   };
   /// One member's payments, opened from the payments list.
@@ -2298,6 +2308,14 @@ export const admin: Record<Locale, AdminCopy> = {
         downloadImage: "Download image",
         imageReady: "The report image has been downloaded.",
         imageFailed: "The image could not be created. Please try again.",
+        compareLabel: "Compare growth against",
+        compareLastDeposit: "Before the last deposits were added",
+        compareYesterday: "Yesterday",
+        compareMonth: "Start of this month",
+        compareDate: "A date I choose",
+        compareDateLabel: "Close of day",
+        compareLastDepositHint: "Deposits were last added on {date}.",
+        compareNoDeposits: "No deposits have been added yet.",
       },
     },
     memberPayments: {
@@ -3853,6 +3871,14 @@ export const admin: Record<Locale, AdminCopy> = {
         downloadImage: "Kuramo ifoto",
         imageReady: "Ifoto ya raporo yamanutse.",
         imageFailed: "Ifoto ya raporo ntiyashoboye gukorerwa. Ongera ugerageze.",
+        compareLabel: "Gereranya ubwiyongere na",
+        compareLastDeposit: "Mbere y'uko amafaranga aheruka yinjizwa",
+        compareYesterday: "Ejo hashize",
+        compareMonth: "Intangiriro y'uku kwezi",
+        compareDate: "Itariki nihitiyemo",
+        compareDateLabel: "Ku musozo w'umunsi",
+        compareLastDepositHint: "Amafaranga aheruka kwinjizwa ku wa {date}.",
+        compareNoDeposits: "Nta mafaranga arinjizwa.",
       },
     },
     memberPayments: {
