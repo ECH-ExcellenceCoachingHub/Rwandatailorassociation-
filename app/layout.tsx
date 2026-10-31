@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Poppins, Manrope } from "next/font/google";
+import localFont from "next/font/local";
 import { LanguageProvider } from "@/components/LanguageProvider";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
@@ -20,17 +20,26 @@ import "./globals.css";
  * locale are consistent everywhere, dashboards included.
  */
 
-const poppins = Poppins({
+// Self-hosted (app/fonts, the Latin subsets Google serves) rather than
+// next/font/google: that loader downloads from Google during every build, and
+// an unexpected Google response fails the whole deploy ("An error occurred in
+// `next/font`"). Same variable names, so nothing that uses them changes.
+const poppins = localFont({
   variable: "--font-poppins",
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
+  src: [
+    { path: "./fonts/poppins-latin-500.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/poppins-latin-600.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/poppins-latin-700.woff2", weight: "700", style: "normal" },
+    { path: "./fonts/poppins-latin-800.woff2", weight: "800", style: "normal" },
+  ],
   display: "swap",
 });
 
-const manrope = Manrope({
+const manrope = localFont({
   variable: "--font-manrope",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  // One variable font covering every weight the app uses (400–700).
+  src: "./fonts/manrope-latin-variable.woff2",
+  weight: "400 700",
   display: "swap",
 });
 
