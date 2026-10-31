@@ -7,7 +7,7 @@ import { splitByWeight } from "@/lib/services/pool-deductions";
  */
 
 const sum = (parts: { toString(): string }[]) =>
-  parts.reduce((total, p) => total + Number(p.toString()), 0);
+  parts.reduce<number>((total, p) => total + Number(p.toString()), 0);
 
 describe("splitByWeight", () => {
   it("splits in proportion to the weights", () => {

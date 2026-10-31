@@ -28,7 +28,9 @@ const WAIVER_REASON =
 
 function money(value: unknown): string {
   if (value === null || value === undefined) return "0.00";
-  if (typeof value.toFixed === "function") return value.toFixed(2);
+  // Prisma Decimals and numbers both have toFixed; anything else is stringified.
+  const numeric = value as { toFixed?: (digits: number) => string };
+  if (typeof numeric.toFixed === "function") return numeric.toFixed(2);
   return String(value);
 }
 

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Check, Info, Loader2, Search, Send, UserCheck, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -444,9 +445,9 @@ export function LoanApplicationForm({
         {successBefore}
         <strong>{success}</strong>
         {successAfter}{" "}
-        <a href="/dashboard/loans" className="font-semibold underline">
+        <Link href="/dashboard/loans" className="font-semibold underline">
           {copy.trackIt}
-        </a>
+        </Link>
       </Alert>
     );
   }
