@@ -105,6 +105,8 @@ export interface AuthCopy {
     backToWebsite: string;
   };
   /// The shareable /install page that puts the app on a member's phone.
+  /// `{app}` is the app's home-screen name: SSPSG on the platform's page,
+  /// STGT or the association's code on /rta/install and /abc/install.
   install: {
     /// The heading and the whole of the page's copy. The page itself shows
     /// nothing else — the button, the steps and one link out — so `subtitle`
@@ -257,11 +259,11 @@ export const auth: Record<Locale, AuthCopy> = {
       backToWebsite: "Back to the website",
     },
     install: {
-      title: "Install the SSPSG app",
-      subtitle: "Add SSPSG to your home screen. No app store needed.",
+      title: "Install the {app} app",
+      subtitle: "Add {app} to your home screen. No app store needed.",
       installButton: "Install app",
       installing: "Installing…",
-      installed: "Installed. Look for the SSPSG icon on your home screen.",
+      installed: "Installed. Look for the {app} icon on your home screen.",
       openApp: "Go to sign-in",
       iosTitle: "On iPhone or iPad",
       iosStep1: "Tap Share in Safari.",
@@ -273,7 +275,7 @@ export const auth: Record<Locale, AuthCopy> = {
       androidStep2: "Tap “Install app”.",
       desktopTitle: "On a computer",
       desktopStep1: "Tap the install icon in the address bar.",
-      desktopStep2: "Or open the browser menu (⋮) and choose “Install SSPSG”.",
+      desktopStep2: "Or open the browser menu (⋮) and choose “Install {app}”.",
       inAppTitle: "Open in your browser",
       inAppBody:
         "WhatsApp, Facebook and Instagram can’t install apps. Open this page in Chrome or Safari.",
@@ -293,7 +295,7 @@ export const auth: Record<Locale, AuthCopy> = {
       preparingMenu: "Can’t wait? Tap the menu (⋮), then “Install app”.",
       readyNow: "Ready, tap to install",
       alreadyInstalledBody: "Open it from your home screen.",
-      bannerTitle: "Get the SSPSG app",
+      bannerTitle: "Get the {app} app",
       bannerBody: "Quick access to your savings from your home screen",
       bannerInstall: "Install",
       bannerDismiss: "Close",
@@ -406,12 +408,12 @@ export const auth: Record<Locale, AuthCopy> = {
       backToWebsite: "Subira ku rubuga",
     },
     install: {
-      title: "Shyira SSPSG kuri telefone",
+      title: "Shyira {app} kuri telefone",
       subtitle:
-        "Shyira SSPSG kuri telefone yawe. Nta Play Store cyangwa App Store ikenewe.",
+        "Shyira {app} kuri telefone yawe. Nta Play Store cyangwa App Store ikenewe.",
       installButton: "Shyiramo porogaramu",
       installing: "Birimo gushyirwamo…",
-      installed: "Byarangiye. Shaka ikirango cya SSPSG kuri telefone yawe.",
+      installed: "Byarangiye. Shaka ikirango cya {app} kuri telefone yawe.",
       openApp: "Jya ahinjirirwa",
       iosTitle: "Kuri iPhone cyangwa iPad",
       iosStep1: "Kanda Share muri Safari.",
@@ -423,7 +425,7 @@ export const auth: Record<Locale, AuthCopy> = {
       androidStep2: "Kanda “Install app”.",
       desktopTitle: "Kuri mudasobwa",
       desktopStep1: "Kanda ikirango cyo gushyiramo mu murongo w'adiresi.",
-      desktopStep2: "Cyangwa fungura menu (⋮), uhitemo “Install SSPSG”.",
+      desktopStep2: "Cyangwa fungura menu (⋮), uhitemo “Install {app}”.",
       inAppTitle: "Fungura muri mushakisha",
       inAppBody:
         "WhatsApp, Facebook na Instagram ntishobora gushyiramo porogaramu. Fungura iyi paji muri Chrome cyangwa Safari.",
@@ -441,7 +443,7 @@ export const auth: Record<Locale, AuthCopy> = {
       preparingMenu: "Ntushaka gutegereza? Kanda menu (⋮), hanyuma “Install app”.",
       readyNow: "Byateguwe, kanda ushyiremo",
       alreadyInstalledBody: "Ifungure kuri telefone yawe.",
-      bannerTitle: "Porogaramu ya SSPSG",
+      bannerTitle: "Porogaramu ya {app}",
       bannerBody: "Gera ku buzigame bwawe vuba uhereye kuri telefone",
       bannerInstall: "Shyiramo",
       bannerDismiss: "Funga",

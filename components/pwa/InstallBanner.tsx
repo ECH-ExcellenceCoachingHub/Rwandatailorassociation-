@@ -14,6 +14,8 @@ import {
   isStandalone,
   takeEarlyPrompt,
 } from "@/lib/pwa/install";
+import { fill } from "@/lib/i18n/fill";
+import { appIconHref, appInstallHref, appName, appSlugFromPath } from "@/lib/pwa/apps";
 
 const DISMISS_KEY = "rta-install-banner-dismissed";
 const DISMISS_FOR_MS = 7 * 24 * 60 * 60 * 1000;
@@ -34,13 +36,18 @@ export function InstallBanner({ variant = "default" }: { variant?: BannerVariant
   const pathname = usePathname();
   const { d } = useLanguage();
   const copy = d.auth.install;
+  // The app of the site being looked at: RTA's on /rta, ABC's on /abc, SSPSG's
+  // on the shared pages. The inline script linked the same app's manifest, so
+  // the prompt it caught installs this one too.
+  const slug = appSlugFromPath(pathname);
+  const installPath = appInstallHref(slug);
   const [show, setShow] = useState(false);
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [view, setView] = useState<BannerView>("idle");
 
   useEffect(() => {
     if (variant === "page" && isStandalone()) {
-      window.location.replace(pathname === "/install" ? "/login" : pathname);
+      window.location.replace(pathname === installPath ? (slug ? `/${slug}/login` : "/login") : pathname);
       return;
     }
 
@@ -56,7 +63,7 @@ export function InstallBanner({ variant = "default" }: { variant?: BannerVariant
       setShow(true);
       setPrompt(early);
     } else {
-      void isAppInstalled().then((installed) => {
+      void isAppInstalled(slug).then((installed) => {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- reading the browser, which the server render cannot see
         if (live && !installed) setShow(true);
       });
@@ -79,11 +86,11 @@ export function InstallBanner({ variant = "default" }: { variant?: BannerVariant
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
-  }, [variant, pathname]);
+  }, [variant, pathname, slug, installPath]);
 
   // The full /install page *is* the install UI, with the same button in it.
   // A floating bar over it is noise, so it stands down there.
-  if (pathname === "/install") return null;
+  if (pathname.toLowerCase() === installPath) return null;
 
   if (!show) return null;
 
@@ -118,7 +125,7 @@ export function InstallBanner({ variant = "default" }: { variant?: BannerVariant
   return (
     <div
       role="region"
-      aria-label={copy.bannerTitle}
+      aria-label={fill(copy.bannerTitle, { app: appName(slug) })}
       className={
         isPageVariant
           ? "mx-auto max-w-2xl px-4 py-8 sm:px-6"
@@ -133,7 +140,8 @@ export function InstallBanner({ variant = "default" }: { variant?: BannerVariant
         }
       >
         <Image
-          src="/icons/icon-192.png"
+          src={appIconHref(slug)}
+          unoptimized
           alt=""
           width={isPageVariant ? 120 : 72}
           height={isPageVariant ? 120 : 72}
@@ -144,7 +152,7 @@ export function InstallBanner({ variant = "default" }: { variant?: BannerVariant
           }
         />
         <div className={isPageVariant ? "min-w-0 flex-1 text-center" : "min-w-0 flex-1 text-left"}>
-          <p className="font-heading text-lg font-semibold leading-snug text-ink sm:text-xl">{copy.bannerTitle}</p>
+          <p className="font-heading text-lg font-semibold leading-snug text-ink sm:text-xl">{fill(copy.bannerTitle, { app: appName(slug) })}</p>
           {view === "installed" ? (
             <p className="line-clamp-2 text-sm leading-snug text-success sm:text-base">{copy.installed}</p>
           ) : view === "installing" ? (
@@ -166,7 +174,7 @@ export function InstallBanner({ variant = "default" }: { variant?: BannerVariant
             {copy.bannerInstall}
           </button>
         ) : (
-          <a href={`/install?returnTo=${encodeURIComponent(pathname)}`} className={button}>
+          <a href={`${installPath}?returnTo=${encodeURIComponent(pathname)}`} className={button}>
             {copy.bannerInstall}
           </a>
         )}

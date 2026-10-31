@@ -4,6 +4,7 @@ import { LanguageProvider } from "@/components/LanguageProvider";
 import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
 import { InstallBanner } from "@/components/pwa/InstallBanner";
 import { EARLY_INSTALL_SCRIPT } from "@/lib/pwa/install";
+import { appIconHref, appManifestHref } from "@/lib/pwa/apps";
 import { PLATFORM_FULL_NAME, PLATFORM_NAME, PLATFORM_TITLE } from "@/lib/brand";
 import "./globals.css";
 
@@ -72,8 +73,11 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
   },
   icons: {
-    apple: "/icons/apple-touch-icon.png",
+    apple: appIconHref(null, "apple-touch-icon.png"),
   },
+  // The SSPSG app. RTA's site and each /abc site link their own instead, so
+  // installing from there puts that association's app on the phone.
+  manifest: appManifestHref(null),
 };
 
 export const viewport: Viewport = {

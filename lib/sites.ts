@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
-import { RTA_BRAND, associationBrand } from "@/lib/brand";
+import { type Brand, RTA_BRAND, associationBrand } from "@/lib/brand";
 import { findSiteAssociation } from "@/lib/services/associations";
 
 /**
@@ -35,6 +35,17 @@ export async function requireSite(slug: string, rtaPath: string) {
   if (!association) notFound();
 
   return { association, brand: associationBrand(association) };
+}
+
+/**
+ * The brand of an association's installable app, RTA's included — its
+ * manifest and icons are served under /rta like everyone else's. Null for a
+ * code that is not an active association.
+ */
+export async function findAppBrand(slug: string): Promise<Brand | null> {
+  if (isRtaSite(slug)) return RTA_BRAND;
+  const association = await loadSite(slug);
+  return association ? associationBrand(association) : null;
 }
 
 /** The same lookup, without the redirect or 404, for metadata and layouts. */

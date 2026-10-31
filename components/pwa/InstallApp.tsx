@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { PLATFORM_NAME } from "@/lib/brand";
+import { fill } from "@/lib/i18n/fill";
+import type { InstallableApp } from "@/lib/pwa/apps";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -57,9 +58,12 @@ type View =
  */
 export default function InstallApp({
   copy,
+  app,
   returnTo,
 }: {
   copy: AuthCopy;
+  /// The app this page installs: SSPSG's, or an association's own.
+  app: InstallableApp;
   returnTo?: string;
 }) {
   const [view, setView] = useState<View>("ready");
@@ -69,7 +73,8 @@ export default function InstallApp({
   const [copied, setCopied] = useState(false);
 
   const install = copy.install;
-  const target = returnTo || "/login";
+  const named = (template: string) => fill(template, { app: app.name });
+  const target = returnTo || app.signInHref;
 
   useEffect(() => {
     if (isStandalone()) {
@@ -100,7 +105,7 @@ export default function InstallApp({
     let live = true;
 
     if (!deferred.current) {
-      void isAppInstalled().then((installed) => {
+      void isAppInstalled(app.slug).then((installed) => {
         if (live && installed && !deferred.current) {
           setView("alreadyInstalled");
         }
@@ -133,7 +138,7 @@ export default function InstallApp({
       window.removeEventListener("beforeinstallprompt", onPrompt);
       window.removeEventListener("appinstalled", onInstalled);
     };
-  }, [target]);
+  }, [target, app.slug]);
 
   async function installApp() {
     const prompt = deferred.current;
@@ -219,15 +224,16 @@ export default function InstallApp({
       <header className="relative flex items-center justify-between gap-4 px-5 pt-6 sm:px-8">
         <div className="flex items-center gap-2.5">
           <Image
-            src="/icons/icon-192.png"
+            src={app.icon}
             alt=""
             width={36}
             height={36}
             priority
+            unoptimized
             className="size-9 rounded-xl object-contain ring-1 ring-border"
           />
           <span className="font-heading text-sm font-extrabold tracking-[0.2em] text-ink">
-            {PLATFORM_NAME}
+            {app.label}
           </span>
         </div>
 
@@ -256,11 +262,12 @@ export default function InstallApp({
 
               <div className="install-float relative rounded-[28px] bg-surface p-3 shadow-lift ring-1 ring-border">
                 <Image
-                  src="/icons/icon-192.png"
-                  alt={`${PLATFORM_NAME} app icon`}
+                  src={app.icon}
+                  alt={`${app.name} app icon`}
                   width={80}
                   height={80}
                   priority
+                  unoptimized
                   className="size-[76px] rounded-[20px] object-contain sm:size-[84px]"
                 />
               </div>
@@ -280,7 +287,7 @@ export default function InstallApp({
             </div>
 
             <h1 className="mt-7 font-heading text-[clamp(1.5rem,5vw,1.9rem)] font-extrabold leading-tight tracking-tight text-ink">
-              {install.title}
+              {named(install.title)}
             </h1>
             <span
               aria-hidden="true"
@@ -365,7 +372,7 @@ export default function InstallApp({
                     className="size-5 shrink-0 text-success"
                     aria-hidden="true"
                   />
-                  {install.installed}
+                  {named(install.installed)}
                 </p>
                 <Link href={target} className={primaryButton}>
                   <ExternalLink className="size-5 shrink-0" aria-hidden="true" />
@@ -475,7 +482,7 @@ export default function InstallApp({
                 <Step
                   n={2}
                   icon={<Download className="size-4" />}
-                  text={install.desktopStep2}
+                  text={named(install.desktopStep2)}
                 />
               </Steps>
             )}
@@ -495,7 +502,7 @@ export default function InstallApp({
           {view !== "installed" && view !== "alreadyInstalled" && (
             <p className="install-rise mt-6 text-center text-sm [animation-delay:260ms]">
               <Link
-                href="/login"
+                href={app.signInHref}
                 className="font-medium text-ink-muted underline-offset-4 transition-colors hover:text-primary hover:underline focus-visible:rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
               >
                 {install.continueInBrowser}

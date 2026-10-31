@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { appIconHref, appManifestHref } from "@/lib/pwa/apps";
 
 /**
  * RTA's site, at /rta like every association's — but its own hand-built
@@ -37,6 +38,9 @@ export const metadata: Metadata = {
     title: "STGT",
     statusBarStyle: "black-translucent",
   },
+  // RTA's own app, with its logo, rather than SSPSG's (lib/pwa/apps.ts).
+  manifest: appManifestHref("rta"),
+  icons: { apple: appIconHref("rta", "apple-touch-icon.png") },
 };
 
 export default function RtaLayout({ children }: { children: React.ReactNode }) {

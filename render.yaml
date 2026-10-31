@@ -96,6 +96,25 @@ services:
       - key: AFRICASTALKING_API_KEY
         sync: false
 
+      # File storage (member photos, statement PDFs, evidence). STORAGE_DRIVER
+      # defaults to s3, and the app refuses every request that reads its settings
+      # until the bucket and keys below are set — leaving them out is what makes a
+      # freshly created service answer 500 everywhere. Give each deployment its own
+      # bucket, or the same bucket with its own STORAGE_S3_PREFIX (e.g. "sspsg/").
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: STORAGE_S3_BUCKET
+        sync: false
+      - key: STORAGE_S3_REGION
+        sync: false
+      - key: STORAGE_S3_ENDPOINT
+        sync: false
+      - key: STORAGE_S3_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: STORAGE_S3_PREFIX
+        sync: false
       # The web service must never run the scheduler: it can be scaled to
       # several instances, which would multiply every job.
       - key: WORKER_ENABLED
@@ -184,6 +203,25 @@ services:
       - key: BACKUP_S3_PREFIX
         sync: false
 
+      # File storage (member photos, statement PDFs, evidence). STORAGE_DRIVER
+      # defaults to s3, and the app refuses every request that reads its settings
+      # until the bucket and keys below are set — leaving them out is what makes a
+      # freshly created service answer 500 everywhere. Give each deployment its own
+      # bucket, or the same bucket with its own STORAGE_S3_PREFIX (e.g. "sspsg/").
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: STORAGE_S3_BUCKET
+        sync: false
+      - key: STORAGE_S3_REGION
+        sync: false
+      - key: STORAGE_S3_ENDPOINT
+        sync: false
+      - key: STORAGE_S3_ACCESS_KEY_ID
+        sync: false
+      - key: STORAGE_S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: STORAGE_S3_PREFIX
+        sync: false
       # This is the one process that runs the scheduler.
       - key: WORKER_ENABLED
         value: "true"

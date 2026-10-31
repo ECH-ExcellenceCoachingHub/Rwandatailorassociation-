@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { PLATFORM_NAME } from "@/lib/brand";
 import { findSite } from "@/lib/sites";
+import { appIconHref, appManifestHref } from "@/lib/pwa/apps";
 
 /**
  * Every hosted association's site: /abc, /abc/login, /abc/register. Created
@@ -21,6 +22,7 @@ export async function generateMetadata({
   if (!site) return {};
 
   const description = `Savings and loans for members of ${site.name}.`;
+  const slug = site.code.toLowerCase();
   return {
     // Absolute, or the root's "| SSPSG" template would be appended to it.
     title: { absolute: site.name, template: `%s | ${site.code}` },
@@ -29,6 +31,9 @@ export async function generateMetadata({
     openGraph: { title: site.name, description, type: "website" },
     twitter: { title: site.name, description },
     appleWebApp: { capable: true, title: site.code, statusBarStyle: "black-translucent" },
+    // The association's own app, not SSPSG's (lib/pwa/apps.ts).
+    manifest: appManifestHref(slug),
+    icons: { apple: appIconHref(slug, "apple-touch-icon.png") },
   };
 }
 
