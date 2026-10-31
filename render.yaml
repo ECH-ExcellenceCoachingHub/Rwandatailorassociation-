@@ -1,10 +1,10 @@
 # =============================================================================
-# Render blueprint — RTA savings platform.
+# Render blueprint — SSPSG (Smart Saving for Private Sector Growth).
 #
 # Two services from ONE Docker image:
 #
-#   rta-web     the Next.js application (frontend and API routes together)
-#   rta-worker  the reconciliation scheduler
+#   sspsg-web     the Next.js application (frontend and API routes together)
+#   sspsg-worker  the reconciliation scheduler
 #
 # THE WORKER IS NOT OPTIONAL. It is what credits members' payments, flags
 # overdue loans, sends repayment reminders and verifies ledger integrity. If
@@ -22,7 +22,7 @@
 services:
   # --- web -------------------------------------------------------------------
   - type: web
-    name: rta-web
+    name: sspsg-web
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: starter
@@ -45,7 +45,7 @@ services:
       - key: SESSION_SECRET
         sync: false
       - key: APP_URL
-        sync: false # e.g. https://rta-web.onrender.com
+        sync: false # e.g. https://sspsg-web.onrender.com
 
       # Statement extraction. `python` rather than `auto` so a broken image
       # fails visibly instead of silently downgrading to the parser that can
@@ -103,7 +103,7 @@ services:
 
   # --- background worker -----------------------------------------------------
   - type: worker
-    name: rta-worker
+    name: sspsg-worker
     runtime: docker
     dockerfilePath: ./Dockerfile
     plan: starter
