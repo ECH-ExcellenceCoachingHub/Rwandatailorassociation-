@@ -14,9 +14,10 @@ export * from "@/lib/jenga/types";
  * Everything downstream — reconciliation, the webhook handler, the admin
  * screens — receives a `PaymentProvider` and neither knows nor cares which.
  *
- * The choice is driven by JENGA_MODE, and lib/env.ts refuses to validate a
- * production environment set to `sandbox`, so the mock cannot reach production
- * by way of a forgotten variable.
+ * The choice is driven by JENGA_MODE. `sandbox` is currently allowed in
+ * production, because no deployment has Jenga credentials yet; members'
+ * payments are credited from bank statement imports instead. Sandbox payments
+ * are marked `sandbox` on their reconciliation records (see reconciliation.ts).
  */
 
 let cached: PaymentProvider | null = null;

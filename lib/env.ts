@@ -191,19 +191,10 @@ const schema = z
       .enum(["fatal", "error", "warn", "info", "debug", "trace"])
       .default("info"),
   })
-  // A production deployment running the mock payment adapter would silently
-  // invent transactions that never happened. Refuse to start instead.
-  //
-  // Skipped during `next build`: Next forces NODE_ENV=production for every
-  // build, including a development machine's, so enforcing it there would
-  // block builds without saying anything true about the deployment. The check
-  // that matters runs at request time on the live server, where NODE_ENV
-  // genuinely reflects the environment.
-  .refine((e) => isBuildPhase() || !(e.NODE_ENV === "production" && e.JENGA_MODE === "live"), {
-    message:
-      "JENGA_MODE=sandbox is not permitted in production — the sandbox adapter fabricates transactions and must never back real member balances",
-    path: ["JENGA_MODE"],
-  })
+  // JENGA_MODE=sandbox is allowed in production on purpose: no deployment has
+  // Jenga credentials yet, and payments reach the ledger through bank
+  // statement imports instead. Switch a deployment to `live` once it has the
+  // credentials below — the next check refuses `live` without them.
   .refine(
     (e) =>
       e.JENGA_MODE !== "live" ||
