@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+
+import Link from "@/components/SiteLink";
 import { Check, Info, Loader2, Search, Send, UserCheck, UserPlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -35,6 +35,7 @@ import { formatDate } from "@/lib/i18n/dates";
 import type { AssociationPolicy } from "@/lib/services/rulebook";
 import type { MemberCopy } from "@/lib/i18n/dashboard/member";
 import type { ChargeType, InterestMethod, RepaymentFrequency } from "@/lib/generated/prisma/enums";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Loan application form, decided by the rulebook.
@@ -135,7 +136,7 @@ export function LoanApplicationForm({
   outstandingFines: string;
   hasActiveLoan: boolean;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d, locale } = useLanguage();
   const copy = d.member.apply;
   const ruleCopy = d.rules;

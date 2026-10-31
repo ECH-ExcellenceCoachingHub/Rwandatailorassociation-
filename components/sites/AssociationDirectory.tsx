@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { ArrowUpRight, Building2, LogIn, MapPin, Sparkles, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "@/components/brand/BrandMark";

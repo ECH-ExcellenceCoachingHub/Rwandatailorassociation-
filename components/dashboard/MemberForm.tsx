@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+
+import Link from "@/components/SiteLink";
 import { Copy, Loader2, Save, UserPlus } from "lucide-react";
 import { Field } from "@/components/ui/field";
 import { Input, NativeSelect, Textarea } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import {
   canonicalProvince,
   provinceForDistrict,
 } from "@/lib/rwanda";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Member enrolment and editing.
@@ -102,7 +103,7 @@ export function MemberForm({
   /// The rulebook's daily saving — the price of one share, per day.
   sharePrice: string;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const editing = Boolean(member);
 
   const { d } = useLanguage();

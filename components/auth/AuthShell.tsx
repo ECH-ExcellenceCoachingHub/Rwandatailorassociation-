@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { LanguageToggle } from "@/components/ui/language-toggle";
 import { BrandMark } from "@/components/brand/BrandMark";

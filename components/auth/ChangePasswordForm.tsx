@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+
 import { Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,9 +10,10 @@ import { Alert } from "@/components/ui/alert";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { useLanguage } from "@/components/LanguageProvider";
 import { assessPasswordStrength } from "@/lib/auth/password.shared";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 export function ChangePasswordForm() {
-  const router = useRouter();
+  const router = useSiteRouter();
 
   const { d } = useLanguage();
   const copy = d.auth.changePassword;

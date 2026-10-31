@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";
 import { getDashboardCopy } from "@/lib/i18n/server";

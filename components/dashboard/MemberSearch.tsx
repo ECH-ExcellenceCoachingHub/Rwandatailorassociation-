@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
 import { useLanguage } from "@/components/LanguageProvider";
 import { statusLabel } from "@/lib/i18n/dashboard/status";
 import { RWANDA_PROVINCES, provinceLabel } from "@/lib/rwanda";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /// How long typing must pause before the search runs. Short enough to feel
 /// live, long enough that "Uwimana" is one query rather than seven.
@@ -55,7 +56,7 @@ export function MemberSearch({
   showDistrictFilter?: boolean;
   showCardPaidFilter?: boolean;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const params = useSearchParams();
   const { d, locale } = useLanguage();
   const copy = d.views.filters;

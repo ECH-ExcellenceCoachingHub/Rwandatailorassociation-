@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { BrandMark } from "@/components/brand/BrandMark";
 import type { Brand } from "@/lib/brand";
-import { usePathname } from "next/navigation";
+import { useSitePathname } from "@/hooks/use-site-paths";
 import { isNavItemActive, type NavSection } from "@/lib/navigation";
 import { useLanguage } from "@/components/LanguageProvider";
 import { cn } from "@/lib/utils";
@@ -41,7 +41,8 @@ export function SidebarContent({
   badges?: BadgeCounts;
   onNavigate?: () => void;
 }) {
-  const pathname = usePathname();
+  // The page without its site prefix, which is what the menu is written in.
+  const pathname = useSitePathname();
   const { d } = useLanguage();
 
   return (

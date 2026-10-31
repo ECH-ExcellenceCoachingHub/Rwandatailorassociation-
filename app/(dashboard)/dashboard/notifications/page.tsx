@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { Bell } from "lucide-react";
 import { requireAuth } from "@/lib/auth/guards";
 import { getMemberNotifications } from "@/lib/services/member-queries";

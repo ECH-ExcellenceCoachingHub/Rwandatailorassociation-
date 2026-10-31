@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -18,6 +18,7 @@ import { formatDate } from "@/lib/i18n/dates";
 import { API_ACTION, canTake, type MemberActionKind } from "@/lib/member-actions";
 import type { HistoryCount } from "@/lib/member-removal";
 import type { KycStatus, MemberStatus } from "@/lib/generated/prisma/enums";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 export interface ManagedMember extends MemberTarget {
   status: MemberStatus;
@@ -83,7 +84,7 @@ export function MemberManagement({
   history: HistoryCount[];
   isSelf: boolean;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d, locale } = useLanguage();
   const copy = d.admin.manage;
 

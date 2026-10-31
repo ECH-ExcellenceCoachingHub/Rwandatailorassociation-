@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+
+import Link from "@/components/SiteLink";
 import { Loader2, Save } from "lucide-react";
 import { Field } from "@/components/ui/field";
 import { Input, NativeSelect } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import {
   provinceForDistrict,
 } from "@/lib/rwanda";
 import type { OwnProfileForEdit } from "@/lib/services/profile";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * A person editing their own details.
@@ -47,7 +48,7 @@ export function ProfileForm({
   profile: OwnProfileForEdit;
   returnTo: string;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.account.edit;
   const field = d.forms.field;

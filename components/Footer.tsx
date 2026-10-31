@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import Logo from "@/components/Logo";
 import NewsletterForm from "@/components/NewsletterForm";
 import { FOOTER_LINKS, CONTACT_DETAILS, SOCIAL_LINKS } from "@/lib/data";

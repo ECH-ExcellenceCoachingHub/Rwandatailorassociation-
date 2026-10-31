@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+
 import { CheckCircle2, Loader2, Landmark, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, NativeSelect } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
 import { useLanguage } from "@/components/LanguageProvider";
 import { statusLabel } from "@/lib/i18n/dashboard/status";
 import { formatMoney, parseMoneyInput, subtract, toMoneyString } from "@/lib/money";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Recording the association's own borrowing.
@@ -52,7 +53,7 @@ const CHANNELS = [
 
 /** Shared submit plumbing: POST/PATCH JSON, surface field errors, refresh. */
 function useFormSubmit(onDone: () => void) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
 
   const [submitting, setSubmitting] = useState(false);
@@ -522,7 +523,7 @@ export function VisibilityToggle({
   borrowingId: string;
   isPublic: boolean;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.admin.borrowings;
   const [pending, setPending] = useState(false);

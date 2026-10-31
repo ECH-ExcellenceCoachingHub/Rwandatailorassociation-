@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+
 import { CheckCircle2, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -26,6 +26,7 @@ import {
   subtract,
   toMoneyString,
 } from "@/lib/money";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Withdrawal request form.
@@ -57,7 +58,7 @@ export function WithdrawalRequestForm({
   feeValue: string;
   requiresApproval: boolean;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.member.withdrawals;
 

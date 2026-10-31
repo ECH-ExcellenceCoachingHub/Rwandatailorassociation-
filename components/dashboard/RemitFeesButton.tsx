@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+
 import { CheckCircle2, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill } from "@/lib/i18n/fill";
 import { formatMoney } from "@/lib/money";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * RECORDING THAT THE PLATFORM'S FEE HAS BEEN PAID OVER.
@@ -38,7 +39,7 @@ export function RemitFeesButton({
   owed: string;
   currency: string;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.rules.funds;
 

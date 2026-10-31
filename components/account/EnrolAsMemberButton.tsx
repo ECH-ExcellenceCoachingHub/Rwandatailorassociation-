@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { Loader2, PiggyBank } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Opens a savings account for a member of staff, on their own login.
@@ -19,7 +20,7 @@ import { useLanguage } from "@/components/LanguageProvider";
  * panel used to be, which is the clearest possible confirmation that it worked.
  */
 export function EnrolAsMemberButton() {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.account.status;
 

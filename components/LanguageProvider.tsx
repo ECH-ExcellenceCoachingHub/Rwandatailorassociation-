@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+
 import dictionary, { type Dictionary } from "@/lib/i18n/dictionary";
 import dashboardDictionary, {
   type DashboardDictionary,
@@ -20,6 +20,7 @@ import {
   isLocale,
 } from "@/lib/i18n/locale";
 import type { Locale } from "@/types";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 interface LanguageContextValue {
   locale: Locale;
@@ -43,7 +44,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   // is none, so anything else here would have the sidebar and the table beside
   // it disagreeing until the first effect ran.
   const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
-  const router = useRouter();
+  const router = useSiteRouter();
 
   useEffect(() => {
     const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);

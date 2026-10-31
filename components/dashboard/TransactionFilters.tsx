@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Filter bar for transaction listings.
@@ -23,7 +24,7 @@ import { useLanguage } from "@/components/LanguageProvider";
  * previous filter rather than an empty table.
  */
 export function TransactionFilters({ basePath }: { basePath: string }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const params = useSearchParams();
   const { d } = useLanguage();
   const copy = d.views.filters;

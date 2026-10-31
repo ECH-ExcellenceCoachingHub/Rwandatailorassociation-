@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+
 import { CheckCircle2, History, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, NativeSelect } from "@/components/ui/input";
@@ -22,6 +22,7 @@ import type {
   RuleCategory,
   RuleValueType,
 } from "@/lib/generated/prisma/enums";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * AMENDING THE RULEBOOK.
@@ -49,7 +50,7 @@ import type {
 
 /** Shared submit plumbing: send JSON, surface field errors, refresh the page. */
 function useRuleSubmit(onDone: () => void) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
 
   const [submitting, setSubmitting] = useState(false);

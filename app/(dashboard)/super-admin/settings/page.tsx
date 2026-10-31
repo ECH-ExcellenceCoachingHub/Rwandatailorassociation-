@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { Database, Server, ShieldCheck, SlidersHorizontal } from "lucide-react";
 import { requireSuperAdmin } from "@/lib/auth/guards";
 import { getSettings } from "@/lib/services/admin-queries";

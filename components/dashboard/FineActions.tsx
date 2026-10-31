@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { Gavel, HandCoins } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -9,6 +9,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { fill } from "@/lib/i18n/fill";
 import { formatMoney } from "@/lib/money";
 import type { FineKind } from "@/lib/services/fines";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * THE TWO WAYS A FINE ENDS, from the register.
@@ -57,7 +58,7 @@ export function SettleFineAction({
   amount: string;
   currency: string;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.rules.compliance;
 
@@ -103,7 +104,7 @@ export function WaiveFineAction({
   amount: string;
   currency: string;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.rules.compliance;
 

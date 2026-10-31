@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Re-sends a single failed email delivery from the notifications admin
@@ -22,7 +23,7 @@ export function ResendEmailButton({
 }) {
   const { d } = useLanguage();
   const copy = d.admin.notifications;
-  const router = useRouter();
+  const router = useSiteRouter();
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

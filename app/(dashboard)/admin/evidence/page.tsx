@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { requireAdmin } from "@/lib/auth/guards";
 import { resolveAssociationScope } from "@/lib/auth/guards";
 import { prisma } from "@/lib/db/prisma";

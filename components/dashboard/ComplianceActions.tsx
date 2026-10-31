@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+
 import { CheckCircle2, HandCoins, Loader2, PlayCircle, UserMinus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill } from "@/lib/i18n/fill";
 import { formatMoney } from "@/lib/money";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * ACTING ON SOMEBODY'S ARREARS.
@@ -33,7 +34,7 @@ import { formatMoney } from "@/lib/money";
  */
 
 function useAction(onDone?: () => void) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
 
   const [busy, setBusy] = useState(false);

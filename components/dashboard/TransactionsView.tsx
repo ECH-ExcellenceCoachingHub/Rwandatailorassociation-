@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { Receipt } from "lucide-react";
 import { formatMoney } from "@/lib/money";
 import { getDashboardCopy } from "@/lib/i18n/server";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+
 import {
   ArrowDownToLine,
   CheckCircle2,
@@ -31,6 +31,7 @@ import { statusLabel } from "@/lib/i18n/dashboard/status";
 import { fill } from "@/lib/i18n/fill";
 import { formatMoney } from "@/lib/money";
 import { formatQuantity } from "@/lib/quantity";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Every write the warehouse screen performs.
@@ -165,7 +166,7 @@ function WarehouseDialog({
   children: (state: SubmitState) => ReactNode;
   wide?: boolean;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.admin.warehouse;
 
@@ -1168,7 +1169,7 @@ export function SettleIssuanceButton({ issuance }: { issuance: IssuanceSummary }
  * confirmation shell every other reversal on the platform uses.
  */
 export function CancelIssuanceButton({ issuance }: { issuance: IssuanceSummary }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.admin.warehouse;
 
@@ -1351,7 +1352,7 @@ export function RecordCreditPaymentButton({ credit }: { credit: CreditSummary })
 
 /** Forgiving the 7% for a missed month. Reason mandatory — see lib/audit.ts. */
 export function WaiveCreditFineButton({ fine }: { fine: CreditFineSummary }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.admin.warehouse;
 
@@ -1398,7 +1399,7 @@ export function WaiveCreditFineButton({ fine }: { fine: CreditFineSummary }) {
 
 /** Giving up on a credit. The goods stay with the member; the loss is borne. */
 export function WriteOffCreditButton({ credit }: { credit: CreditSummary }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.admin.warehouse;
 

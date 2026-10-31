@@ -1,5 +1,5 @@
 import type { ComponentType, CSSProperties, ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import {
   ArrowRight,
   CalendarCheck,

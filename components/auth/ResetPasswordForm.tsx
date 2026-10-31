@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import Link from "@/components/SiteLink";
 import { CheckCircle2, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,9 +11,10 @@ import { Alert } from "@/components/ui/alert";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { useLanguage } from "@/components/LanguageProvider";
 import { assessPasswordStrength } from "@/lib/auth/password.shared";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 export default function ResetPasswordForm() {
-  const router = useRouter();
+  const router = useSiteRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") ?? "";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+
 import { HandCoins, PiggyBank, Undo2, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, NativeSelect } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill } from "@/lib/i18n/fill";
 import { add, formatMoney, subtract } from "@/lib/money";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 export interface CorrectableLoan {
   id: string;
@@ -129,7 +130,7 @@ async function submit(url: string, body: unknown, fallback: string) {
 }
 
 function useCorrection() {
-  const router = useRouter();
+  const router = useSiteRouter();
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);

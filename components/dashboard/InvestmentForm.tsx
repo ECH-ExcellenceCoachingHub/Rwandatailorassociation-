@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+
 import { CheckCircle2, Loader2, Pencil, Sprout } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, NativeSelect } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import {
 import { PublishToggle } from "@/components/dashboard/BorrowingForm";
 import { useLanguage } from "@/components/LanguageProvider";
 import { statusLabel } from "@/lib/i18n/dashboard/status";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Recording what the association's money did.
@@ -95,7 +96,7 @@ function InvestmentDialog({
   defaults?: InvestmentDefaults;
   facilities: FacilityOption[];
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.admin.investments;
 

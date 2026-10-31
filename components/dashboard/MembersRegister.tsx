@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import Link from "@/components/SiteLink";
+
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Eye, FileText, Link2, MoreHorizontal, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ import {
 } from "@/lib/member-actions";
 import { cn } from "@/lib/utils";
 import type { KycStatus, MemberStatus, UserStatus } from "@/lib/generated/prisma/enums";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 export interface RegisterMember {
   id: string;
@@ -105,7 +106,7 @@ export function MembersRegister({
   viewerId: string;
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d, locale } = useLanguage();
   const copy = d.admin.members;
   const bulk = d.admin.memberBulk;

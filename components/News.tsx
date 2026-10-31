@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import FadeIn from "@/components/FadeIn";
 import NewsGrid from "@/components/NewsGrid";
 import { NEWS } from "@/lib/data";

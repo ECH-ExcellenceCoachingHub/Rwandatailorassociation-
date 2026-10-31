@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill } from "@/lib/i18n/fill";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Accept or decline a request to guarantee another member's loan.
@@ -31,7 +32,7 @@ export function GuaranteeResponse({
   /// Already formatted with its currency.
   amount: string;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.account.status;
 

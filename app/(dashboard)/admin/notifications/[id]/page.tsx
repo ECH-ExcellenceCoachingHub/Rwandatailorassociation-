@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { notFound } from "next/navigation";
 import { Eye, EyeOff, Mail, MessageSquare, Smartphone } from "lucide-react";
 import { requirePermission, resolveAssociationScope } from "@/lib/auth/guards";

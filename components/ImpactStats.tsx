@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import FadeIn from "@/components/FadeIn";
 import { STATS } from "@/lib/data";
 import { useLanguage } from "@/components/LanguageProvider";

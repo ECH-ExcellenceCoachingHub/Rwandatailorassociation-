@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { fill } from "@/lib/i18n/fill";
 import type { InstallableApp } from "@/lib/pwa/apps";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { useEffect, useRef, useState } from "react";
 import {
   Bell,

@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { Camera, Loader2, Trash2, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/LanguageProvider";
 import { toCircularPng } from "@/lib/images/prepare";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * The photograph that goes on the front of the membership card.
@@ -22,7 +23,7 @@ import { toCircularPng } from "@/lib/images/prepare";
  */
 
 export function CardPhotoUpload({ hasPhoto }: { hasPhoto: boolean }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.account.card;
 

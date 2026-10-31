@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import Link from "@/components/SiteLink";
 import { Eye, EyeOff, Loader2, Lock, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Field } from "@/components/ui/field";
 import { Alert } from "@/components/ui/alert";
 import { useLanguage } from "@/components/LanguageProvider";
 import { safeRedirectPath } from "@/lib/safe-redirect";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 interface LoginResponse {
   role: "MEMBER" | "ADMIN" | "SUPER_ADMIN";
@@ -34,7 +35,7 @@ export default function LoginForm({
   presetPhone,
   qrToken,
 }: { presetPhone?: string; qrToken?: string } = {}) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const searchParams = useSearchParams();
 
   const { d } = useLanguage();

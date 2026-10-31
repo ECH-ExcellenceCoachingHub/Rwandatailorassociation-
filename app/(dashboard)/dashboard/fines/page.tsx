@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { CheckCircle2, Gavel, Scale, Warehouse } from "lucide-react";
 import { requireMember } from "@/lib/auth/guards";
 import { fineSum, listMemberFines, type FineRow } from "@/lib/services/fines";

@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import Link from "@/components/SiteLink";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   Bell,
@@ -22,6 +21,8 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { BREADCRUMB_LABELS, visibleNavigation } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import type { UserRole } from "@/lib/generated/prisma/enums";
+import { useSitePathname, useSiteRouter } from "@/hooks/use-site-paths";
+import { sitePrefixOf, withSitePrefix } from "@/lib/site-paths";
 
 /**
  * Dashboard chrome: fixed sidebar on desktop, slide-over on mobile, plus the
@@ -64,7 +65,7 @@ export function DashboardShell({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { d } = useLanguage();
-  const pathname = usePathname();
+  const pathname = useSitePathname();
 
   // `memberNumber` is the shell's existing proxy for "this person has a member
   // record of their own" — it is already sent for exactly those accounts, and
@@ -108,7 +109,10 @@ export function DashboardShell({
       if (response?.status === 401) {
         const here = window.location.pathname + window.location.search;
         window.location.assign(
-          `/login?next=${encodeURIComponent(here)}&expired=1`
+          withSitePrefix(
+            `/login?next=${encodeURIComponent(here)}&expired=1`,
+            sitePrefixOf(window.location.pathname)
+          )
         );
       }
     }
@@ -193,7 +197,7 @@ function TopBar({
   onOpenMenu: () => void;
   unreadNotifications: number;
 }) {
-  const pathname = usePathname();
+  const pathname = useSitePathname();
   const crumbs = buildBreadcrumbs(pathname);
   const notificationsHref = notificationsHrefFor(user.role);
   const { d } = useLanguage();
@@ -269,7 +273,7 @@ function TopBar({
 }
 
 function UserMenu({ user }: { user: ShellUser }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const [signingOut, setSigningOut] = useState(false);
 

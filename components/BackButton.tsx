@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { ArrowLeft } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 

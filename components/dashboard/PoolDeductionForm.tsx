@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+
 import { CheckCircle2, HandCoins, Loader2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input, Textarea, NativeSelect } from "@/components/ui/input";
@@ -27,6 +27,7 @@ import { useLanguage } from "@/components/LanguageProvider";
 import { fill } from "@/lib/i18n/fill";
 import { formatMoney } from "@/lib/money";
 import type { PoolDeductionPlan } from "@/lib/services/pool-deductions";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Taking money out of the members' pool.
@@ -55,7 +56,7 @@ export function NewPoolDeductionButton({
   members: BeneficiaryOption[];
   currency: string;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.admin.poolDeductions;
 

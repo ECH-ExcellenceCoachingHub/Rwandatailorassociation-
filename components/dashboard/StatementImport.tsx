@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import {
   AlertTriangle,
   CheckCircle2,
@@ -29,6 +29,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Bank statement import.
@@ -106,7 +107,7 @@ interface Preview {
 }
 
 export function StatementImport({ canImport }: { canImport: boolean }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d, locale } = useLanguage();
   const copy = d.admin.import;
   const fileInput = useRef<HTMLInputElement>(null);

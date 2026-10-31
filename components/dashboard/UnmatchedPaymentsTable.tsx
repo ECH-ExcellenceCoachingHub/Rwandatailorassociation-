@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { AlertTriangle, Link2, ShieldAlert, Trash2, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
@@ -22,6 +22,7 @@ import { formatMoney } from "@/lib/money";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill, pluralize } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Unmatched payment queue with manual reconciliation.
@@ -94,7 +95,7 @@ export function UnmatchedPaymentsTable({
   total: number;
   totalPages: number;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d, locale } = useLanguage();
   const copy = d.admin.payments;
   const [active, setActive] = useState<UnmatchedPayment | null>(null);

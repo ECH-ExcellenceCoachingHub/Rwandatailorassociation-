@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { MapPin } from "lucide-react";
 import FadeIn from "@/components/FadeIn";
 import { EVENTS } from "@/lib/data";

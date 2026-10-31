@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import {
   Download,
   Loader2,
@@ -17,6 +17,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill, pluralize } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * The sign-in QR code, its controls, and the card that gets printed.
@@ -61,7 +62,7 @@ export function QrCodeCard({
   holderReference,
   associationName,
 }: QrCodeCardProps) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d, locale } = useLanguage();
   const copy = d.account.qr;
 

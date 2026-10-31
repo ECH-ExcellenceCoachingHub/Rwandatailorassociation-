@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { ArrowRight, Globe, Mail, MapPin, Phone } from "lucide-react";
 import { findSite, requireSite } from "@/lib/sites";
 import { getPolicy } from "@/lib/services/rulebook";

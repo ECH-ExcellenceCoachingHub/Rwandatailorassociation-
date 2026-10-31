@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { AlertTriangle, BarChart3, Trophy } from "lucide-react";
 import { formatMoney, isPositive, subtract } from "@/lib/money";
 import { StatusBadge } from "@/components/ui/status-badge";

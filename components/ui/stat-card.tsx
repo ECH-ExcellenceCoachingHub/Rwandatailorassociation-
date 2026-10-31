@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { TrendIndicator } from "@/components/ui/trend-indicator";
 import { cn } from "@/lib/utils";
 

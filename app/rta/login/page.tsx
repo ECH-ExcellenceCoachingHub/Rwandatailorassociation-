@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { Suspense } from "react";
 import LoginForm from "@/components/auth/LoginForm";
 import { AuthShell } from "@/components/auth/AuthShell";

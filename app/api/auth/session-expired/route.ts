@@ -4,6 +4,7 @@ import { getAuthContext } from "@/lib/auth/session";
 import { SESSION_COOKIE_NAME } from "@/lib/auth/jwt";
 import { ROLE_LANDING } from "@/lib/auth/permissions";
 import { safeRedirectPath } from "@/lib/safe-redirect";
+import { sitePrefixOf } from "@/lib/site-paths";
 import { withErrorHandling } from "@/lib/api/response";
 
 /**
@@ -38,8 +39,10 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
     params.set("expired", "1");
   }
 
+  // Back to the sign-in of the site they were on: /rta/admin → /rta/login.
+  const login = `${sitePrefixOf(next ?? "")}/login`;
   const query = params.toString();
-  const response = relativeRedirect(query ? `/login?${query}` : "/login");
+  const response = relativeRedirect(query ? `${login}?${query}` : login);
   response.cookies.delete(SESSION_COOKIE_NAME);
   return response;
 });

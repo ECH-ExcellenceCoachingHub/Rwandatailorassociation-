@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { Suspense } from "react";
 import { ArrowLeft } from "lucide-react";
 import ResetPasswordForm from "@/components/auth/ResetPasswordForm";

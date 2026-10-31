@@ -1,11 +1,12 @@
 "use client";
 
 import { startTransition, useEffect } from "react";
-import { useRouter } from "next/navigation";
+
 import { RotateCw, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/empty-state";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * What a page shows when rendering it threw.
@@ -27,7 +28,7 @@ export function RouteError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import {
   ArrowRight,
   BookOpenCheck,

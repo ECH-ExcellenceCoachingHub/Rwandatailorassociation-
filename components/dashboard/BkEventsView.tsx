@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+
 import { CheckCircle2, Clock, History, Loader2, RefreshCw, Send, XCircle } from "lucide-react";
 import type { AdminCopy } from "@/lib/i18n/dashboard/admin";
 import type { Locale } from "@/types";
@@ -23,6 +23,7 @@ import {
   TableCell,
   TableEmpty,
 } from "@/components/ui/table";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Bank of Kigali event console.
@@ -120,7 +121,7 @@ export function BkEventsView({
   canClaim: boolean;
   canSync: boolean;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const [pending, startTransition] = useTransition();
 
   const [payerCode, setPayerCode] = useState("");

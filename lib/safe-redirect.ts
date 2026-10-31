@@ -10,6 +10,8 @@
  * Client-safe: used by the login form and by server-side redirect handling.
  */
 
+import { sitePrefixOf } from "@/lib/site-paths";
+
 /** Paths a signed-in user should never be bounced back to. */
 const BLOCKED_PREFIXES = ["/login", "/register", "/forgot-password", "/reset-password", "/api/"];
 
@@ -41,7 +43,9 @@ export function safeRedirectPath(
   if (decoded.startsWith("//") || decoded.startsWith("/\\")) return null;
   if (decoded.includes("\n") || decoded.includes("\r")) return null;
 
-  const path = value.split("?")[0].split("#")[0];
+  // Judged without a site prefix, so /rta/login is refused like /login.
+  const full = value.split("?")[0].split("#")[0];
+  const path = full.slice(sitePrefixOf(full).length) || "/";
   if (BLOCKED_PREFIXES.some((prefix) => path.startsWith(prefix))) return null;
 
   return value;

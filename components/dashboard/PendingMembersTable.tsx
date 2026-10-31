@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
@@ -19,6 +19,7 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 interface PendingMember {
   id: string;
@@ -53,7 +54,7 @@ export function PendingMembersTable({
   total: number;
   totalPages: number;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d, locale } = useLanguage();
   const copy = d.views.pendingMembers;
 

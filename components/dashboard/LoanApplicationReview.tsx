@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import {
   AlertTriangle,
   Banknote,
@@ -20,6 +20,7 @@ import { formatMoney, gt } from "@/lib/money";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill, pluralize } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 interface Application {
   id: string;
@@ -101,7 +102,7 @@ export function LoanApplicationReview({
   canReject: boolean;
   canDisburse: boolean;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d, locale } = useLanguage();
   const copy = d.admin.applications;
 

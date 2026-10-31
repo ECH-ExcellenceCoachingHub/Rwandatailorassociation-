@@ -57,13 +57,14 @@ const RESERVED = JSON.stringify([...RESERVED_ASSOCIATION_CODES]);
  *  the <body> once the request resolves. Chrome looks for the manifest in the
  *  <head>, and it looks while the page loads, long before that div is filled:
  *  such a page never fetches the manifest, never fires beforeinstallprompt,
- *  and the install button on /install never arms. Static pages already have
- *  the link in their head, so the guard leaves those untouched. */
+ *  and the install button on /install never arms. A link already in the head
+ *  is kept but pointed at this page's app: /rta/dashboard is drawn by the
+ *  shared dashboard, whose static parts would otherwise name SSPSG's. */
 export const EARLY_INSTALL_SCRIPT =
   "(function(){function s(f){try{f()}catch(e){}}" +
   "var g=location.pathname.split('/')[1]||'',a=/^[a-z]{2,8}$/i.test(g)&&" + RESERVED + ".indexOf(g.toUpperCase())<0?g.toLowerCase():'';" +
   "var b=a?'/'+a:'',k='" + appInstalledKey(null) + "'+(a?':'+a:'');" +
-  "if(!document.querySelector('link[rel=\"manifest\"]')){var m=document.createElement('link');m.rel='manifest';m.href=b+'/manifest.webmanifest';document.head.appendChild(m);}" +
+  "var h=b+'/manifest.webmanifest',m=document.querySelector('link[rel=\"manifest\"]');if(!m){m=document.createElement('link');m.rel='manifest';document.head.appendChild(m);}if(m.getAttribute('href')!==h)m.setAttribute('href',h);" +
   "window.addEventListener('beforeinstallprompt',function(e){if(location.pathname.toLowerCase().indexOf(b+'/install')!==0)e.preventDefault();window.__installPrompt=e;s(function(){localStorage.removeItem(k)});});" +
   "window.addEventListener('appinstalled',function(){window.__installPrompt=null;s(function(){localStorage.setItem(k,'1')});});" +
   "if(matchMedia('(display-mode: standalone)').matches||navigator.standalone)s(function(){localStorage.setItem(k,'1')});})();" +

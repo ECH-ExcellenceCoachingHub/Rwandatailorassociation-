@@ -1,17 +1,18 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
+
 import { Loader2, StickyNote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert } from "@/components/ui/alert";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /** Adds an internal note to a member's file. */
 export function MemberNoteForm({ memberId }: { memberId: string }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.admin.manage;
 

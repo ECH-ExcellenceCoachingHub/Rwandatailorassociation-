@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { Clock, LogOut } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getAuthContext } from "@/lib/auth/session";

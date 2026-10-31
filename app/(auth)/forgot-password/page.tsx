@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { ArrowLeft } from "lucide-react";
 import ForgotPasswordForm from "@/components/auth/ForgotPasswordForm";
 import { getDashboardCopy } from "@/lib/i18n/server";

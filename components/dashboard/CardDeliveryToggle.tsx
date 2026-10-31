@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { CheckCircle2, CircleDollarSign, Loader2 } from "lucide-react";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
 import { cn } from "@/lib/utils";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Whether a member has received their printed card, with a button to change
@@ -23,7 +24,7 @@ export function CardDeliveryToggle({
   deliveredAt: Date | string | null;
   canEdit: boolean;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d, locale } = useLanguage();
   const copy = d.admin.memberCards;
   const [current, setCurrent] = useState<Date | string | null>(deliveredAt);

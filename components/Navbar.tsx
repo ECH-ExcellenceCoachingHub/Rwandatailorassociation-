@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { AnimatePresence, motion } from "framer-motion";
 import { Menu, X, ChevronDown, Globe, Check, LogIn } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";

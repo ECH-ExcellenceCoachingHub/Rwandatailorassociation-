@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { ArrowRight, CircleCheck, Landmark, Languages, LogIn, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PLATFORM_BRAND, PLATFORM_FULL_NAME } from "@/lib/brand";

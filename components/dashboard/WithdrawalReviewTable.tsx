@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { AlertTriangle, Banknote, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
@@ -22,6 +22,7 @@ import { formatMoney, gt } from "@/lib/money";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill } from "@/lib/i18n/fill";
 import { formatDate } from "@/lib/i18n/dates";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 interface Withdrawal {
   id: string;
@@ -58,7 +59,7 @@ export function WithdrawalReviewTable({
   canApprove: boolean;
   canPayout: boolean;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d, locale } = useLanguage();
   const copy = d.admin.withdrawals;
   const [approving, setApproving] = useState<Withdrawal | null>(null);

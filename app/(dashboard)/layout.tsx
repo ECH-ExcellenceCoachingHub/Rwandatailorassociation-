@@ -6,6 +6,8 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { getSidebarBadges, getUnreadNotificationCount } from "@/lib/services/dashboard-badges";
 import type { Metadata } from "next";
 import { PLATFORM_BRAND, associationBrand, type Brand } from "@/lib/brand";
+import { sitePrefixOf, withSitePrefix } from "@/lib/site-paths";
+import { appManifestHref, appSlugFromPath } from "@/lib/pwa/apps";
 
 /**
  * Whose dashboard this is: the signed-in user's association, or the platform
@@ -19,7 +21,12 @@ async function dashboardBrand(): Promise<Brand> {
 
 export async function generateMetadata(): Promise<Metadata> {
   const brand = await dashboardBrand();
-  return { title: { template: `%s | ${brand.titleSuffix}`, default: brand.titleSuffix } };
+  // /rta/dashboard installs RTA's app, /dashboard the platform's.
+  const slug = appSlugFromPath((await headers()).get("x-pathname") ?? "");
+  return {
+    title: { template: `%s | ${brand.titleSuffix}`, default: brand.titleSuffix },
+    manifest: appManifestHref(slug),
+  };
 }
 
 /**
@@ -49,7 +56,9 @@ export default async function DashboardLayout({
   // account to show. Send them somewhere that explains that, rather than
   // rendering a dashboard full of zeroes.
   if (context.user.role === "MEMBER" && context.member?.status === "PENDING_APPROVAL") {
-    redirect("/pending-approval");
+    // Under the same site prefix as the page they asked for (lib/site-paths.ts).
+    const here = (await headers()).get("x-pathname") ?? "";
+    redirect(withSitePrefix("/pending-approval", sitePrefixOf(here)));
   }
 
   const [badges, unreadNotifications] = await Promise.all([

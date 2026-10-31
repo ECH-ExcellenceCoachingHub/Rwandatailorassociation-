@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Pagination } from "@/components/ui/pagination";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Pagination that preserves the current filters.
@@ -21,7 +22,7 @@ export function PaginationLinks({
   total: number;
   totalPages: number;
 }) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const params = useSearchParams();
 
   return (

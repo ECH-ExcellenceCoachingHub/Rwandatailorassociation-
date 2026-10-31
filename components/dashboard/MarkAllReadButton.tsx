@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { CheckCheck, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLanguage } from "@/components/LanguageProvider";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 export function MarkAllReadButton() {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const [working, setWorking] = useState(false);
 

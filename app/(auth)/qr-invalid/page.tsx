@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { QrCode } from "lucide-react";
 import { getDashboardCopy } from "@/lib/i18n/server";
 import { Alert } from "@/components/ui/alert";

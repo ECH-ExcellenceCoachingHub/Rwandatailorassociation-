@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+
+import Link from "@/components/SiteLink";
 import { Building2, Copy, Loader2 } from "lucide-react";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { useLanguage } from "@/components/LanguageProvider";
 import { fill } from "@/lib/i18n/fill";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 /**
  * Super-admin onboarding: a new association and its first administrator.
@@ -35,7 +36,7 @@ interface CreatedAssociation {
 }
 
 export function AssociationForm() {
-  const router = useRouter();
+  const router = useSiteRouter();
   const { d } = useLanguage();
   const copy = d.platform.newAssociation;
 

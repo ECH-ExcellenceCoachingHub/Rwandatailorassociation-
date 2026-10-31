@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE_NAME, verifySessionToken } from "@/lib/auth/jwt";
 import { ROLE_HOME, ROLE_LANDING } from "@/lib/auth/permissions";
 import { relativeRedirect } from "@/lib/relative-redirect";
+import { isSitePath, sitePrefixOf, splitSitePath } from "@/lib/site-paths";
 
 /**
  * Edge middleware: routing and coarse role separation.
@@ -51,14 +52,38 @@ const AUTH_ROUTES = ["/login", "/forgot-password", "/reset-password", "/in/", "/
 /** Each association's own sign-in: /rta/login, /abc/login. */
 const SITE_LOGIN = /^\/[a-z]{2,8}\/login$/i;
 
+/**
+ * A deployment dedicated to one association (SITE_ASSOCIATION=RTA) keeps
+ * every page under that association's address: "/" already opens /rta, and
+ * any bare page that has a copy under the prefix — /login, /dashboard,
+ * /admin/members, /forgot-password — is sent there, query and all. Unset on
+ * the shared SSPSG deployment, where the bare addresses stay the platform's.
+ */
+function dedicatedSite(): string | null {
+  const code = process.env.SITE_ASSOCIATION?.trim() ?? "";
+  return /^[a-z]{2,8}$/i.test(code) ? `/${code.toLowerCase()}` : null;
+}
+
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
+
+  const site = dedicatedSite();
+  if (site && isSitePath(pathname)) {
+    return relativeRedirect(`${site}${pathname}${search}`);
+  }
+
+  // /rta/dashboard is the shared /dashboard, seen from RTA's site (see
+  // lib/site-paths.ts). Every check below is about the page being served, so
+  // it reads `inner`; every redirect stays under the prefix.
+  const split = splitSitePath(pathname);
+  const inner = split?.inner ?? pathname;
+  const prefix = split?.prefix ?? sitePrefixOf(pathname);
 
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   const claims = await verifySessionToken(token);
 
   const protectedRoute = PROTECTED_PREFIXES.find(
-    (entry) => pathname === entry.prefix || pathname.startsWith(`${entry.prefix}/`)
+    (entry) => inner === entry.prefix || inner.startsWith(`${entry.prefix}/`)
   );
 
   if (protectedRoute) {
@@ -66,32 +91,37 @@ export async function middleware(request: NextRequest) {
       // Preserve the destination so login can return them to it. Only the
       // path and query are carried over — never an absolute URL, which would
       // turn this into an open redirect.
-      const params = new URLSearchParams({ next: pathname + request.nextUrl.search });
-      return relativeRedirect(`/login?${params}`);
+      const params = new URLSearchParams({ next: pathname + search });
+      return relativeRedirect(`${prefix}/login?${params}`);
     }
 
     if (!protectedRoute.roles.includes(claims.role)) {
       // Wrong area for this role — send them to their own dashboard rather
       // than to a dead end.
-      return relativeRedirect(ROLE_HOME[claims.role]);
+      return relativeRedirect(prefix + ROLE_HOME[claims.role]);
     }
   }
 
   if (
     claims &&
-    (AUTH_ROUTES.some((route) => pathname.startsWith(route)) || SITE_LOGIN.test(pathname))
+    (AUTH_ROUTES.some((route) => inner.startsWith(route)) || SITE_LOGIN.test(pathname))
   ) {
     // Already signed in, so treat it as arriving: the same place login sends them.
-    return relativeRedirect(ROLE_LANDING[claims.role]);
+    return relativeRedirect(prefix + ROLE_LANDING[claims.role]);
   }
 
   // Server components cannot see the request URL, and the dashboard layout
   // needs it to return someone to this page after they sign in again. Always
-  // overwritten, so a client-supplied header never reaches the layout.
+  // overwritten, so a client-supplied header never reaches the layout. It is
+  // the address in the browser, prefix included, not the page serving it.
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-pathname", pathname + request.nextUrl.search);
+  requestHeaders.set("x-pathname", pathname + search);
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  const response = split
+    ? NextResponse.rewrite(new URL(inner + search, request.url), {
+        request: { headers: requestHeaders },
+      })
+    : NextResponse.next({ request: { headers: requestHeaders } });
 
   // Security headers. CSP is intentionally omitted here: Next.js inlines
   // hydration scripts, so a useful policy needs per-request nonces wired

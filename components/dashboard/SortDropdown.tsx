@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { ArrowUpDown } from "lucide-react";
 import {
@@ -10,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useSiteRouter } from "@/hooks/use-site-paths";
 
 interface SortDropdownProps {
   basePath: string;
@@ -28,7 +28,7 @@ export function SortDropdown({
   label,
   params,
 }: SortDropdownProps) {
-  const router = useRouter();
+  const router = useSiteRouter();
   const [pending, startTransition] = useTransition();
 
   function handleChange(value: string) {

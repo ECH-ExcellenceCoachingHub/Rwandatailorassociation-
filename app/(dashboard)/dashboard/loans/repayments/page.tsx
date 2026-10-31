@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import Link from "@/components/SiteLink";
 import { AlertTriangle, Banknote, CalendarClock, HandCoins } from "lucide-react";
 import { requireMember } from "@/lib/auth/guards";
 import { getMemberRepayments } from "@/lib/services/member-queries";
